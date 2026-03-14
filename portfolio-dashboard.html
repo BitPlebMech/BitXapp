@@ -29,7 +29,6 @@ body::after{content:'';position:fixed;inset:0;
 @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
-@keyframes shimmer{0%{opacity:.4}50%{opacity:.9}100%{opacity:.4}}
 
 /* ── HEADER ── */
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;
@@ -45,18 +44,21 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
 /* Currency selector */
-.curr-wrap{display:flex;align-items:center;gap:6px;background:var(--surf);border:.5px solid var(--b2);
-  border-radius:8px;padding:3px 4px 3px 10px;position:relative}
+.curr-wrap{display:flex;align-items:center;gap:7px;background:var(--surf);border:.5px solid var(--b2);
+  border-radius:8px;padding:3px 8px 3px 10px}
 .curr-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
 .curr-sel{background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;
-  font-size:12px;font-weight:500;padding:5px 22px 5px 4px;cursor:pointer;outline:none;
+  font-size:12px;font-weight:500;padding:5px 18px 5px 4px;cursor:pointer;outline:none;
   -webkit-appearance:none;appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23526080' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 4px center}
+  background-repeat:no-repeat;background-position:right 2px center}
 .curr-sel option{background:#111827}
-/* FX status dot inside selector wrap */
-.fx-dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;animation:pulse 2s ease infinite}
-.fx-dot.ok{background:var(--green);animation:none}.fx-dot.err{background:var(--red);animation:none}
+.fx-status{display:flex;align-items:center;gap:4px;font-size:10px;font-family:'DM Mono',monospace;
+  padding:3px 8px;border-radius:5px;white-space:nowrap}
+.fx-status.ok{color:var(--green);background:var(--gbg);border:.5px solid rgba(5,217,138,.2)}
+.fx-status.ld{color:var(--amber);background:rgba(255,176,32,.07);border:.5px solid rgba(255,176,32,.2)}
+.fx-status.err{color:var(--red);background:var(--rbg);border:.5px solid rgba(255,64,96,.2)}
+.fx-status svg{width:10px;height:10px}
 
 .ts-pill{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);background:var(--surf);
   border:.5px solid var(--b1);border-radius:6px;padding:6px 11px;white-space:nowrap}
@@ -90,12 +92,11 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .panel,.rpanel{background:var(--surf);border:.5px solid var(--b1);border-radius:13px;overflow:hidden;
   opacity:0;animation:up .45s ease forwards}
 .panel{animation-delay:.26s}.rpanel{animation-delay:.30s}
-.ph{padding:13px 18px;border-bottom:.5px solid var(--b1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.ph{padding:13px 18px;border-bottom:.5px solid var(--b1);display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:6px}
 .pt{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.pbadge{font-size:10px;color:var(--dim);background:var(--surf2);border:.5px solid var(--b1);border-radius:5px;padding:2px 8px;font-family:'DM Mono',monospace}
-.fx-note{font-size:10px;font-family:'DM Mono',monospace;padding:2px 8px;border-radius:5px;border:.5px solid;white-space:nowrap}
-.fx-note.hist{color:var(--green);border-color:rgba(5,217,138,.3);background:var(--gbg)}
-.fx-note.approx{color:var(--amber);border-color:rgba(255,176,32,.3);background:rgba(255,176,32,.07)}
+.pbadge{font-size:10px;color:var(--dim);background:var(--surf2);border:.5px solid var(--b1);
+  border-radius:5px;padding:2px 8px;font-family:'DM Mono',monospace}
 
 /* ── TABLE ── */
 .tw{overflow-x:auto}
@@ -120,7 +121,8 @@ tbody tr:hover .tc-hint{opacity:1}
 .cb-stock{background:rgba(74,143,255,.12);color:#4a8fff}
 .cb-etf{background:rgba(155,109,255,.12);color:#9b6dff}
 .cb-crypto{background:rgba(247,147,26,.12);color:#f7931a}
-.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace}
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;
+  padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace}
 .pg{background:var(--gbg);color:var(--green)}.pr{background:var(--rbg);color:var(--red)}
 tfoot td{font-family:'DM Mono',monospace;font-size:12.5px;padding:11px 13px;text-align:right;
   background:var(--surf2);border-top:.5px solid var(--b2);color:var(--text);font-weight:500}
@@ -150,12 +152,14 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   padding:8px 14px;background:var(--surf);border:.5px solid var(--b1);border-radius:8px;
   font-size:11px;color:var(--muted);opacity:0;animation:up .45s .36s ease forwards;flex-wrap:wrap;gap:8px}
 
-/* ── FX INFO BANNER ── */
-.fx-banner{margin-top:10px;padding:9px 14px;background:rgba(255,176,32,.07);border:.5px solid rgba(255,176,32,.2);
-  border-radius:8px;font-size:11px;color:var(--amber);font-family:'DM Mono',monospace;
-  display:none;align-items:center;gap:8px}
-.fx-banner.show{display:flex}
-.fx-banner svg{flex-shrink:0}
+/* ── FX RATES INFO ROW ── */
+.fx-rates-row{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;opacity:0;
+  animation:up .45s .40s ease forwards}
+.fx-rate-chip{background:var(--surf);border:.5px solid var(--b1);border-radius:7px;
+  padding:6px 12px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);
+  display:flex;align-items:center;gap:6px}
+.fx-rate-chip strong{color:var(--text)}
+.fx-rate-chip .fx-src{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
 
 /* ── DRAWER ── */
 .overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
@@ -175,8 +179,9 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   font-size:15px;font-weight:800;font-family:'DM Mono',monospace;flex-shrink:0}
 .dname{font-size:22px;font-weight:900;letter-spacing:-.03em}
 .dfull{font-size:12px;color:var(--muted);margin-top:2px}
-.d-cagr-pill{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:12px;
-  font-weight:500;background:var(--surf2);border:.5px solid var(--b1);border-radius:6px;padding:4px 10px;margin-top:6px}
+.d-cagr-pill{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;
+  font-size:12px;font-weight:500;background:var(--surf2);border:.5px solid var(--b1);
+  border-radius:6px;padding:4px 10px;margin-top:6px}
 .d-cagr-pill span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .dclose{width:32px;height:32px;border-radius:8px;background:var(--surf2);border:.5px solid var(--b1);
   color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -216,7 +221,8 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
 .ltbl tbody td:first-child{text-align:left;color:var(--muted)}
 .ltbl tbody tr:last-child td{border-bottom:none}
 .ltbl tbody tr:hover td{background:var(--surf3)}
-.lnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:500}
+.lnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:50%;font-size:10px;font-weight:500}
 
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -246,7 +252,10 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
         <option value="USD">$ USD</option>
         <option value="INR">₹ INR</option>
       </select>
-      <span class="fx-dot" id="fxDot" title="FX history status"></span>
+    </div>
+    <div class="fx-status ld" id="fxStatus">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Loading FX…
     </div>
     <div class="ts-pill" id="ts">—</div>
     <div class="ts-pill" id="nxt" style="color:var(--dim)">Next in 60s</div>
@@ -259,12 +268,7 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   </div>
 </header>
 
-<!-- FX accuracy banner -->
-<div class="fx-banner" id="fxBanner">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-  <span id="fxBannerText">FX history unavailable — using today's rate for all dates (returns may be approximate)</span>
-</div>
-
+<!-- KPI Cards -->
 <div class="kpis">
   <div class="kpi">
     <div class="kpi-bar" style="background:linear-gradient(90deg,var(--blue),var(--purple))"></div>
@@ -279,7 +283,7 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   <div class="kpi">
     <div class="kpi-bar" style="background:linear-gradient(90deg,var(--amber),var(--orange))"></div>
     <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
-    <div class="kpi-lbl">Portfolio CAGR</div><div class="kpi-val" id="kCAGR">—</div><div class="kpi-sub" id="kCAGRsub">annualised return</div>
+    <div class="kpi-lbl">Portfolio CAGR</div><div class="kpi-val" id="kCAGR">—</div><div class="kpi-sub" id="kCAGRsub">annualised</div>
   </div>
   <div class="kpi">
     <div class="kpi-bar" style="background:linear-gradient(90deg,var(--purple),var(--blue))"></div>
@@ -293,22 +297,18 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   </div>
 </div>
 
+<!-- Main layout -->
 <div class="layout">
   <div class="panel">
     <div class="ph">
-      <div class="pt">Holdings</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="fx-note hist" id="fxNoteTable" style="display:none">Historical FX rates applied</span>
-        <span class="fx-note approx" id="fxNoteApprox" style="display:none">Approximate: using today's FX</span>
-        <span class="pbadge" id="pbadge">Click a row for detail</span>
-      </div>
+      <div class="pt">Holdings · <span id="phCurr" style="color:var(--blue)">EUR</span></div>
+      <div class="pbadge" id="pbadge">Click a row for detail</div>
     </div>
     <div class="tw">
       <table>
         <thead><tr>
           <th>Ticker</th><th>Class</th><th>Units</th>
-          <th>Avg Cost (<span id="thCurr1">EUR</span>)</th>
-          <th>Current (<span id="thCurr2">EUR</span>)</th>
+          <th>Avg Cost</th><th>Current Price</th>
           <th>Value</th><th>Gain</th><th>Gain %</th><th>CAGR</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
@@ -337,12 +337,30 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
   </div>
 </div>
 
+<!-- FX rates chips -->
+<div class="fx-rates-row" id="fxRatesRow">
+  <div class="fx-rate-chip">
+    <span class="fx-src">ECB via frankfurter.app</span>
+    <strong id="fxChipUSD">1 EUR = … USD</strong>
+  </div>
+  <div class="fx-rate-chip">
+    <strong id="fxChipINR">1 EUR = … INR</strong>
+  </div>
+  <div class="fx-rate-chip" id="fxHistChip" style="display:none">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="fxHistText">Historical rates loaded</span>
+  </div>
+</div>
+
+<!-- Status bar -->
 <div class="statusbar">
   <span id="stxt2">Loading…</span>
-  <span id="fxRateDisplay" style="color:var(--dim);font-family:'DM Mono',monospace">—</span>
+  <span id="stxt3" style="color:var(--dim);font-family:'DM Mono',monospace;font-size:10px">—</span>
 </div>
+
 </div><!-- /wrap -->
 
+<!-- Overlay + Drawer -->
 <div class="overlay" id="overlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="handle" onclick="closeDrawer()"></div>
@@ -353,10 +371,7 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
         <div>
           <div class="dname" id="dtkr"></div>
           <div class="dfull" id="dfull"></div>
-          <div class="d-cagr-pill">
-            <span>Asset CAGR</span>
-            <strong id="d-cagr-val">—</strong>
-          </div>
+          <div class="d-cagr-pill"><span>Asset CAGR</span><strong id="d-cagr-val">—</strong></div>
         </div>
       </div>
       <button class="dclose" onclick="closeDrawer()">✕</button>
@@ -370,10 +385,10 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
           <div class="cli"><div class="cld" style="background:#5c6e90"></div>Buy price</div>
           <div class="cli"><div class="cld" style="background:var(--orange)"></div>Current</div>
           <div class="cli">
-            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#4a8fff" stroke-width="1.2" stroke-dasharray="3,3"/></svg>Avg cost
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#4a8fff" stroke-width="1.2" stroke-dasharray="3,3"/></svg>Avg
           </div>
           <div class="cli">
-            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#ff9240" stroke-width="1.2" stroke-dasharray="3,3"/></svg>Current
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#ff9240" stroke-width="1.2" stroke-dasharray="3,3"/></svg>Now
           </div>
         </div>
       </div>
@@ -396,25 +411,45 @@ tfoot td:first-child{text-align:left;font-family:'Cabinet Grotesk',sans-serif;fo
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-// PORTFOLIO DATA  (buy prices stored in EUR)
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  HOW CURRENCY CONVERSION WORKS IN THIS DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+//
+//  Source of truth: all buy prices are stored internally in EUR.
+//
+//  FX data source: api.frankfurter.app (European Central Bank rates)
+//    — Free, no API key, CORS-enabled, works directly from browser
+//    — One API call fetches all daily EUR/USD and EUR/INR rates from
+//      2022-01-01 to today (~1,100 data points)
+//
+//  Conversion logic:
+//    Buy price in display currency = EUR_buy_price × EUR/CCY_rate_ON_BUY_DATE
+//    Current price in display currency = EUR_cur_price × EUR/CCY_rate_TODAY
+//
+//  This means:
+//    - L1 AAPL bought 2022-03-14: uses EUR/INR rate on that exact date
+//    - L4 AAPL bought 2023-11-03: uses EUR/INR rate on that exact date
+//    - Each lot has its own historically-correct cost basis
+//    - CAGR, gain/loss are all computed in the selected currency
+//    - INR has devalued vs EUR since 2022, so CAGR in INR > CAGR in EUR
+// ═══════════════════════════════════════════════════════════════════
+
 const PORTFOLIO = [
   { ticker:'AAPL', name:'Apple Inc.',       color:'#4a8fff', cls:'Stock',  isCrypto:false,
-    lots:[{date:'2022-03-14',units:5,buyPrice:148.30},{date:'2022-09-01',units:7,buyPrice:131.40},
-          {date:'2023-01-20',units:4,buyPrice:126.20},{date:'2023-11-03',units:4,buyPrice:164.20}]},
+    lots:[{date:'2022-03-14',units:5,eurPrice:148.30},{date:'2022-09-01',units:7,eurPrice:131.40},
+          {date:'2023-01-20',units:4,eurPrice:126.20},{date:'2023-11-03',units:4,eurPrice:164.20}]},
   { ticker:'MSFT', name:'Microsoft Corp.',  color:'#05d98a', cls:'Stock',  isCrypto:false,
-    lots:[{date:'2022-06-10',units:3,buyPrice:244.10},{date:'2023-03-22',units:4,buyPrice:256.90},
-          {date:'2024-01-08',units:3,buyPrice:347.50}]},
+    lots:[{date:'2022-06-10',units:3,eurPrice:244.10},{date:'2023-03-22',units:4,eurPrice:256.90},
+          {date:'2024-01-08',units:3,eurPrice:347.50}]},
   { ticker:'VOO',  name:'Vanguard S&P 500', color:'#9b6dff', cls:'ETF',    isCrypto:false,
-    lots:[{date:'2022-01-05',units:2,buyPrice:398.40},{date:'2023-07-14',units:3,buyPrice:367.50}]},
+    lots:[{date:'2022-01-05',units:2,eurPrice:398.40},{date:'2023-07-14',units:3,eurPrice:367.50}]},
   { ticker:'NVDA', name:'NVIDIA Corp.',     color:'#ffb020', cls:'Stock',  isCrypto:false,
-    lots:[{date:'2022-10-17',units:2,buyPrice:104.50},{date:'2023-02-28',units:3,buyPrice:214.80},
-          {date:'2023-08-09',units:2,buyPrice:381.10},{date:'2024-02-20',units:1,buyPrice:627.00}]},
+    lots:[{date:'2022-10-17',units:2,eurPrice:104.50},{date:'2023-02-28',units:3,eurPrice:214.80},
+          {date:'2023-08-09',units:2,eurPrice:381.10},{date:'2024-02-20',units:1,eurPrice:627.00}]},
   { ticker:'BTC',  name:'Bitcoin',          color:'#f7931a', cls:'Crypto', isCrypto:true,
-    lots:[{date:'2022-01-15',units:0.08,buyPrice:38200},{date:'2022-06-20',units:0.15,buyPrice:19400},
-          {date:'2022-11-18',units:0.20,buyPrice:15600},{date:'2023-03-10',units:0.12,buyPrice:22800},
-          {date:'2023-10-28',units:0.10,buyPrice:33400}]},
+    lots:[{date:'2022-01-15',units:0.08,eurPrice:38200},{date:'2022-06-20',units:0.15,eurPrice:19400},
+          {date:'2022-11-18',units:0.20,eurPrice:15600},{date:'2023-03-10',units:0.12,eurPrice:22800},
+          {date:'2023-10-28',units:0.10,eurPrice:33400}]},
 ];
 
 const CLASS_COLORS = { Stock:'#4a8fff', ETF:'#9b6dff', Crypto:'#f7931a' };
@@ -422,673 +457,682 @@ const LC = ['#4a8fff','#05d98a','#9b6dff','#ffb020','#ff6b9d','#00c9e0','#ff4060
 
 // ── State ──
 const BASE_EUR = { AAPL:198.40, MSFT:391.30, VOO:481.60, NVDA:817.20, BTC:62400 };
-let curEUR    = {...BASE_EUR};   // latest live EUR prices
-let selCurr   = 'EUR';
-// Today's FX rates: how many units of selCurr per 1 EUR
-let todayFX   = { EUR:1.0, USD:1.08, INR:90.5 };
-// Historical daily FX rates: fxHist['USD']['2022-03-14'] = rate
-// Rate means: 1 EUR = X target currency on that date
-let fxHist    = { EUR:{}, USD:{}, INR:{} };
-let fxHistOK  = { USD:false, INR:false };
+let curEUR = {...BASE_EUR};
+let selCurr = 'EUR';
 
-// ── Display helpers ──
-const CSYM = { EUR:'€', USD:'$', INR:'₹' };
-const sym  = ()=> CSYM[selCurr];
+// FX history maps: { "2022-03-14": 1.0934, "2022-03-15": 1.0901, … }
+// Value = how many units of target currency per 1 EUR
+const fxHistory = { USD:{}, INR:{} };
+let fxHistLoaded = { USD:false, INR:false };
 
-// Get EUR→Currency rate for a specific date (historical or today as fallback)
-function fxRate(currency, dateStr) {
+// Today's rate (fallback if history fetch fails)
+const fxFallback = { EUR:1.0, USD:1.08, INR:90.5 };
+
+// ── FX lookup: get rate for a currency on a specific date ──
+function getFXRate(currency, dateStr) {
   if (currency === 'EUR') return 1.0;
-  const hist = fxHist[currency];
-  if (hist && hist[dateStr]) return hist[dateStr];
-  // Try up to ±3 days (weekends / holidays)
-  if (hist && Object.keys(hist).length > 0) {
-    const t = new Date(dateStr+'T00:00:00').getTime();
-    let best = null, bestDiff = Infinity;
-    for (const [d,r] of Object.entries(hist)) {
-      const diff = Math.abs(new Date(d+'T00:00:00').getTime() - t);
-      if (diff < bestDiff && diff < 4*86400000) { bestDiff=diff; best=r; }
+  const hist = fxHistory[currency];
+  if (!hist) return fxFallback[currency];
+
+  // Exact match
+  if (hist[dateStr]) return hist[dateStr];
+
+  // Nearest available date within ±4 calendar days (handles weekends/holidays)
+  const target = new Date(dateStr + 'T00:00:00').getTime();
+  let bestRate = null, bestDiff = Infinity;
+  for (const [d, r] of Object.entries(hist)) {
+    const diff = Math.abs(new Date(d + 'T00:00:00').getTime() - target);
+    if (diff < bestDiff && diff <= 4 * 86400000) {
+      bestDiff = diff; bestRate = r;
     }
-    if (best) return best;
   }
-  return todayFX[currency]; // fallback
+  return bestRate ?? fxFallback[currency];
 }
 
-// Convert a EUR amount using the rate on a specific date → target currency
-function convEUR(eurAmount, dateStr) {
-  return eurAmount * fxRate(selCurr, dateStr);
+// Latest available rate in the history (= today's rate)
+function getLatestFXRate(currency) {
+  if (currency === 'EUR') return 1.0;
+  const hist = fxHistory[currency];
+  if (!hist || Object.keys(hist).length === 0) return fxFallback[currency];
+  const latest = Object.keys(hist).sort().at(-1);
+  return hist[latest];
 }
 
-// Lot buy price in selected currency (using HISTORICAL rate on purchase date)
-function lotBuyDisp(lot) {
-  return lot.buyPrice * fxRate(selCurr, lot.date);
+// ── Conversion helpers ──
+// Cost of a lot in display currency (uses HISTORICAL rate on buy date)
+function lotBuyInCurr(lot) {
+  return lot.eurPrice * getFXRate(selCurr, lot.date);
+}
+// Current EUR price → display currency (uses TODAY's rate)
+function curPriceInCurr(ticker) {
+  return curEUR[ticker] * getLatestFXRate(selCurr);
 }
 
-// Current EUR price → selected currency (using TODAY's rate)
-function curDisp(ticker) {
-  return curEUR[ticker] * todayFX[selCurr];
-}
-
-// Format display-currency value
-function fV(n, dec=2) {
-  if (selCurr === 'INR') {
-    const r = Math.round(n);
-    return sym()+'\u202F'+r.toLocaleString('en-IN');
-  }
-  return sym()+'\u202F'+n.toLocaleString('en-DE',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+// ── Formatters ──
+const CSYM = { EUR:'€', USD:'$', INR:'₹' };
+function fV(n, dec = 2) {
+  const s = CSYM[selCurr] + '\u202F';
+  if (selCurr === 'INR') return s + Math.round(n).toLocaleString('en-IN');
+  return s + n.toLocaleString('en-DE', { minimumFractionDigits:dec, maximumFractionDigits:dec });
 }
 const fV0 = n => fV(n, 0);
-
-// Smart compact format for prices (K / L / Cr suffix)
 function fSm(v) {
   if (selCurr === 'INR') {
-    if (v >= 10000000) return sym()+(v/10000000).toFixed(2)+'Cr';
-    if (v >= 100000)   return sym()+(v/100000).toFixed(1)+'L';
-    if (v >= 1000)     return sym()+(v/1000).toFixed(1)+'K';
-    return sym()+Math.round(v);
+    if (v >= 10000000) return CSYM.INR + (v/10000000).toFixed(2) + 'Cr';
+    if (v >= 100000)   return CSYM.INR + (v/100000).toFixed(2) + 'L';
+    if (v >= 1000)     return CSYM.INR + (v/1000).toFixed(1) + 'K';
+    return CSYM.INR + Math.round(v);
   }
-  if (v >= 1000000) return sym()+(v/1000000).toFixed(2)+'M';
-  if (v >= 1000)    return sym()+(v/1000).toFixed(1)+'K';
+  if (v >= 1000000) return CSYM[selCurr] + (v/1000000).toFixed(2) + 'M';
+  if (v >= 1000)    return CSYM[selCurr] + (v/1000).toFixed(1) + 'K';
   return fV(v, 2);
 }
+const fP    = n => (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fD    = s => new Date(s+'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+const fDs   = s => new Date(s+'T00:00:00').toLocaleDateString('en-GB', {month:'short', year:'2-digit'});
+const fCAGR = v => v === null ? '< 1yr' : (v >= 0 ? '+' : '') + v.toFixed(1) + '% p.a.';
 
-// For canvas labels
-function fSmC(v) { return fSm(v); }
-
-const fP   = n => (n>=0?'+':'')+n.toFixed(2)+'%';
-const fD   = s => new Date(s+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-const fDs  = s => new Date(s+'T00:00:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
-
-// ── CAGR ──
+// ── CAGR helpers ──
 function yrsHeld(dateStr, now) {
   return (now - new Date(dateStr+'T00:00:00')) / (1000*60*60*24*365.25);
 }
 function calcCagr(cost, val, yrs) {
-  if (yrs < 0.5 || cost <= 0) return null;
-  return (Math.pow(val/cost, 1/yrs) - 1) * 100;
+  if (yrs < 0.5 || cost <= 0 || val <= 0) return null;
+  return (Math.pow(val / cost, 1 / yrs) - 1) * 100;
 }
-const fCAGR = v => v===null ? '< 1yr' : (v>=0?'+':'')+v.toFixed(1)+'% p.a.';
 
-// ── Build rows (all values in selected currency) ──
+// ── Build per-asset row data (everything in selCurr) ──
 function buildRows(now) {
   return PORTFOLIO.map(s => {
-    const cPrice  = curDisp(s.ticker);  // current price in selCurr
-    let totU=0, totCostD=0;
+    const cPrice = curPriceInCurr(s.ticker);
+    let totU = 0, totCost = 0, weightedYrs = 0;
     s.lots.forEach(l => {
-      totU     += l.units;
-      totCostD += l.units * lotBuyDisp(l);
+      const c = l.units * lotBuyInCurr(l);
+      totU        += l.units;
+      totCost     += c;
+      weightedYrs += c * yrsHeld(l.date, now);
     });
-    const avgCostD = totCostD / totU;
-    const valD     = totU * cPrice;
-    const glD      = valD - totCostD;
-    const glPct    = (glD / totCostD) * 100;
-    // CAGR: weight by cost in display currency
-    const avgY = s.lots.reduce((sum,l)=>{
-      return sum + (l.units*lotBuyDisp(l)) * yrsHeld(l.date,now);
-    }, 0) / totCostD;
-    const aC = calcCagr(totCostD, valD, avgY);
-    return {...s, cPrice, totU, totCostD, avgCostD, valD, glD, glPct, aC};
+    const avgCost = totCost / totU;
+    const val     = totU * cPrice;
+    const gl      = val - totCost;
+    const glPct   = (gl / totCost) * 100;
+    const avgYrs  = weightedYrs / totCost;
+    const aC      = calcCagr(totCost, val, avgYrs);
+    return { ...s, cPrice, totU, totCost, avgCost, val, gl, glPct, aC };
   });
 }
 
-// ═══════════════════════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════
 function render() {
   const now  = new Date();
   const rows = buildRows(now);
-  const totVal  = rows.reduce((s,r)=>s+r.valD, 0);
-  const totCost = rows.reduce((s,r)=>s+r.totCostD, 0);
+  const totVal  = rows.reduce((s, r) => s + r.val, 0);
+  const totCost = rows.reduce((s, r) => s + r.totCost, 0);
   const totGL   = totVal - totCost;
-  const totGLP  = (totGL/totCost)*100;
-  const best    = [...rows].sort((a,b)=>b.glPct-a.glPct)[0];
-  const totLots = PORTFOLIO.reduce((s,p)=>s+p.lots.length, 0);
+  const totGLP  = (totGL / totCost) * 100;
+  const best    = [...rows].sort((a, b) => b.glPct - a.glPct)[0];
+  const totLots = PORTFOLIO.reduce((s, p) => s + p.lots.length, 0);
 
-  // Portfolio CAGR (all lots, all assets)
-  let totCostAll=0, wYAll=0;
-  rows.forEach(r=>r.lots.forEach(l=>{
-    const c=l.units*lotBuyDisp(l); totCostAll+=c; wYAll+=c*yrsHeld(l.date,now);
+  // Portfolio-level CAGR
+  let allCost = 0, allWY = 0;
+  rows.forEach(r => r.lots.forEach(l => {
+    const c = l.units * lotBuyInCurr(l);
+    allCost += c; allWY += c * yrsHeld(l.date, now);
   }));
-  const pCAGR = calcCagr(totCostAll, totVal, wYAll/totCostAll);
+  const pCAGR = calcCagr(allCost, totVal, allWY / allCost);
 
-  // ── KPIs ──
-  document.getElementById('kV').textContent  = fV0(totVal);
-  document.getElementById('kC').textContent  = 'Cost: '+fV0(totCost);
-  const glEl=document.getElementById('kGL');
-  glEl.textContent=(totGL>=0?'+':'')+fV0(Math.abs(totGL));
-  glEl.style.color=totGL>=0?'var(--green)':'var(--red)';
-  document.getElementById('glbar').style.background=totGL>=0?'var(--green)':'var(--red)';
-  const glpEl=document.getElementById('kGLp');
-  glpEl.textContent=fP(totGLP);glpEl.style.color=totGL>=0?'var(--green)':'var(--red)';
-  const cagrEl=document.getElementById('kCAGR');
-  cagrEl.textContent=fCAGR(pCAGR);cagrEl.style.color=pCAGR&&pCAGR>=0?'var(--green)':'var(--red)';
-  document.getElementById('kCAGRsub').textContent=selCurr+'-adjusted CAGR';
-  document.getElementById('kBst').textContent=best.ticker;
-  document.getElementById('kBstp').textContent=fP(best.glPct);
-  document.getElementById('kBstp').style.color='var(--green)';
-  document.getElementById('kLots').textContent=totLots;
+  // ── KPI cards ──
+  document.getElementById('kV').textContent = fV0(totVal);
+  document.getElementById('kC').textContent = 'Cost: ' + fV0(totCost);
 
-  // Currency column headers
-  document.getElementById('thCurr1').textContent=selCurr;
-  document.getElementById('thCurr2').textContent=selCurr;
-  document.getElementById('pbadge').textContent=selCurr+' · click for detail';
+  const glEl = document.getElementById('kGL');
+  glEl.textContent = (totGL >= 0 ? '+' : '') + fV0(Math.abs(totGL));
+  glEl.style.color = totGL >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('glbar').style.background = totGL >= 0 ? 'var(--green)' : 'var(--red)';
 
-  // FX note
-  const histAvail = selCurr==='EUR' || fxHistOK[selCurr];
-  document.getElementById('fxNoteTable').style.display = histAvail&&selCurr!=='EUR'?'':'none';
-  document.getElementById('fxNoteApprox').style.display= !histAvail&&selCurr!=='EUR'?'':'none';
-  const banner = document.getElementById('fxBanner');
-  banner.classList.toggle('show', !histAvail && selCurr!=='EUR');
+  const glpEl = document.getElementById('kGLp');
+  glpEl.textContent = fP(totGLP);
+  glpEl.style.color = totGL >= 0 ? 'var(--green)' : 'var(--red)';
 
-  // ── Table rows ──
-  const CLS={'Stock':'<span class="class-badge cb-stock">Stock</span>',
-    'ETF':'<span class="class-badge cb-etf">ETF</span>',
-    'Crypto':'<span class="class-badge cb-crypto">Crypto</span>'};
-  document.getElementById('tbody').innerHTML = rows.map(r=>{
-    const cStr=r.aC===null?'<span style="color:var(--dim);font-size:10px">—</span>':
-      `<span class="pill ${r.aC>=0?'pg':'pr'}">${fCAGR(r.aC)}</span>`;
+  const cagrEl = document.getElementById('kCAGR');
+  cagrEl.textContent = fCAGR(pCAGR);
+  cagrEl.style.color = pCAGR && pCAGR >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kCAGRsub').textContent = selCurr + '-adjusted CAGR';
+
+  document.getElementById('kBst').textContent = best.ticker;
+  document.getElementById('kBstp').textContent = fP(best.glPct);
+  document.getElementById('kBstp').style.color = 'var(--green)';
+  document.getElementById('kLots').textContent = totLots;
+
+  // Header label
+  document.getElementById('phCurr').textContent = selCurr;
+  document.getElementById('pbadge').textContent = selCurr + ' · click for detail';
+
+  // ── Table ──
+  const CLS = {
+    Stock: '<span class="class-badge cb-stock">Stock</span>',
+    ETF:   '<span class="class-badge cb-etf">ETF</span>',
+    Crypto:'<span class="class-badge cb-crypto">Crypto</span>',
+  };
+  document.getElementById('tbody').innerHTML = rows.map(r => {
+    const cagrCell = r.aC === null
+      ? '<span style="color:var(--dim);font-size:10px">—</span>'
+      : `<span class="pill ${r.aC >= 0 ? 'pg' : 'pr'}">${fCAGR(r.aC)}</span>`;
     return `<tr onclick="openDrawer('${r.ticker}')">
       <td>
         <div class="tc-name"><div class="tc-dot" style="background:${r.color}"></div>${r.ticker}</div>
         <div class="tc-sub">${r.name}</div>
         <div class="tc-hint">→ ${r.lots.length} lots</div>
       </td>
-      <td>${CLS[r.cls]||r.cls}</td>
-      <td>${r.isCrypto?r.totU.toFixed(4)+' BTC':r.totU+' sh.'}</td>
-      <td>${fSm(r.avgCostD)}</td>
+      <td>${CLS[r.cls] || r.cls}</td>
+      <td>${r.isCrypto ? r.totU.toFixed(4) + ' BTC' : r.totU + ' sh.'}</td>
+      <td>${fSm(r.avgCost)}</td>
       <td style="color:var(--text)">${fSm(r.cPrice)}</td>
-      <td style="color:var(--text)">${fV0(r.valD)}</td>
-      <td style="color:${r.glD>=0?'var(--green)':'var(--red)'}">${r.glD>=0?'+':''}${fV0(r.glD)}</td>
-      <td><span class="pill ${r.glPct>=0?'pg':'pr'}">${fP(r.glPct)}</span></td>
-      <td>${cStr}</td>
+      <td style="color:var(--text)">${fV0(r.val)}</td>
+      <td style="color:${r.gl >= 0 ? 'var(--green)' : 'var(--red)'}">${r.gl >= 0 ? '+' : ''}${fV0(r.gl)}</td>
+      <td><span class="pill ${r.glPct >= 0 ? 'pg' : 'pr'}">${fP(r.glPct)}</span></td>
+      <td>${cagrCell}</td>
     </tr>`;
   }).join('');
 
-  document.getElementById('tfoot').innerHTML=`<tr>
+  document.getElementById('tfoot').innerHTML = `<tr>
     <td colspan="5">Total Portfolio</td>
     <td>${fV0(totVal)}</td>
-    <td style="color:${totGL>=0?'var(--green)':'var(--red)'}">${totGL>=0?'+':''}${fV0(totGL)}</td>
-    <td><span class="pill ${totGLP>=0?'pg':'pr'}">${fP(totGLP)}</span></td>
-    <td><span class="pill ${pCAGR&&pCAGR>=0?'pg':'pr'}">${fCAGR(pCAGR)}</span></td>
+    <td style="color:${totGL >= 0 ? 'var(--green)' : 'var(--red)'}">${totGL >= 0 ? '+' : ''}${fV0(totGL)}</td>
+    <td><span class="pill ${totGLP >= 0 ? 'pg' : 'pr'}">${fP(totGLP)}</span></td>
+    <td><span class="pill ${pCAGR && pCAGR >= 0 ? 'pg' : 'pr'}">${fCAGR(pCAGR)}</span></td>
   </tr>`;
 
   drawDonutAsset(rows, totVal);
   drawDonutClass(rows, totVal);
 }
 
-// ═══════════════════════════════════════════════════════
-// DONUT CHARTS
-// ═══════════════════════════════════════════════════════
-function drawDonut(canvasId, legendId, slices, totVal, centerLine1, centerLine2) {
-  const cv=document.getElementById(canvasId);
-  const ctx=cv.getContext('2d');
-  const cx=100,cy=100,oR=86,iR=52,gap=.022;
-  ctx.clearRect(0,0,200,200);
-  let ang=-Math.PI/2;
-  slices.forEach(s=>{
-    const sl=(s.v/totVal)*2*Math.PI-gap;
-    ctx.beginPath();ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,oR,ang+gap/2,ang+sl+gap/2);
-    ctx.closePath();ctx.fillStyle=s.color;ctx.fill();
-    ang+=sl+gap;
+// ═══════════════════════════════════════════════════════════════════
+//  DONUTS
+// ═══════════════════════════════════════════════════════════════════
+function drawDonut(canvasId, legendId, slices, totVal, line1, line2) {
+  const cv = document.getElementById(canvasId);
+  const ctx = cv.getContext('2d');
+  const cx = 100, cy = 100, oR = 86, iR = 52, gap = 0.022;
+  ctx.clearRect(0, 0, 200, 200);
+  let ang = -Math.PI / 2;
+  slices.forEach(s => {
+    const sweep = (s.v / totVal) * Math.PI * 2 - gap;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, oR, ang + gap/2, ang + sweep + gap/2);
+    ctx.closePath(); ctx.fillStyle = s.color; ctx.fill();
+    ang += (s.v / totVal) * Math.PI * 2;
   });
-  ctx.beginPath();ctx.arc(cx,cy,iR,0,2*Math.PI);
-  ctx.fillStyle='#0c1220';ctx.fill();
-  ctx.fillStyle='#e2e8f8';ctx.font='500 11px DM Mono,monospace';
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(centerLine1,cx,cy-8);
-  ctx.fillStyle='#526080';ctx.font='500 10px DM Mono,monospace';
-  ctx.fillText(centerLine2,cx,cy+9);
+  ctx.beginPath(); ctx.arc(cx, cy, iR, 0, Math.PI * 2);
+  ctx.fillStyle = '#0c1220'; ctx.fill();
+  ctx.fillStyle = '#e2e8f8'; ctx.font = '500 11px DM Mono,monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(line1, cx, cy - 8);
+  ctx.fillStyle = '#526080'; ctx.font = '500 10px DM Mono,monospace';
+  ctx.fillText(line2, cx, cy + 9);
 
-  document.getElementById(legendId).innerHTML=slices.map(s=>`
-    <div class="leg-row" ${s.ticker?`onclick="openDrawer('${s.ticker}')"`:'style="cursor:default"'}>
+  document.getElementById(legendId).innerHTML = slices.map(s => `
+    <div class="leg-row" ${s.ticker ? `onclick="openDrawer('${s.ticker}')"` : 'style="cursor:default"'}>
       <div class="leg-l"><div class="leg-dot" style="background:${s.color}"></div>
         <span class="leg-t">${s.label}</span></div>
       <div class="leg-r">
-        <span style="color:var(--text)">${((s.v/totVal)*100).toFixed(1)}%</span>
+        <span style="color:var(--text)">${((s.v / totVal) * 100).toFixed(1)}%</span>
         <span>${fV0(s.v)}</span>
       </div>
     </div>`).join('');
 }
 
-function drawDonutAsset(rows,totVal){
-  drawDonut('donutAsset','legAsset',
-    rows.map(r=>({label:r.ticker,ticker:r.ticker,v:r.valD,color:r.color})),
-    totVal, rows.length+' Assets', fV0(totVal));
+function drawDonutAsset(rows, totVal) {
+  drawDonut('donutAsset', 'legAsset',
+    rows.map(r => ({ label:r.ticker, ticker:r.ticker, v:r.val, color:r.color })),
+    totVal, rows.length + ' Assets', fV0(totVal));
 }
-function drawDonutClass(rows,totVal){
-  const classes={};
-  rows.forEach(r=>{if(!classes[r.cls])classes[r.cls]={v:0,color:CLASS_COLORS[r.cls]};classes[r.cls].v+=r.valD;});
-  const slices=Object.entries(classes).map(([k,v])=>({label:k,ticker:'',v:v.v,color:v.color}));
-  drawDonut('donutClass','legClass',slices,totVal,'3 Classes',fV0(totVal));
+function drawDonutClass(rows, totVal) {
+  const cls = {};
+  rows.forEach(r => {
+    if (!cls[r.cls]) cls[r.cls] = { v:0, color:CLASS_COLORS[r.cls] };
+    cls[r.cls].v += r.val;
+  });
+  drawDonut('donutClass', 'legClass',
+    Object.entries(cls).map(([k, v]) => ({ label:k, ticker:'', v:v.v, color:v.color })),
+    totVal, '3 Classes', fV0(totVal));
 }
-function switchTab(t){
-  ['asset','class'].forEach(x=>{
-    document.getElementById('tab-'+x).classList.toggle('active',x===t);
-    document.getElementById('view-'+x).classList.toggle('active',x===t);
+function switchTab(t) {
+  ['asset','class'].forEach(x => {
+    document.getElementById('tab-' + x).classList.toggle('active', x === t);
+    document.getElementById('view-' + x).classList.toggle('active', x === t);
   });
 }
 
-// ═══════════════════════════════════════════════════════
-// DRAWER
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  DRAWER
+// ═══════════════════════════════════════════════════════════════════
 function openDrawer(ticker) {
-  const s   = PORTFOLIO.find(p=>p.ticker===ticker);
-  const now = new Date();
-  const cPrice = curDisp(ticker);
-  let totU=0, totCostD=0;
-  s.lots.forEach(l=>{ totU+=l.units; totCostD+=l.units*lotBuyDisp(l); });
-  const avgCostD = totCostD/totU;
-  const valD  = totU*cPrice;
-  const glD   = valD-totCostD;
-  const glPct = (glD/totCostD)*100;
-  const avgY  = s.lots.reduce((sum,l)=>sum+(l.units*lotBuyDisp(l))*yrsHeld(l.date,now),0)/totCostD;
-  const aC    = calcCagr(totCostD,valD,avgY);
-  const cagrColor = aC===null?'var(--muted)':aC>=0?'var(--green)':'var(--red)';
+  const s    = PORTFOLIO.find(p => p.ticker === ticker);
+  const now  = new Date();
+  const cPrice = curPriceInCurr(ticker);
+  let totU = 0, totCost = 0, wYrs = 0;
+  s.lots.forEach(l => {
+    const c = l.units * lotBuyInCurr(l);
+    totU += l.units; totCost += c; wYrs += c * yrsHeld(l.date, now);
+  });
+  const avgCost = totCost / totU;
+  const val     = totU * cPrice;
+  const gl      = val - totCost;
+  const glPct   = (gl / totCost) * 100;
+  const aC      = calcCagr(totCost, val, wYrs / totCost);
+  const cagrCol = aC === null ? 'var(--muted)' : aC >= 0 ? 'var(--green)' : 'var(--red)';
 
-  document.getElementById('dico').textContent=ticker==='BTC'?'₿':ticker.slice(0,2);
-  document.getElementById('dico').style.cssText=
+  // Header
+  document.getElementById('dico').textContent = ticker === 'BTC' ? '₿' : ticker.slice(0,2);
+  document.getElementById('dico').style.cssText =
     `background:${s.color}20;color:${s.color};width:46px;height:46px;border-radius:12px;
      display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;
      font-family:'DM Mono',monospace;flex-shrink:0`;
-  document.getElementById('dtkr').textContent=ticker;
-  document.getElementById('dfull').textContent=s.name+' · '+s.cls;
-  document.getElementById('d-cagr-val').textContent=fCAGR(aC);
-  document.getElementById('d-cagr-val').style.color=cagrColor;
+  document.getElementById('dtkr').textContent = ticker;
+  document.getElementById('dfull').textContent = s.name + ' · ' + s.cls;
+  document.getElementById('d-cagr-val').textContent = fCAGR(aC);
+  document.getElementById('d-cagr-val').style.color = cagrCol;
 
-  const barGrad=`linear-gradient(90deg,${s.color}cc,${s.color}44)`;
-  document.getElementById('dkpis').innerHTML=`
-    <div class="dk"><div class="dk-bar" style="background:${barGrad}"></div>
+  // Mini KPIs
+  const bg = `linear-gradient(90deg,${s.color}cc,${s.color}44)`;
+  document.getElementById('dkpis').innerHTML = `
+    <div class="dk"><div class="dk-bar" style="background:${bg}"></div>
       <div class="dkl">Current Price</div><div class="dkv">${fSm(cPrice)}</div>
       <div class="dks">${selCurr} · ${s.cls}</div></div>
-    <div class="dk"><div class="dk-bar" style="background:${barGrad}"></div>
-      <div class="dkl">Total Units</div><div class="dkv">${s.isCrypto?totU.toFixed(4)+' BTC':totU+' sh.'}</div>
+    <div class="dk"><div class="dk-bar" style="background:${bg}"></div>
+      <div class="dkl">Total Units</div>
+      <div class="dkv">${s.isCrypto ? totU.toFixed(4)+' BTC' : totU+' sh.'}</div>
       <div class="dks">${s.lots.length} lots</div></div>
-    <div class="dk"><div class="dk-bar" style="background:${barGrad}"></div>
-      <div class="dkl">Current Value</div><div class="dkv">${fV0(valD)}</div>
-      <div class="dks">Cost: ${fV0(totCostD)}</div></div>
-    <div class="dk"><div class="dk-bar" style="background:${barGrad}"></div>
+    <div class="dk"><div class="dk-bar" style="background:${bg}"></div>
+      <div class="dkl">Current Value</div><div class="dkv">${fV0(val)}</div>
+      <div class="dks">Cost: ${fV0(totCost)}</div></div>
+    <div class="dk"><div class="dk-bar" style="background:${bg}"></div>
       <div class="dkl">Total Gain/Loss</div>
-      <div class="dkv" style="color:${glD>=0?'var(--green)':'var(--red)'}">${glD>=0?'+':''}${fV0(glD)}</div>
-      <div class="dks" style="color:${glD>=0?'var(--green)':'var(--red)'}">${fP(glPct)}</div></div>`;
+      <div class="dkv" style="color:${gl>=0?'var(--green)':'var(--red)'}">${gl>=0?'+':''}${fV0(gl)}</div>
+      <div class="dks" style="color:${gl>=0?'var(--green)':'var(--red)'}">${fP(glPct)}</div></div>`;
 
-  document.getElementById('davg').innerHTML=`
-    <span class="al">Avg. Cost</span><span class="av">${fSm(avgCostD)}</span>
+  // Avg bar
+  const fxLabel = selCurr === 'EUR' ? 'EUR (native)'
+    : fxHistLoaded[selCurr] ? selCurr + ' ✓ hist. rates' : selCurr + ' ⚠ approx.';
+  document.getElementById('davg').innerHTML = `
+    <span class="al">Avg. Cost</span><span class="av">${fSm(avgCost)}</span>
     <span class="asep">·</span>
     <span class="al">First Buy</span><span class="av">${fD(s.lots[0].date)}</span>
     <span class="asep">·</span>
     <span class="al">vs. Current</span>
-    <span class="av" style="color:${cPrice>=avgCostD?'var(--green)':'var(--red)'}">
-      ${cPrice>=avgCostD?'+':''}${fSm(cPrice-avgCostD)} (${fP(((cPrice-avgCostD)/avgCostD)*100)})
-    </span>
+    <span class="av" style="color:${cPrice>=avgCost?'var(--green)':'var(--red)'}">
+      ${cPrice>=avgCost?'+':''}${fSm(cPrice-avgCost)} (${fP(((cPrice-avgCost)/avgCost)*100)})</span>
     <span class="asep">·</span>
-    <span class="al">Currency</span><span class="av" style="color:var(--blue)">${selCurr}${selCurr!=='EUR'&&fxHistOK[selCurr]?' ✓ hist':selCurr!=='EUR'?' ⚠ approx':''}</span>`;
+    <span class="al">FX</span><span class="av" style="color:var(--blue)">${fxLabel}</span>`;
 
   // Lot bar
-  document.getElementById('lbtrack').innerHTML=s.lots.map((l,i)=>{
-    const pct=(l.units/totU)*100;
+  document.getElementById('lbtrack').innerHTML = s.lots.map((l, i) => {
+    const pct = (l.units / totU) * 100;
     return `<div class="lbseg" style="width:${pct}%;background:${LC[i]}"></div>`;
   }).join('');
-  document.getElementById('lbleg').innerHTML=s.lots.map((l,i)=>
-    `<div class="lbi"><div class="lbd" style="background:${LC[i]}"></div>L${i+1}: ${s.isCrypto?l.units.toFixed(3)+' BTC':l.units+' sh'}</div>`
+  document.getElementById('lbleg').innerHTML = s.lots.map((l, i) =>
+    `<div class="lbi"><div class="lbd" style="background:${LC[i]}"></div>L${i+1}: ${s.isCrypto ? l.units.toFixed(3)+' BTC' : l.units+' sh'}</div>`
   ).join('');
 
   // Lots table
-  document.getElementById('dltbody').innerHTML=s.lots.map((l,i)=>{
-    const bpD  = lotBuyDisp(l);
-    const lC   = l.units*bpD;
-    const lV   = l.units*cPrice;
-    const lGL  = lV-lC;
-    const lGP  = (lGL/lC)*100;
-    const y    = yrsHeld(l.date,now);
-    const lCGR = calcCagr(lC,lV,y);
-    const cagrDisp = y<1?'<span style="color:var(--dim);font-size:10px">< 1yr</span>':
-      `<span class="pill ${lCGR>=0?'pg':'pr'}">${fCAGR(lCGR)}</span>`;
+  document.getElementById('dltbody').innerHTML = s.lots.map((l, i) => {
+    const bp  = lotBuyInCurr(l);
+    const lC  = l.units * bp;
+    const lV  = l.units * cPrice;
+    const lGL = lV - lC;
+    const lGP = (lGL / lC) * 100;
+    const y   = yrsHeld(l.date, now);
+    const lCGR = calcCagr(lC, lV, y);
+    const cagrCell = y < 1
+      ? '<span style="color:var(--dim);font-size:10px">< 1yr</span>'
+      : `<span class="pill ${lCGR >= 0 ? 'pg' : 'pr'}">${fCAGR(lCGR)}</span>`;
+    // Show what FX rate was used for this lot
+    const usedRate = getFXRate(selCurr, l.date);
+    const rateNote = selCurr !== 'EUR'
+      ? `<span style="color:var(--dim);font-size:9px;margin-left:4px">${selCurr}${(+usedRate.toFixed(3))}</span>` : '';
     return `<tr>
       <td><span class="lnum" style="background:${LC[i]}22;color:${LC[i]}">${i+1}</span></td>
       <td>${fD(l.date)}</td>
-      <td style="color:var(--text)">${s.isCrypto?l.units.toFixed(4)+' BTC':l.units+' sh.'}</td>
-      <td>${fSm(bpD)}</td>
-      <td>${fV0(lC)}</td><td style="color:var(--text)">${fV0(lV)}</td>
+      <td style="color:var(--text)">${s.isCrypto ? l.units.toFixed(4)+' BTC' : l.units+' sh.'}</td>
+      <td>${fSm(bp)}${rateNote}</td>
+      <td>${fV0(lC)}</td>
+      <td style="color:var(--text)">${fV0(lV)}</td>
       <td style="color:${lGL>=0?'var(--green)':'var(--red)'}">${lGL>=0?'+':''}${fV0(lGL)}</td>
       <td><span class="pill ${lGP>=0?'pg':'pr'}">${fP(lGP)}</span></td>
-      <td>${cagrDisp}</td>
+      <td>${cagrCell}</td>
     </tr>`;
   }).join('');
 
-  document.querySelectorAll('#tbody tr').forEach(r=>r.classList.remove('active'));
-  const idx=PORTFOLIO.findIndex(p=>p.ticker===ticker);
-  const rows2=document.querySelectorAll('#tbody tr');
-  if(rows2[idx]) rows2[idx].classList.add('active');
+  // Highlight row
+  document.querySelectorAll('#tbody tr').forEach(r => r.classList.remove('active'));
+  const idx = PORTFOLIO.findIndex(p => p.ticker === ticker);
+  document.querySelectorAll('#tbody tr')[idx]?.classList.add('active');
 
   document.getElementById('overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
-  document.body.style.overflow='hidden';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>drawDumbbell(s, cPrice, now)));
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => requestAnimationFrame(() => drawDumbbell(s, cPrice, now)));
 }
 
-function closeDrawer(){
+function closeDrawer() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('drawer').classList.remove('open');
-  document.body.style.overflow='';
-  document.querySelectorAll('#tbody tr').forEach(r=>r.classList.remove('active'));
+  document.body.style.overflow = '';
+  document.querySelectorAll('#tbody tr').forEach(r => r.classList.remove('active'));
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
-// ═══════════════════════════════════════════════════════
-// DUMBBELL CHART
-// ═══════════════════════════════════════════════════════
-function rrect(ctx,x,y,w,h,r){
+// ═══════════════════════════════════════════════════════════════════
+//  DUMBBELL CHART
+// ═══════════════════════════════════════════════════════════════════
+function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
 }
 
 function drawDumbbell(stock, cPriceDisp, now) {
-  const cv=document.getElementById('dbCanvas');
-  if(!cv) return;
-  const ctx=cv.getContext('2d');
-  const lots=stock.lots, n=lots.length;
+  const cv = document.getElementById('dbCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const lots = stock.lots, n = lots.length;
 
-  // Build per-lot display data
-  const lotData=lots.map((l,i)=>{
-    const bp   = lotBuyDisp(l);          // buy price in selCurr
+  const lotData = lots.map(l => {
+    const bp   = lotBuyInCurr(l);
     const y    = yrsHeld(l.date, now);
-    const lC   = l.units*bp;
-    const lV   = l.units*cPriceDisp;
-    const lCGR = calcCagr(lC,lV,y);
-    const gain = ((cPriceDisp-bp)/bp)*100;
-    const isUp = cPriceDisp>=bp;
-    return {l,bp,y,lCGR,gain,isUp};
+    const lC   = l.units * bp, lV = l.units * cPriceDisp;
+    const lCGR = calcCagr(lC, lV, y);
+    const gain = ((cPriceDisp - bp) / bp) * 100;
+    return { l, bp, y, lCGR, gain, isUp: cPriceDisp >= bp };
   });
 
-  const dpr=window.devicePixelRatio||1;
-  const wCss=Math.max(cv.parentElement.clientWidth-24,360);
-  const BOX_W=112, BOX_H=48, BOX_GAP=10;
-  const rowH=92, padTop=34, padBot=32, padL=78, padR=BOX_W+BOX_GAP+18;
-  const hCss=padTop+n*rowH+padBot;
+  const dpr = window.devicePixelRatio || 1;
+  const wCss = Math.max(cv.parentElement.clientWidth - 24, 360);
+  const BOX_W = 116, BOX_H = 50, BOX_GAP = 10;
+  const rowH = 92, padTop = 34, padBot = 32, padL = 78, padR = BOX_W + BOX_GAP + 18;
+  const hCss = padTop + n * rowH + padBot;
 
-  cv.width=wCss*dpr; cv.height=hCss*dpr;
-  cv.style.width=wCss+'px'; cv.style.height=hCss+'px';
-  ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,wCss,hCss);
+  cv.width = wCss * dpr; cv.height = hCss * dpr;
+  cv.style.width = wCss + 'px'; cv.style.height = hCss + 'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, wCss, hCss);
 
-  const chartW=wCss-padL-padR;
-  const allP=lotData.map(d=>d.bp).concat([cPriceDisp]);
-  const minP=Math.min(...allP)*.88, maxP=Math.max(...allP)*1.12;
-  const toX=p=>padL+((p-minP)/(maxP-minP))*chartW;
+  const chartW = wCss - padL - padR;
+  const allP   = lotData.map(d => d.bp).concat([cPriceDisp]);
+  const minP   = Math.min(...allP) * 0.88, maxP = Math.max(...allP) * 1.12;
+  const toX    = p => padL + ((p - minP) / (maxP - minP)) * chartW;
 
-  // Grid + x-axis labels
-  const steps=4;
-  for(let i=0;i<=steps;i++){
-    const p=minP+(i/steps)*(maxP-minP), x=toX(p);
-    ctx.strokeStyle='rgba(255,255,255,.028)';ctx.lineWidth=.8;ctx.setLineDash([]);
-    ctx.beginPath();ctx.moveTo(x,padTop-14);ctx.lineTo(x,hCss-padBot+4);ctx.stroke();
-    ctx.fillStyle='#2a3855';ctx.font='9px DM Mono,monospace';
-    ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText(fSmC(p), x, hCss-padBot+6);
+  // Grid lines
+  for (let i = 0; i <= 4; i++) {
+    const p = minP + (i / 4) * (maxP - minP), x = toX(p);
+    ctx.strokeStyle = 'rgba(255,255,255,.028)'; ctx.lineWidth = .8; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x, padTop-14); ctx.lineTo(x, hCss-padBot+4); ctx.stroke();
+    ctx.fillStyle = '#2a3855'; ctx.font = '9px DM Mono,monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(fSm(p), x, hCss - padBot + 6);
   }
 
-  // Avg cost line (blue dashed)
-  let totU2=0, totCostD2=0;
-  lotData.forEach(d=>{totU2+=d.l.units; totCostD2+=d.l.units*d.bp;});
-  const avgCostD=totCostD2/totU2;
-  const avgX=toX(avgCostD);
-  ctx.strokeStyle='rgba(74,143,255,.4)';ctx.lineWidth=1.2;ctx.setLineDash([3,4]);
-  ctx.beginPath();ctx.moveTo(avgX,padTop-20);ctx.lineTo(avgX,hCss-padBot);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='rgba(74,143,255,.7)';ctx.font='500 9px DM Mono,monospace';
-  ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText('Avg',avgX,padTop-20);
+  // Avg cost (blue dashed)
+  let tU = 0, tC = 0;
+  lotData.forEach(d => { tU += d.l.units; tC += d.l.units * d.bp; });
+  const avgC = tC / tU, avgX = toX(avgC);
+  ctx.strokeStyle = 'rgba(74,143,255,.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(avgX, padTop-20); ctx.lineTo(avgX, hCss-padBot); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle = 'rgba(74,143,255,.7)';
+  ctx.font = '500 9px DM Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Avg', avgX, padTop - 20);
 
-  // Current price line (orange dashed)
-  const curX=toX(cPriceDisp);
-  ctx.strokeStyle='rgba(255,146,64,.4)';ctx.lineWidth=1.2;ctx.setLineDash([3,4]);
-  ctx.beginPath();ctx.moveTo(curX,padTop-20);ctx.lineTo(curX,hCss-padBot);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='rgba(255,146,64,.75)';ctx.font='500 9px DM Mono,monospace';
-  ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText('Now',curX,padTop-20);
+  // Current price (orange dashed)
+  const curX = toX(cPriceDisp);
+  ctx.strokeStyle = 'rgba(255,146,64,.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(curX, padTop-20); ctx.lineTo(curX, hCss-padBot); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle = 'rgba(255,146,64,.75)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Now', curX, padTop - 20);
 
-  const maxU=Math.max(...lots.map(l=>l.units));
+  const maxU = Math.max(...lots.map(l => l.units));
 
-  lotData.forEach((d,i)=>{
-    const {l,bp,y,lCGR,gain,isUp}=d;
-    const cY=padTop+i*rowH+rowH/2;
-    const bx=toX(bp), cx2=toX(cPriceDisp);
+  lotData.forEach((d, i) => {
+    const { l, bp, y, lCGR, gain, isUp } = d;
+    const cY = padTop + i * rowH + rowH / 2;
+    const bx = toX(bp), cx2 = toX(cPriceDisp);
 
     // Row tint
-    ctx.fillStyle=i%2===0?'rgba(255,255,255,.013)':'transparent';
-    ctx.fillRect(0,cY-rowH/2,wCss,rowH);
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,.013)' : 'transparent';
+    ctx.fillRect(0, cY - rowH/2, wCss, rowH);
 
-    // Lot label + date
-    ctx.fillStyle='#5c6e90';ctx.font='500 10px DM Mono,monospace';
-    ctx.textAlign='right';ctx.textBaseline='middle';
-    ctx.fillText('L'+(i+1),padL-10,cY-10);
-    ctx.fillStyle='#2e3f58';ctx.font='400 9px DM Mono,monospace';
-    ctx.fillText(fDs(l.date),padL-10,cY+5);
+    // Lot label
+    ctx.fillStyle = '#5c6e90'; ctx.font = '500 10px DM Mono,monospace';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('L' + (i+1), padL-10, cY-10);
+    ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace';
+    ctx.fillText(fDs(l.date), padL-10, cY+5);
 
     // Connecting line
-    const lg=ctx.createLinearGradient(bx,0,cx2,0);
-    lg.addColorStop(0,isUp?'rgba(5,217,138,.12)':'rgba(255,64,96,.12)');
-    lg.addColorStop(1,isUp?'rgba(5,217,138,.55)':'rgba(255,64,96,.55)');
-    ctx.strokeStyle=lg;ctx.lineWidth=3;ctx.lineCap='round';ctx.setLineDash([]);
-    ctx.beginPath();ctx.moveTo(bx,cY);ctx.lineTo(cx2,cY);ctx.stroke();
+    const lg = ctx.createLinearGradient(bx, 0, cx2, 0);
+    lg.addColorStop(0, isUp ? 'rgba(5,217,138,.12)' : 'rgba(255,64,96,.12)');
+    lg.addColorStop(1, isUp ? 'rgba(5,217,138,.55)' : 'rgba(255,64,96,.55)');
+    ctx.strokeStyle = lg; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(bx, cY); ctx.lineTo(cx2, cY); ctx.stroke();
 
     // Dot size
-    const uRatio=stock.isCrypto?Math.sqrt(l.units*100)/Math.sqrt(maxU*100):Math.sqrt(l.units)/Math.sqrt(maxU);
-    const dotR=Math.min(Math.max(5+uRatio*7,5),12);
+    const uR = stock.isCrypto
+      ? Math.sqrt(l.units * 100) / Math.sqrt(maxU * 100)
+      : Math.sqrt(l.units) / Math.sqrt(maxU);
+    const dotR = Math.min(Math.max(5 + uR * 7, 5), 12);
 
-    // Grey buy dot
-    ctx.fillStyle='#5c6e90';
-    ctx.beginPath();ctx.arc(bx,cY,dotR,0,2*Math.PI);ctx.fill();
-    ctx.strokeStyle='#8fa0c0';ctx.lineWidth=1.5;ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(bx,cY,dotR,0,2*Math.PI);ctx.stroke();
+    // Grey dot (buy)
+    ctx.fillStyle = '#5c6e90'; ctx.beginPath(); ctx.arc(bx, cY, dotR, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#8fa0c0'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(bx, cY, dotR, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#8fa0c0'; ctx.font = '500 10px DM Mono,monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(fSm(bp), bx, cY - dotR - 4);
+    ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace'; ctx.textBaseline = 'top';
+    ctx.fillText(stock.isCrypto ? l.units.toFixed(3)+' BTC' : l.units+' sh', bx, cY + dotR + 4);
 
-    // Buy price above grey dot
-    ctx.fillStyle='#8fa0c0';ctx.font='500 10px DM Mono,monospace';
-    ctx.textAlign='center';ctx.textBaseline='bottom';
-    ctx.fillText(fSmC(bp),bx,cY-dotR-4);
+    // Orange dot (current)
+    ctx.fillStyle = '#ff9240'; ctx.beginPath(); ctx.arc(cx2, cY, dotR, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.6)' : 'rgba(255,64,96,.6)';
+    ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(cx2, cY, dotR+3, 0, Math.PI*2); ctx.stroke();
 
-    // Units below grey dot
-    ctx.fillStyle='#2e3f58';ctx.font='400 9px DM Mono,monospace';
-    ctx.textBaseline='top';
-    ctx.fillText(stock.isCrypto?l.units.toFixed(3)+' BTC':l.units+' sh',bx,cY+dotR+4);
-
-    // Orange current dot
-    ctx.fillStyle='#ff9240';
-    ctx.beginPath();ctx.arc(cx2,cY,dotR,0,2*Math.PI);ctx.fill();
-    ctx.strokeStyle=isUp?'rgba(5,217,138,.6)':'rgba(255,64,96,.6)';
-    ctx.lineWidth=2;ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(cx2,cY,dotR+3,0,2*Math.PI);ctx.stroke();
-
-    // ── Info box ──
-    const boxX=cx2+dotR+BOX_GAP+4;
-    const boxY=cY-BOX_H/2;
-    const borderCol=isUp?'rgba(5,217,138,.35)':'rgba(255,64,96,.35)';
-
-    // Connector
-    ctx.strokeStyle=isUp?'rgba(5,217,138,.25)':'rgba(255,64,96,.25)';
-    ctx.lineWidth=1;ctx.setLineDash([2,3]);
-    ctx.beginPath();ctx.moveTo(cx2+dotR+3,cY);ctx.lineTo(boxX,cY);ctx.stroke();
+    // Info box
+    const bxX = cx2 + dotR + BOX_GAP + 4, bxY = cY - BOX_H/2;
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.25)' : 'rgba(255,64,96,.25)';
+    ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(cx2+dotR+3, cY); ctx.lineTo(bxX, cY); ctx.stroke();
     ctx.setLineDash([]);
-
-    // Box fill + border
-    ctx.fillStyle='rgba(17,24,39,.93)';
-    rrect(ctx,boxX,boxY,BOX_W,BOX_H,5);ctx.fill();
-    ctx.strokeStyle=borderCol;ctx.lineWidth=0.8;
-    rrect(ctx,boxX,boxY,BOX_W,BOX_H,5);ctx.stroke();
-
-    // Line 1: Gain %
-    ctx.fillStyle=isUp?'#05d98a':'#ff4060';
-    ctx.font='700 11.5px Cabinet Grotesk,sans-serif';
-    ctx.textAlign='left';ctx.textBaseline='top';
-    ctx.fillText((gain>=0?'+':'')+gain.toFixed(2)+'%', boxX+8, boxY+7);
-
+    ctx.fillStyle = 'rgba(17,24,39,.94)';
+    rrect(ctx, bxX, bxY, BOX_W, BOX_H, 5); ctx.fill();
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.35)' : 'rgba(255,64,96,.35)'; ctx.lineWidth = 0.8;
+    rrect(ctx, bxX, bxY, BOX_W, BOX_H, 5); ctx.stroke();
+    // Line 1: gain %
+    ctx.fillStyle = isUp ? '#05d98a' : '#ff4060';
+    ctx.font = '700 11.5px Cabinet Grotesk,sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText((gain >= 0 ? '+' : '') + gain.toFixed(2) + '%', bxX + 8, bxY + 7);
     // Line 2: CAGR
-    ctx.fillStyle='#8fa0c0';ctx.font='400 9.5px DM Mono,monospace';
-    const cagrTxt = y<1 ? 'Held < 1yr' : 'CAGR: '+fCAGR(lCGR);
-    ctx.fillText(cagrTxt, boxX+8, boxY+23);
-
-    // Line 3: held + lot
-    ctx.fillStyle='#3a4f6e';ctx.font='400 8.5px DM Mono,monospace';
-    ctx.fillText(y.toFixed(1)+'y · L'+(i+1)+' · '+selCurr, boxX+8, boxY+36);
+    ctx.fillStyle = '#8fa0c0'; ctx.font = '400 9.5px DM Mono,monospace';
+    ctx.fillText(y < 1 ? 'Held < 1yr' : 'CAGR: ' + fCAGR(lCGR), bxX + 8, bxY + 23);
+    // Line 3: metadata
+    ctx.fillStyle = '#3a4f6e'; ctx.font = '400 8.5px DM Mono,monospace';
+    ctx.fillText(y.toFixed(1) + 'y · L'+(i+1)+' · '+selCurr, bxX + 8, bxY + 36);
   });
 }
 
-// ═══════════════════════════════════════════════════════
-// PRICE & FX FETCHING
-// ═══════════════════════════════════════════════════════
-const PROXIES=[
-  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+// ═══════════════════════════════════════════════════════════════════
+//  DATA FETCHING
+//
+//  Stock prices   → Yahoo Finance (via CORS proxy, EUR-denominated)
+//  FX history     → api.frankfurter.app (ECB rates, CORS-enabled,
+//                   no API key, no proxy needed, one request = all
+//                   daily EUR/USD + EUR/INR rates from 2022 to today)
+// ═══════════════════════════════════════════════════════════════════
+
+const YF_PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
 ];
 
-async function fetchYF(sym) {
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
-  for(const mkP of PROXIES){
-    try{
-      const r=await fetch(mkP(url),{signal:AbortSignal.timeout(7000)});
-      if(!r.ok) continue;
-      const d=await r.json();
-      const p=d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if(p&&p>0) return +p.toFixed(4);
-    }catch(e){}
+// Safe fetch with timeout — avoids AbortSignal.timeout() which cannot be
+// cloned in some iframe/browser contexts (causes postMessage errors)
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(r => { clearTimeout(tid); return r; })
+    .catch(e => { clearTimeout(tid); throw e; });
+}
+
+async function fetchYFPrice(sym) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
+  for (const mkP of YF_PROXIES) {
+    try {
+      const r = await fetchWithTimeout(mkP(url), 8000);
+      if (!r.ok) continue;
+      const d = await r.json();
+      const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (p && p > 0) return +p.toFixed(4);
+    } catch(e) {}
   }
   return null;
 }
 
-// Fetch full daily history for an FX pair from Yahoo Finance
-// Returns: { "2022-03-14": 1.0934, ... }  (1 EUR = X target)
-async function fetchFXHistory(symbol) {
-  // ~4 years of daily data
-  const period1=Math.floor((Date.now()-4*365.25*86400*1000)/1000);
-  const period2=Math.floor(Date.now()/1000);
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&period1=${period1}&period2=${period2}`;
-  for(const mkP of PROXIES){
-    try{
-      const r=await fetch(mkP(url),{signal:AbortSignal.timeout(12000)});
-      if(!r.ok) continue;
-      const d=await r.json();
-      const result=d?.chart?.result?.[0];
-      if(!result) continue;
-      const timestamps=result.timestamp||[];
-      const closes=result.indicators?.quote?.[0]?.close||[];
-      if(timestamps.length===0) continue;
-      const map={};
-      timestamps.forEach((ts,i)=>{
-        if(closes[i]){
-          const dt=new Date(ts*1000).toISOString().slice(0,10);
-          map[dt]=closes[i];
-        }
-      });
-      if(Object.keys(map).length>50) return map; // sanity check
-    }catch(e){}
+// Fetch full daily EUR→USD and EUR→INR history from frankfurter.app
+// Single request: 2022-01-01 to today, both currencies, no API key needed
+async function fetchFXFromFrankfurter() {
+  const today = new Date().toISOString().slice(0, 10);
+  const url = `https://api.frankfurter.app/2022-01-01..${today}?from=EUR&to=USD,INR`;
+
+  try {
+    const r = await fetchWithTimeout(url, 25000);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+
+    // data.rates = { "2022-01-03": { "USD": 1.1302, "INR": 84.52 }, ... }
+    let countUSD = 0, countINR = 0;
+    for (const [date, rates] of Object.entries(data.rates || {})) {
+      if (rates.USD) { fxHistory.USD[date] = rates.USD; countUSD++; }
+      if (rates.INR) { fxHistory.INR[date] = rates.INR; countINR++; }
+    }
+
+    if (countUSD > 50)  fxHistLoaded.USD = true;
+    if (countINR > 50)  fxHistLoaded.INR = true;
+
+    // Update today's fallback rates with the latest available
+    if (fxHistLoaded.USD) {
+      const latest = Object.keys(fxHistory.USD).sort().at(-1);
+      fxFallback.USD = fxHistory.USD[latest];
+    }
+    if (fxHistLoaded.INR) {
+      const latest = Object.keys(fxHistory.INR).sort().at(-1);
+      fxFallback.INR = fxHistory.INR[latest];
+    }
+
+    return fxHistLoaded.USD && fxHistLoaded.INR;
+  } catch(e) {
+    console.warn('frankfurter.app FX fetch failed:', e.message);
+    return false;
   }
-  return null;
 }
 
-async function fetchAllFXHistory(){
-  // Fetch EURUSD and EURINR historical daily data
-  const dot=document.getElementById('fxDot');
-  dot.className='fx-dot'; // amber / loading
+function updateFXStatusUI() {
+  const el = document.getElementById('fxStatus');
+  const usdOK = fxHistLoaded.USD, inrOK = fxHistLoaded.INR;
+  const allOK = usdOK && inrOK;
 
-  const [usdHist, inrHist]=await Promise.all([
-    fetchFXHistory('EURUSD=X'),
-    fetchFXHistory('EURINR=X'),
-  ]);
-
-  if(usdHist){ fxHist.USD=usdHist; fxHistOK.USD=true; }
-  if(inrHist){ fxHist.INR=inrHist; fxHistOK.INR=true; }
-
-  // Today's rates from the latest entry
-  if(usdHist){
-    const latest=Object.entries(usdHist).sort(([a],[b])=>b.localeCompare(a))[0];
-    if(latest) todayFX.USD=latest[1];
-  }
-  if(inrHist){
-    const latest=Object.entries(inrHist).sort(([a],[b])=>b.localeCompare(a))[0];
-    if(latest) todayFX.INR=latest[1];
+  if (allOK) {
+    el.className = 'fx-status ok';
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg> FX: Historical`;
+  } else if (usdOK || inrOK) {
+    el.className = 'fx-status ld';
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> FX: Partial`;
+  } else {
+    el.className = 'fx-status err';
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> FX: Approx.`;
   }
 
-  const allOK=fxHistOK.USD&&fxHistOK.INR;
-  dot.className='fx-dot '+(allOK?'ok':'err');
-
-  // Update rate display
-  const rStr=`1 EUR = ${todayFX.USD.toFixed(4)} USD = ₹${todayFX.INR.toFixed(2)} INR`;
-  document.getElementById('fxRateDisplay').textContent=rStr;
-
-  return allOK;
+  // Rate chips
+  document.getElementById('fxChipUSD').textContent = `1 EUR = ${fxFallback.USD.toFixed(4)} USD`;
+  document.getElementById('fxChipINR').textContent = `1 EUR = ₹${fxFallback.INR.toFixed(2)} INR`;
+  const histChip = document.getElementById('fxHistChip');
+  histChip.style.display = allOK ? 'flex' : 'none';
+  if (allOK) {
+    const cnt = Object.keys(fxHistory.USD).length;
+    document.getElementById('fxHistText').textContent = `${cnt} daily ECB rates loaded`;
+  }
 }
 
-async function fetchPricesEUR(){
-  const results=await Promise.all(PORTFOLIO.map(p=>fetchYF(p.ticker+'-EUR')));
-  let ok=0;
-  PORTFOLIO.forEach((p,i)=>{if(results[i]){curEUR[p.ticker]=results[i];ok++;}});
-  return ok;
+async function fetchAllPrices() {
+  return Promise.all(PORTFOLIO.map(p => fetchYFPrice(p.ticker + '-EUR')));
 }
 
-let countdown=60,cTimer=null,rTimer=null;
+let countdown = 60, cTimer = null, rTimer = null;
 
-async function doRefresh(){
-  const btn=document.getElementById('rbtn');
+async function doRefresh() {
+  const btn = document.getElementById('rbtn');
   btn.classList.add('spin');
-  setStatus('ld','Fetching live data…');
+  setStatus('ld', 'Fetching live data…');
 
-  // Run price fetch and FX history fetch in parallel
-  const [priceOk, fxOk]=await Promise.all([fetchPricesEUR(), fetchAllFXHistory()]);
+  // Run both fetches in parallel
+  const [prices, fxOK] = await Promise.all([fetchAllPrices(), fetchFXFromFrankfurter()]);
+
+  // Apply stock prices
+  let priceOK = 0;
+  PORTFOLIO.forEach((p, i) => { if (prices[i]) { curEUR[p.ticker] = prices[i]; priceOK++; } });
 
   btn.classList.remove('spin');
-  const now=new Date();
-  document.getElementById('ts').textContent='Updated '+
-    now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const fxStatus=fxHistOK.USD||fxHistOK.INR?'Historical FX loaded':'FX history failed (approx)';
-  document.getElementById('stxt2').textContent=
-    (priceOk>0?'Live prices':'Fallback prices')+' · '+fxStatus;
-  setStatus(priceOk>0?'live':'err', priceOk>0?'Live prices':'Fallback prices');
+  document.getElementById('ts').textContent = 'Updated ' +
+    new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  document.getElementById('stxt2').textContent =
+    (priceOK > 0 ? 'Live EUR prices' : 'Baseline prices') +
+    ' · FX: ' + (fxHistLoaded.USD && fxHistLoaded.INR ? 'ECB historical (frankfurter.app)' : 'Approximate (ECB unavailable)');
+  document.getElementById('stxt3').textContent =
+    `${Object.keys(fxHistory.USD).length} USD + ${Object.keys(fxHistory.INR).length} INR daily rates`;
 
+  setStatus(priceOK > 0 ? 'live' : 'err', priceOK > 0 ? 'Live prices' : 'Fallback prices');
+  updateFXStatusUI();
   render();
   startCountdown();
 }
 
-function setStatus(state,text){
-  const dot=document.getElementById('sdot');
-  dot.className='sdot'+(state==='err'?' err':state==='ld'?' ld':'');
-  document.getElementById('stxt').textContent=text;
+function setStatus(state, text) {
+  const dot = document.getElementById('sdot');
+  dot.className = 'sdot' + (state === 'err' ? ' err' : state === 'ld' ? ' ld' : '');
+  document.getElementById('stxt').textContent = text;
 }
-function startCountdown(){
-  clearInterval(cTimer);clearTimeout(rTimer);
-  countdown=60;updCD();
-  cTimer=setInterval(()=>{countdown--;updCD();if(countdown<=0)clearInterval(cTimer);},1000);
-  rTimer=setTimeout(doRefresh,60000);
+function startCountdown() {
+  clearInterval(cTimer); clearTimeout(rTimer);
+  countdown = 60; updCD();
+  cTimer = setInterval(() => { countdown--; updCD(); if (countdown <= 0) clearInterval(cTimer); }, 1000);
+  rTimer = setTimeout(doRefresh, 60000);
 }
-function updCD(){document.getElementById('nxt').textContent='Next in '+countdown+'s';}
+function updCD() { document.getElementById('nxt').textContent = 'Next in ' + countdown + 's'; }
 
-function onCurrChange(){
-  selCurr=document.getElementById('currSel').value;
+function onCurrChange() {
+  selCurr = document.getElementById('currSel').value;
   render();
-  // If drawer is open, re-render it
-  if(document.getElementById('drawer').classList.contains('open')){
-    const activeTicker=document.querySelector('#tbody tr.active');
-    if(activeTicker){
-      const ticker=activeTicker.querySelector('.tc-name').textContent.trim();
+  // Re-render drawer if open
+  if (document.getElementById('drawer').classList.contains('open')) {
+    const activeRow = document.querySelector('#tbody tr.active');
+    if (activeRow) {
+      const ticker = activeRow.querySelector('.tc-name').textContent.trim().slice(0, 4).trim();
       openDrawer(ticker);
     }
   }
-  // Update banner visibility
-  const histAvail=selCurr==='EUR'||fxHistOK[selCurr];
-  document.getElementById('fxBanner').classList.toggle('show',!histAvail&&selCurr!=='EUR');
 }
 
-// ═══════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════
+// ── Init ──
 render();
-document.getElementById('ts').textContent='Baseline prices (EUR)';
-document.getElementById('stxt2').textContent='Fetching live prices and historical FX rates…';
-document.getElementById('fxRateDisplay').textContent='Loading FX rates…';
-setStatus('ld','Loading…');
+setStatus('ld', 'Loading…');
+document.getElementById('ts').textContent = 'Baseline prices';
+document.getElementById('stxt2').textContent = 'Fetching live prices + ECB FX history…';
 doRefresh();
 </script>
 </body>
