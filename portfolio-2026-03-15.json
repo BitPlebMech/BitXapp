@@ -1,0 +1,188 @@
+{
+  "transactions": [
+    {
+      "id": "s6e0eyo",
+      "date": "2022-03-14",
+      "ticker": "AAPL",
+      "type": "BUY",
+      "qty": 10,
+      "price": 155.35,
+      "notes": "Initial buy"
+    },
+    {
+      "id": "pww899g",
+      "date": "2022-09-01",
+      "ticker": "AAPL",
+      "type": "BUY",
+      "qty": 5,
+      "price": 157.65,
+      "notes": "Dip add"
+    },
+    {
+      "id": "4ou0rsb",
+      "date": "2023-07-15",
+      "ticker": "AAPL",
+      "type": "SELL",
+      "qty": 5,
+      "price": 189.3,
+      "notes": "Partial profit"
+    },
+    {
+      "id": "zxhymae",
+      "date": "2024-01-10",
+      "ticker": "AAPL",
+      "type": "BUY",
+      "qty": 3,
+      "price": 185.5,
+      "notes": "Reload"
+    },
+    {
+      "id": "xlj7y7z",
+      "date": "2022-06-10",
+      "ticker": "MSFT",
+      "type": "BUY",
+      "qty": 8,
+      "price": 252.46,
+      "notes": ""
+    },
+    {
+      "id": "tae6drf",
+      "date": "2023-11-20",
+      "ticker": "NVDA",
+      "type": "BUY",
+      "qty": 15,
+      "price": 495.82,
+      "notes": "AI play"
+    },
+    {
+      "id": "bftsjp6",
+      "date": "2024-02-20",
+      "ticker": "NVDA",
+      "type": "BUY",
+      "qty": 5,
+      "price": 674,
+      "notes": "Add"
+    },
+    {
+      "id": "a1l3owr",
+      "date": "2024-06-01",
+      "ticker": "NVDA",
+      "type": "SELL",
+      "qty": 8,
+      "price": 1080,
+      "notes": "Trim"
+    },
+    {
+      "id": "2bn3tz9",
+      "date": "2023-01-10",
+      "ticker": "VOO",
+      "type": "BUY",
+      "qty": 4,
+      "price": 367.8,
+      "notes": "DCA"
+    },
+    {
+      "id": "0ry0r2t",
+      "date": "2023-07-14",
+      "ticker": "VOO",
+      "type": "BUY",
+      "qty": 3,
+      "price": 389.2,
+      "notes": "DCA"
+    },
+    {
+      "id": "ba0tm87",
+      "date": "2024-05-01",
+      "ticker": "TSLA",
+      "type": "BUY",
+      "qty": 12,
+      "price": 182.63,
+      "notes": ""
+    },
+    {
+      "id": "s3cpmpb",
+      "date": "2024-07-15",
+      "ticker": "TSLA",
+      "type": "SELL",
+      "qty": 5,
+      "price": 248.5,
+      "notes": "Take profit"
+    },
+    {
+      "id": "an7n1z4",
+      "date": "2022-06-20",
+      "ticker": "BTC",
+      "type": "BUY",
+      "qty": 0.15,
+      "price": 19400,
+      "notes": "Bear market buy"
+    },
+    {
+      "id": "d194jf6",
+      "date": "2023-10-28",
+      "ticker": "BTC",
+      "type": "BUY",
+      "qty": 0.1,
+      "price": 33400,
+      "notes": "Breakout"
+    }
+  ],
+  "priceCache": {
+    "AAPL": {
+      "price": 192.3049,
+      "ts": 1773587784403,
+      "src": "sim"
+    },
+    "MSFT": {
+      "price": 417.9453,
+      "ts": 1773587784403,
+      "src": "sim"
+    },
+    "NVDA": {
+      "price": 856.1309,
+      "ts": 1773587784403,
+      "src": "sim"
+    },
+    "VOO": {
+      "price": 527.4137,
+      "ts": 1773587784403,
+      "src": "sim"
+    },
+    "TSLA": {
+      "price": 178.0877,
+      "ts": 1773587784403,
+      "src": "sim"
+    },
+    "BTC": {
+      "price": 70866.62,
+      "ts": 1773587784403,
+      "src": "sim"
+    }
+  },
+  "tickerMeta": {
+    "AAPL": {
+      "cls": "Stock"
+    },
+    "MSFT": {
+      "cls": "Stock"
+    },
+    "NVDA": {
+      "cls": "Stock"
+    },
+    "VOO": {
+      "cls": "ETF"
+    },
+    "TSLA": {
+      "cls": "Stock"
+    },
+    "BTC": {
+      "cls": "Crypto"
+    }
+  },
+  "settings": {
+    "currency": "INR",
+    "apiKey": "",
+    "cacheTTL": 14400000
+  },
+  "_exported": "2026-03-15T15:17:43.613Z"
+}
