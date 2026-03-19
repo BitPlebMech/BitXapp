@@ -1,4 +1,27 @@
 <!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  PORTFOLIO TERMINAL                                                  ║
+  ║  Single-file personal investment tracker                             ║
+  ║                                                                      ║
+  ║  Architecture:  Vanilla HTML + CSS + JavaScript (zero dependencies)  ║
+  ║  Storage:       localStorage (key: "portfolio_v3")                   ║
+  ║  Prices:        CoinGecko (crypto) · Yahoo Finance (stocks/ETFs)     ║
+  ║                 Alpha Vantage optional (add key in Settings)         ║
+  ║  FX Rates:      ECB via frankfurter.app (EUR→USD, EUR→INR history)   ║
+  ║  ISIN Lookup:   OpenFIGI (free, no key) — used in CSV import wizard  ║
+  ║                                                                      ║
+  ║  Key data model:                                                     ║
+  ║    state.transactions  [{id, date, ticker, type, qty, price, notes}] ║
+  ║    state.priceCache    {[ticker]: {price, ts, src}}                  ║
+  ║    state.tickerMeta    {[ticker]: {cls}}                             ║
+  ║    state.settings      {currency, apiKey, cacheTTL}                  ║
+  ║                                                                      ║
+  ║  All prices stored internally in USD.                                ║
+  ║  Display conversion: USD → EUR or INR via historical ECB rates.      ║
+  ║  P&L uses FIFO lot matching with per-date FX rates on both sides.    ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -43,7 +66,6 @@
   --amber:  #ffaa20;
   --purple: #a07cf8;
   --orange: #ff9848;
-  --teal:   #00d4ff;
 
   /* Semi-transparent accent backgrounds */
   --blue-bg: rgba(91, 156, 255, 0.09);
@@ -988,6 +1010,159 @@ body::after {
 
 
 /* ═══════════════════════════════════════════════════════════════════════
+   CSV IMPORT MODAL
+   3-step wizard: Parse → Resolve ISINs → Preview & Import
+   ═══════════════════════════════════════════════════════════════════════ */
+.csv-modal { max-width: 700px; }
+
+/* Step progress bar */
+.csv-steps {
+  display: flex; align-items: center; gap: 0;
+  flex: 1; justify-content: center; padding: 0 16px;
+}
+.csv-step {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--dim); transition: color 0.2s;
+}
+.csv-step.active { color: var(--blue); }
+.csv-step.done   { color: var(--green); }
+.csv-step-num {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+  background: var(--surf3); border: 1px solid var(--b2); color: var(--dim);
+  transition: all 0.2s;
+}
+.csv-step.active .csv-step-num { background: rgba(91,156,255,0.15); border-color: var(--blue); color: var(--blue); }
+.csv-step.done   .csv-step-num { background: rgba(0,219,168,0.15);  border-color: var(--green); color: var(--green); }
+.csv-step-line {
+  width: 32px; height: 1px;
+  background: var(--b1); margin: 0 2px; flex-shrink: 0;
+  transition: background 0.2s;
+}
+.csv-step-line.done { background: var(--green); }
+
+/* Drop zone */
+.csv-drop {
+  border: 1.5px dashed var(--b2); border-radius: 12px;
+  padding: 38px 20px; text-align: center; cursor: pointer;
+  transition: all 0.18s; color: var(--muted); font-size: 13px;
+  background: var(--surf2);
+}
+.csv-drop:hover, .csv-drop.drag-over {
+  border-color: var(--blue); background: rgba(91,156,255,0.05); color: var(--text);
+}
+.csv-drop-icon { margin-bottom: 10px; opacity: 0.4; }
+.csv-drop-icon svg { width: 36px; height: 36px; }
+.csv-drop-sub { font-size: 11px; color: var(--dim); margin-top: 5px; }
+
+/* Parse summary card */
+.csv-summary-card {
+  background: var(--surf2); border: 0.5px solid var(--b1); border-radius: 10px;
+  padding: 14px 17px; display: flex; gap: 20px; flex-wrap: wrap;
+  margin-top: 14px; align-items: center;
+}
+.csv-sum-item { display: flex; flex-direction: column; gap: 3px; }
+.csv-sum-lbl  { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.csv-sum-val  { font-family: var(--font-mono); font-size: 15px; font-weight: 500; color: var(--text); }
+.csv-sum-ok   { color: var(--green); }
+.csv-sum-warn { color: var(--amber); }
+
+/* ISIN resolution rows */
+.isin-list { display: flex; flex-direction: column; gap: 7px; margin-top: 2px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+.isin-row {
+  display: grid; grid-template-columns: 1fr 130px 130px 26px;
+  gap: 8px; align-items: center;
+  background: var(--surf2); border: 0.5px solid var(--b1);
+  border-radius: 9px; padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+.isin-row.resolved { border-color: rgba(0,219,168,0.2); }
+.isin-row.error    { border-color: rgba(255,61,90,0.2);  }
+.isin-code {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.isin-code strong { color: var(--text); font-size: 12px; }
+.isin-status {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; display: flex; align-items: center; gap: 4px; margin-top: 2px;
+}
+.isin-status.ok   { color: var(--green); }
+.isin-status.load { color: var(--amber); }
+.isin-status.err  { color: var(--red); }
+.isin-status.man  { color: var(--blue); }
+.isin-clear-btn {
+  background: transparent; border: 0.5px solid var(--b2); color: var(--dim);
+  border-radius: 5px; width: 26px; height: 26px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; transition: all 0.14s; flex-shrink: 0;
+}
+.isin-clear-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Resolve all button */
+.resolve-btn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(91,156,255,0.09); border: 0.5px solid rgba(91,156,255,0.3);
+  color: var(--blue); border-radius: 7px; padding: 7px 14px; cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.resolve-btn:hover  { background: var(--blue); color: #fff; }
+.resolve-btn:disabled { opacity: 0.45; pointer-events: none; }
+.resolve-btn svg { width: 12px; height: 12px; }
+.resolve-info { font-size: 11px; color: var(--muted); }
+
+/* Preview table in step 3 */
+.prev-wrap { overflow-x: auto; max-height: 340px; overflow-y: auto; border-radius: 8px; border: 0.5px solid var(--b1); }
+.prev-tbl { width: 100%; border-collapse: collapse; }
+.prev-tbl thead th {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--dim); padding: 8px 10px; border-bottom: 0.5px solid var(--b1);
+  background: var(--surf2); text-align: right; white-space: nowrap; position: sticky; top: 0;
+}
+.prev-tbl thead th:first-child, .prev-tbl thead th:nth-child(2),
+.prev-tbl thead th:nth-child(3) { text-align: left; }
+.prev-tbl tbody td {
+  font-family: var(--font-mono); font-size: 11px; color: #8fa0c0;
+  padding: 8px 10px; text-align: right; border-bottom: 0.5px solid var(--b1); white-space: nowrap;
+}
+.prev-tbl tbody td:first-child, .prev-tbl tbody td:nth-child(2),
+.prev-tbl tbody td:nth-child(3) { text-align: left; }
+.prev-tbl tbody tr:last-child td { border-bottom: none; }
+.prev-tbl tbody tr.dup-row td   { opacity: 0.42; }
+.dup-badge {
+  display: inline-flex; align-items: center;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(255,170,32,0.1); color: var(--amber); border: 0.5px solid rgba(255,170,32,0.25);
+}
+.prev-summary {
+  background: var(--surf2); border: 0.5px solid var(--b1); border-radius: 8px;
+  padding: 11px 14px; font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 11px; flex-wrap: wrap;
+}
+.prev-summary strong { color: var(--text); }
+.prev-summary .warn  { color: var(--amber); font-weight: 700; }
+
+/* CSV nav footer buttons */
+.csv-nav-btn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  border-radius: 8px; padding: 9px 18px; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.csv-nav-btn.back    { background: transparent; border: 0.5px solid var(--b2); color: var(--muted); }
+.csv-nav-btn.back:hover   { border-color: var(--muted); color: var(--text); }
+.csv-nav-btn.next    { background: rgba(91,156,255,0.09); border: 0.5px solid rgba(91,156,255,0.3); color: var(--blue); }
+.csv-nav-btn.next:hover   { background: var(--blue); color: #fff; }
+.csv-nav-btn.import  { background: var(--green); border: 1px solid var(--green); color: #0b1120; }
+.csv-nav-btn.import:hover { background: #00c99a; }
+.csv-nav-btn:disabled     { opacity: 0.38; pointer-events: none; }
+.csv-nav-btn svg { width: 12px; height: 12px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
    CONFIRM DIALOG
    Centred confirmation popup for destructive actions
    ═══════════════════════════════════════════════════════════════════════ */
@@ -1062,8 +1237,6 @@ body::after {
 /* Text colour helpers */
 .c-green { color: var(--green); }
 .c-red   { color: var(--red); }
-.c-amber { color: var(--amber); }
-.c-blue  { color: var(--blue); }
 .c-muted { color: var(--muted); }
 .c-text  { color: var(--text); }
 
@@ -1219,10 +1392,16 @@ body::after {
         <button class="cls-fb"        id="clf-MF"     onclick="App.setClsFilter('MF')">MF</button>
       </div>
     </div>
-    <button class="hdr-btn primary" onclick="App.openModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Transaction
-    </button>
+    <div style="display:flex;gap:7px">
+      <button class="hdr-btn" onclick="App.openCsvImport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import CSV
+      </button>
+      <button class="hdr-btn primary" onclick="App.openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Transaction
+      </button>
+    </div>
   </div>
   <div class="pos-grid" id="pos-grid"></div>
 </div>
@@ -1246,18 +1425,24 @@ body::after {
       <option value="ticker">Ticker A→Z</option>
       <option value="value-desc">Value ↓</option>
     </select>
-    <button class="hdr-btn primary" onclick="App.openModal()" style="margin-left:auto">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add
-    </button>
+    <div style="display:flex;gap:7px;margin-left:auto">
+      <button class="hdr-btn" onclick="App.openCsvImport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import CSV
+      </button>
+      <button class="hdr-btn primary" onclick="App.openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add
+      </button>
+    </div>
   </div>
   <div class="panel">
     <div class="tbl-wrap">
       <table class="htbl">
         <thead><tr>
           <th>#</th><th>Date</th><th style="text-align:center">Type</th>
-          <th>Ticker</th><th>Class</th><th>Qty</th><th>Price (USD)</th>
-          <th>Disp. Total</th><th>Current P&L</th><th></th>
+          <th>Ticker</th><th>Class</th><th>Qty</th><th id="hist-price-hdr">Price</th>
+          <th>Total</th><th>Unrealised P&L</th><th></th>
         </tr></thead>
         <tbody id="hist-body"></tbody>
       </table>
@@ -1369,6 +1554,42 @@ body::after {
 
 
 <!-- ═══════════════════════════════════════════════════════════════════════
+     CSV IMPORT MODAL — 3-step wizard
+     Step 1: Upload & Parse  |  Step 2: Resolve ISINs  |  Step 3: Preview & Import
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal-ov" id="csv-ov" onclick="if(event.target===this)App.closeCsvImport()">
+  <div class="modal csv-modal">
+    <div class="modal-header" style="flex-wrap:wrap;gap:10px">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Import CSV
+      </div>
+      <!-- Step indicator -->
+      <div class="csv-steps" id="csv-steps">
+        <div class="csv-step active" id="cstep-1">
+          <div class="csv-step-num">1</div>
+          <span class="csv-step-lbl">Upload</span>
+        </div>
+        <div class="csv-step-line" id="cline-1"></div>
+        <div class="csv-step" id="cstep-2">
+          <div class="csv-step-num">2</div>
+          <span class="csv-step-lbl">Resolve</span>
+        </div>
+        <div class="csv-step-line" id="cline-2"></div>
+        <div class="csv-step" id="cstep-3">
+          <div class="csv-step-num">3</div>
+          <span class="csv-step-lbl">Preview</span>
+        </div>
+      </div>
+      <button class="modal-x" onclick="App.closeCsvImport()">✕</button>
+    </div>
+    <div class="modal-body" id="csv-body" style="min-height:200px"></div>
+    <div class="modal-foot" id="csv-foot"></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
      SETTINGS SIDE PANEL
      API key, FX status, data management
      ═══════════════════════════════════════════════════════════════════════ -->
@@ -1389,18 +1610,20 @@ body::after {
     <div class="sp-sec">
       <div class="sp-sec-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Live Price API — Alpha Vantage
+        Price Sources
       </div>
       <div class="info-box">
-        <strong>How to get live prices:</strong><br>
-        1. Visit <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co/support/#api-key</a><br>
-        2. Fill in name + email → get a free key instantly<br>
-        3. Paste it below and hit Save<br><br>
-        Free tier: <strong>25 req/day</strong> · 5 req/min · 15-min delayed
+        <strong>Live prices work without any API key:</strong><br>
+        · <strong>Stocks &amp; ETFs</strong> — Yahoo Finance (free, automatic)<br>
+        · <strong>Crypto</strong> — CoinGecko (free, automatic)<br><br>
+        <strong>Optional enhancement — Alpha Vantage:</strong><br>
+        Adds a second data source for stocks. Get a free key at
+        <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a>
+        (25 req/day · 5 req/min · 15-min delayed)
       </div>
       <div class="fgrp">
-        <label class="flbl">Alpha Vantage API Key</label>
-        <input type="password" class="finp" id="cfg-apikey" placeholder="Paste your free API key…">
+        <label class="flbl">Alpha Vantage API Key (optional)</label>
+        <input type="password" class="finp" id="cfg-apikey" placeholder="Optional — leave blank to use Yahoo Finance">
       </div>
       <div class="fgrp">
         <label class="flbl">Price Cache Duration</label>
@@ -1421,6 +1644,11 @@ body::after {
       <div class="sp-sec-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         FX Rates — ECB via frankfurter.app
+      </div>
+      <div class="info-box" style="font-size:11px">
+        ECB publishes rates on <strong>business days only</strong> (no weekends/holidays).
+        Today's rate may show as yesterday if ECB hasn't published yet — this is normal.
+        Historical rates are exact; the current rate is fetched fresh on each load.
       </div>
       <div class="fx-chips" id="sp-fx-chips"><div class="fx-chip"><span>Loading…</span></div></div>
     </div>
@@ -1515,12 +1743,12 @@ body::after {
       <div class="lot-dist-leg"    id="drw-dist-leg"></div>
     </div>
 
-    <!-- All transactions for this ticker -->
+    <!-- All transactions for this ticker — price header updated dynamically by openDrawer() -->
     <div class="drw-sec-lbl">All Transactions</div>
     <table class="ltbl">
       <thead><tr>
-        <th>#</th><th style="text-align:center">Type</th><th>Date</th>
-        <th>Qty</th><th>Price USD</th><th>Price Disp.</th><th>Total</th><th>P&L</th><th>P&L %</th>
+        <th>#</th><th style="text-align:center">Type</th><th style="text-align:left">Date</th>
+        <th>Qty</th><th id="drw-price-hdr">Price</th><th>Total</th><th>P&L</th><th>P&L %</th>
       </tr></thead>
       <tbody id="drw-txs"></tbody>
     </table>
@@ -1566,8 +1794,24 @@ body::after {
 'use strict';
 
 /**
- * Everything is wrapped in an IIFE to avoid polluting global scope.
- * Only the `App` namespace is exported for use by inline onclick handlers.
+ * Portfolio Terminal — Application Core
+ * ─────────────────────────────────────
+ * All logic lives inside a single IIFE to keep global scope clean.
+ * Only the `App` object is exported; HTML onclick handlers call App.xxx().
+ *
+ * Execution flow on page load:
+ *   1. loadState()      — restore from localStorage (or seed sample data)
+ *   2. render()         — paint UI immediately with mock/cached prices
+ *   3. fetchFxLatest()  — grab current ECB rate (async, re-renders on resolve)
+ *   4. fetchFX()        — load full ECB history 2021→today (async, background)
+ *   5. refreshPrices()  — fetch live prices from CoinGecko / Yahoo (async, background)
+ *
+ * Section index (Ctrl+F to jump):
+ *   DOM HELPER · CONSTANTS · STATE · PERSISTENCE · FX RATES · PRICE ENGINE
+ *   XIRR · PORTFOLIO CALCULATIONS · FORMATTING · COLOURS · CRUD
+ *   RENDER PIPELINE · OVERVIEW · POSITIONS · HISTORY · DRAWER
+ *   DUMBBELL CHART · MODAL · CSV IMPORT · SETTINGS · DATA MANAGEMENT
+ *   SAMPLE DATA · TOAST · KEYBOARD · INIT · PUBLIC API
  */
 const App = (function () {
 
@@ -1628,21 +1872,18 @@ const App = (function () {
   };
 
   /** Fallback prices in USD used when no API key is configured */
-  const MOCK_PRICES_USD = {
-    AAPL: 196.45, MSFT: 417.82, GOOGL: 177.23, AMZN: 193.60, META: 571.90,
-    NVDA: 853.40, TSLA: 172.80, BRKB: 447.20, JPM: 234.50, V: 291.30,
-    MA: 472.80, SPY: 552.10, QQQ: 471.40, VOO: 512.50, VTI: 267.90,
-    IVV: 553.80, GLD: 234.10, TLT: 92.50, HYG: 77.30, BTC: 68200,
-    ETH: 3480, SOL: 188.40, ADA: 0.52, XRP: 0.62, AMD: 167.40,
-    NFLX: 752.30, DIS: 111.20, PLTR: 76.50, UBER: 82.40, INTC: 28.50,
-    BAC: 41.20, GS: 525.30, WMT: 89.40, COST: 912.30, ORCL: 148.60,
-    CRM: 315.80,
-  };
-
   /** Sets for auto-detecting asset class from ticker symbol */
   const CRYPTO_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE', 'MATIC', 'LINK', 'UNI', 'ATOM', 'AVAX']);
   const ETF_TICKERS    = new Set(['SPY', 'QQQ', 'VOO', 'VTI', 'IVV', 'VUG', 'ARKK', 'GLD', 'SLV', 'TLT', 'HYG', 'IEF', 'XLK', 'XLF', 'IWM', 'EEM', 'VEA', 'VWO', 'SCHD', 'JEPI', 'VGT', 'SMH', 'SOXX', 'XBI', 'BOTZ', 'USO', 'IAU']);
   const BOND_TICKERS   = new Set(['TLT', 'HYG', 'IEF', 'LQD', 'BND', 'AGG', 'SHY', 'TIP', 'MBB']);
+
+  /** CoinGecko ID lookup for crypto tickers — used for free live crypto prices */
+  const COINGECKO_IDS = {
+    BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana', ADA: 'cardano',
+    XRP: 'ripple', DOT: 'polkadot', DOGE: 'dogecoin', MATIC: 'matic-network',
+    LINK: 'chainlink', UNI: 'uniswap', ATOM: 'cosmos', AVAX: 'avalanche-2',
+    BNB: 'binancecoin', LTC: 'litecoin', ALGO: 'algorand',
+  };
 
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1667,7 +1908,7 @@ const App = (function () {
   let fxDaily = { USD: {}, INR: {} };
 
   /** Latest known FX rates (fallback when historical lookup fails) */
-  let fxLatest = { EUR: 1, USD: 1.08, INR: 90.5 };
+  let fxLatest = { EUR: 1, USD: 1.08, INR: 96.0 };
 
   /** Whether we successfully loaded historical FX data */
   let fxLoaded = { USD: false, INR: false };
@@ -1735,6 +1976,31 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   /**
+   * Fetch the very latest ECB rate (may be same-day if published, otherwise last business day).
+   * Called separately from historical fetch to ensure fxLatest is as fresh as possible.
+   */
+  /** Fetch with a timeout using Promise.race — avoids AbortController cloning issues */
+  function fetchWithTimeout(url, ms = 5000, options = {}) {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), ms)
+    );
+    return Promise.race([fetch(url, options), timeout]);
+  }
+
+  async function fetchFxLatest() {
+    try {
+      const resp = await fetchWithTimeout('https://api.frankfurter.app/latest?from=EUR&to=USD,INR', 5000);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.rates?.USD && data.rates.USD > 0) fxLatest.USD = data.rates.USD;
+      if (data.rates?.INR && data.rates.INR > 0) fxLatest.INR = data.rates.INR;
+      updateFXUI();
+    } catch (e) {
+      console.warn('[FX Latest] Failed:', e.message);
+    }
+  }
+
+  /**
    * Fetch all historical FX rates from the ECB API.
    * @returns {Promise<boolean>} true if fetch succeeded
    */
@@ -1742,10 +2008,7 @@ const App = (function () {
     const today = new Date().toISOString().slice(0, 10);
     const url = `https://api.frankfurter.app/2021-01-01..${today}?from=EUR&to=USD,INR`;
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
+      const response = await fetchWithTimeout(url, 25000);
       if (!response.ok) throw new Error('HTTP ' + response.status);
 
       const data = await response.json();
@@ -1857,8 +2120,8 @@ const App = (function () {
         <div class="fx-chip"><span><span class="src">EUR → INR (ECB live)</span></span><strong>1 EUR = ₹${fxLatest.INR.toFixed(2)}</strong></div>
         <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>
         <div class="fx-chip" style="flex-direction:column;align-items:flex-start;gap:2px">
-          <span class="src">Historical coverage</span>
-          <span style="color:var(--green);font-size:10px">${Object.keys(fxDaily.USD).length} USD + ${Object.keys(fxDaily.INR).length} INR daily rates</span>
+          <span class="src">Historical coverage · ECB publishes on business days only</span>
+          <span style="color:var(--green);font-size:10px">${Object.keys(fxDaily.USD).length} USD + ${Object.keys(fxDaily.INR).length} INR daily rates · last: ${lastDate}</span>
         </div>`;
     }
   }
@@ -1866,14 +2129,31 @@ const App = (function () {
 
   /* ═══════════════════════════════════════════════════════════════════
      PRICE ENGINE
-     Fetches live prices from Alpha Vantage or generates simulated ones.
+     Priority order for live prices (all free, no key required by default):
+       1. CoinGecko  — crypto tickers (BTC, ETH, SOL, …)
+       2. Yahoo Finance — stocks, ETFs (unofficial API, no key needed)
+       3. Alpha Vantage — optional enhancement if user adds a key
+       4. Simulated     — deterministic fallback, clearly labelled
      ═══════════════════════════════════════════════════════════════════ */
 
   /**
-   * Generate a deterministic mock price that varies slightly by day.
-   * Used when no API key is configured.
-   * @param {string} ticker
-   * @returns {number}
+   * Fallback prices in USD — only used when ALL live sources fail.
+   * Updated to approximate March 2025 values; always clearly labelled "sim".
+   */
+  const MOCK_PRICES_USD = {
+    AAPL: 215.00, MSFT: 388.00, GOOGL: 168.00, AMZN: 198.00, META: 595.00,
+    NVDA: 115.00, TSLA: 275.00, BRKB: 500.00, JPM: 250.00, V: 310.00,
+    MA: 520.00, SPY: 565.00, QQQ: 490.00, VOO: 536.00, VTI: 280.00,
+    IVV: 570.00, GLD: 280.00, TLT: 88.00,  HYG: 77.00,
+    BTC: 84000, ETH: 2000, SOL: 130.00, ADA: 0.70, XRP: 2.30, DOGE: 0.18,
+    AMD: 108.00, NFLX: 980.00, DIS: 100.00, PLTR: 90.00, UBER: 72.00,
+    INTC: 20.00, BAC: 44.00, GS: 570.00, WMT: 98.00, COST: 980.00,
+    ORCL: 170.00, CRM: 298.00, MSTR: 330.00, COIN: 210.00,
+  };
+
+  /**
+   * Generate a deterministic simulated price that shifts slightly each day.
+   * Used only when all live sources fail.
    */
   function getMockPrice(ticker) {
     const basePrice = MOCK_PRICES_USD[ticker] || 50;
@@ -1883,41 +2163,71 @@ const App = (function () {
     return +(basePrice * (1 + pctChange)).toFixed(4);
   }
 
-  /**
-   * Get the current price for a ticker (cached or mock).
-   * @param {string} ticker
-   * @returns {number} Price in USD
-   */
+  /** Get the current cached price for a ticker (falls back to mock) */
   function getPrice(ticker) {
     return state.priceCache[ticker]?.price || getMockPrice(ticker);
   }
 
-  /**
-   * Check whether the cached price for a ticker is still valid.
-   * @param {string} ticker
-   * @returns {boolean}
-   */
+  /** Check whether the cached price for a ticker is still within TTL */
   function isCacheValid(ticker) {
     const cached = state.priceCache[ticker];
     return cached && (Date.now() - cached.ts) < state.settings.cacheTTL;
   }
 
   /**
-   * Fetch a live price from Alpha Vantage for a single ticker.
-   * @param {string} ticker
-   * @param {string} apiKey
-   * @returns {Promise<number|null>}
+   * Fetch a live price from Yahoo Finance (free, no key required).
+   * Uses the unofficial chart API — returns null on any failure.
+   */
+  async function fetchYahoo(ticker) {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+      const resp = await fetchWithTimeout(url, 4000);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      return (price && price > 0) ? price : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Fetch live prices for multiple crypto tickers from CoinGecko (free, no key).
+   * Returns a map of { ticker: priceUSD }.
+   */
+  async function fetchCoinGeckoBatch(tickers) {
+    const idMap = {};
+    for (const t of tickers) {
+      if (COINGECKO_IDS[t]) idMap[t] = COINGECKO_IDS[t];
+    }
+    if (!Object.keys(idMap).length) return {};
+
+    try {
+      const ids = Object.values(idMap).join(',');
+      const resp = await fetchWithTimeout(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, 4000);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+
+      const result = {};
+      for (const [ticker, cgId] of Object.entries(idMap)) {
+        if (data[cgId]?.usd) result[ticker] = data[cgId].usd;
+      }
+      return result;
+    } catch (e) {
+      console.warn('[CoinGecko]', e.message);
+      return {};
+    }
+  }
+
+  /**
+   * Fetch a live price from Alpha Vantage (optional, requires user's free API key).
    */
   async function fetchAlphaVantage(ticker, apiKey) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const response = await fetch(
-        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`,
-        { signal: controller.signal }
-      );
-      clearTimeout(timeout);
-      const data = await response.json();
+      const resp = await fetchWithTimeout(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`, 10000);
+      const data = await resp.json();
       const price = parseFloat(data['Global Quote']?.['05. price']);
       return (price > 0) ? price : null;
     } catch {
@@ -1927,8 +2237,7 @@ const App = (function () {
 
   /**
    * Refresh prices for all tickers in the portfolio.
-   * Uses Alpha Vantage if API key is set, otherwise simulated prices.
-   * @param {boolean} force - Bypass cache TTL and refresh everything
+   * Strategy: CoinGecko for crypto → Yahoo Finance for stocks → AV if key set → mock fallback.
    */
   async function refreshPrices(force = false) {
     const refreshBtn = el('h-refresh');
@@ -1952,38 +2261,53 @@ const App = (function () {
     const apiKey = (state.settings.apiKey || '').trim();
     let liveCount = 0;
 
-    if (apiKey) {
-      // Fetch from Alpha Vantage with rate limiting (5 req/min = ~13s between)
-      for (let i = 0; i < staleTickers.length; i++) {
-        const ticker = staleTickers[i];
-        setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${staleTickers.length})…`);
-
-        const price = await fetchAlphaVantage(ticker, apiKey);
-        state.priceCache[ticker] = {
-          price: price || getMockPrice(ticker),
-          ts: Date.now(),
-          src: price ? 'av' : 'mock-fb',
-        };
+    // ── Step 1: Crypto via CoinGecko (batch, free, no key) ──────────
+    const cryptoTickers = staleTickers.filter(t => COINGECKO_IDS[t]);
+    if (cryptoTickers.length) {
+      setHeaderStatus('load', `Fetching ${cryptoTickers.join(', ')} via CoinGecko…`);
+      const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
+      for (const ticker of cryptoTickers) {
+        const price = cgPrices[ticker];
+        state.priceCache[ticker] = { price: price || getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
         if (price) liveCount++;
-
-        // Rate limit: wait between requests (except after the last one)
-        if (i < staleTickers.length - 1) await sleep(13000);
       }
-      setHeaderStatus('live',
-        liveCount > 0
-          ? `Live prices (AV · ${liveCount}/${staleTickers.length})`
-          : 'AV limit hit — using simulated'
-      );
-    } else {
-      // No API key — use simulated prices with a brief delay for UX
-      await sleep(500);
-      for (const ticker of staleTickers) {
-        state.priceCache[ticker] = { price: getMockPrice(ticker), ts: Date.now(), src: 'sim' };
-      }
-      setHeaderStatus('live', 'Simulated prices · add API key for live');
     }
 
-    // Update timestamp display
+    // ── Step 2: Stocks/ETFs via Yahoo Finance (free, no key) + optional AV ──
+    const stockTickers = staleTickers.filter(t => !COINGECKO_IDS[t]);
+    for (let i = 0; i < stockTickers.length; i++) {
+      const ticker = stockTickers[i];
+      setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${stockTickers.length})…`);
+
+      let price = null;
+      let src = 'sim';
+
+      // Try Alpha Vantage first if the user has provided a key
+      if (apiKey) {
+        price = await fetchAlphaVantage(ticker, apiKey);
+        if (price) { src = 'av'; if (i < stockTickers.length - 1) await sleep(13000); }
+      }
+
+      // Fall back to Yahoo Finance if no AV key or AV failed
+      if (!price) {
+        price = await fetchYahoo(ticker);
+        if (price) src = 'yahoo';
+      }
+
+      state.priceCache[ticker] = { price: price || getMockPrice(ticker), ts: Date.now(), src };
+      if (price) liveCount++;
+    }
+
+    // ── Status summary ──────────────────────────────────────────────
+    const total = staleTickers.length;
+    if (liveCount === total) {
+      setHeaderStatus('live', `Live prices · ${total} tickers updated`);
+    } else if (liveCount > 0) {
+      setHeaderStatus('live', `${liveCount}/${total} live · ${total - liveCount} simulated`);
+    } else {
+      setHeaderStatus('live', 'All simulated — check internet connection');
+    }
+
     el('h-ts').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', {
       hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
@@ -1994,22 +2318,21 @@ const App = (function () {
     if (activeDrawer) openDrawer(activeDrawer);
   }
 
-  /** Update the "Simulated" / "Live" / "Mixed" badge in the header */
+  /**
+   * Update the "Simulated" / "Live" / "Mixed" badge in the header.
+   * A price is "live" if its source is Alpha Vantage ('av'),
+   * Yahoo Finance ('yahoo'), or CoinGecko ('cg').
+   */
   function updateSourceBadge() {
     const badge = el('h-src-badge');
-    const hasKey = !!(state.settings.apiKey || '').trim();
-    const allLive = Object.values(state.priceCache).every(c => c.src === 'av');
-
-    if (hasKey && allLive) {
-      badge.className = 'price-src-badge live';
-      badge.textContent = 'Live';
-    } else if (hasKey) {
-      badge.className = 'price-src-badge sim';
-      badge.textContent = 'Mixed';
-    } else {
-      badge.className = 'price-src-badge sim';
-      badge.textContent = 'Simulated';
-    }
+    if (!badge) return;
+    const LIVE_SOURCES = new Set(['av', 'yahoo', 'cg']);
+    const sources = Object.values(state.priceCache).map(c => c.src);
+    const allLive = sources.length > 0 && sources.every(s => LIVE_SOURCES.has(s));
+    const anyLive = sources.some(s => LIVE_SOURCES.has(s));
+    if (allLive)      { badge.className = 'price-src-badge live'; badge.textContent = 'Live'; }
+    else if (anyLive) { badge.className = 'price-src-badge sim';  badge.textContent = 'Mixed'; }
+    else              { badge.className = 'price-src-badge sim';  badge.textContent = 'Simulated'; }
   }
 
 
@@ -2693,7 +3016,7 @@ const App = (function () {
       const color = tickerColor(p.ticker);
       const gainColor = p.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
       const allocationPct = totalPortfolioValue > 0 ? (p.value / totalPortfolioValue * 100) : 0;
-      const sourceLabel = p.src === 'av' ? '🟢 live' : p.src === 'mock-fb' ? '⚠ fallback' : '⚡ sim';
+      const sourceLabel = p.src === 'av' ? '🟢 live·AV' : p.src === 'yahoo' ? '🟢 live·YF' : p.src === 'cg' ? '🟢 live·CG' : p.src === 'mock-fb' ? '⚠ fallback' : '⚡ sim';
       const cagrFlag = p.cagr === null ? 'n' : p.cagr >= 0 ? 'g' : 'r';
       const xirrFlag = p.xirr === null ? 'n' : p.xirr >= 0 ? 'g' : 'r';
 
@@ -2757,6 +3080,9 @@ const App = (function () {
   function renderHistory() {
     const query = (el('hist-search')?.value || '').toUpperCase().trim();
     const sortBy = el('hist-sort')?.value || 'date-desc';
+    // Update price header to reflect selected currency
+    const ph = el('hist-price-hdr');
+    if (ph) ph.textContent = `Price (${state.settings.currency})`;
 
     let txs = [...state.transactions];
 
@@ -2804,7 +3130,7 @@ const App = (function () {
         <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
         <td style="text-align:left">${classBadge(cls)}</td>
         <td style="color:var(--text)">${fmtQty(tx.qty)}</td>
-        <td>$${(+tx.price).toFixed(2)}<div style="font-size:9px;color:var(--dim)">×${usdToDisplay(1, tx.date).toFixed(3)}</div></td>
+        <td style="color:var(--text)">${fmtCompact(buyPriceD)}</td>
         <td style="color:var(--text)">${fmtValue(totalD)}</td>
         <td>${plHTML}</td>
         <td><button class="del-btn" onclick="App.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})">
@@ -2838,7 +3164,11 @@ const App = (function () {
     icon.style.cssText = `background:${color}20;color:${color};width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:15px;font-weight:800;flex-shrink:0`;
 
     el('drw-ticker').innerHTML = `${ticker} ${classBadge(pos.cls)}`;
-    el('drw-full').textContent = (TICKER_NAMES[ticker] || ticker) + ' · ' + (pos.src === 'av' ? 'Live price (AV)' : 'Simulated price');
+    el('drw-full').textContent = (TICKER_NAMES[ticker] || ticker) + ' · ' +
+      (pos.src === 'av' ? 'Live · Alpha Vantage' : pos.src === 'yahoo' ? 'Live · Yahoo Finance' : pos.src === 'cg' ? 'Live · CoinGecko' : 'Simulated price');
+    // Update price column header to reflect selected currency
+    const priceHdr = el('drw-price-hdr');
+    if (priceHdr) priceHdr.textContent = `Price (${state.settings.currency})`;
 
     el('drw-pills').innerHTML = `
       <div class="drw-pill"><span class="lbl">CAGR</span><strong style="color:${cagrColor}">${fmtCAGR(pos.cagr)}</strong></div>
@@ -2899,7 +3229,6 @@ const App = (function () {
         <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
         <td style="text-align:left;color:var(--muted)">${fmtDate(tx.date)}${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
         <td>${fmtQty(tx.qty)}</td>
-        <td>$${(+tx.price).toFixed(2)}</td>
         <td>${fmtCompact(buyPriceD)}</td>
         <td>${fmtValue(tx.qty * buyPriceD)}</td>
         <td style="color:${pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl === null ? '—' : (pnl >= 0 ? '+' : '') + fmtValue(pnl)}</td>
@@ -3371,6 +3700,549 @@ const App = (function () {
 
 
   /* ═══════════════════════════════════════════════════════════════════
+     CSV IMPORT WIZARD
+     Step 1 — Upload & Parse depot CSV
+     Step 2 — Resolve ISINs to tickers (OpenFIGI, no key required)
+     Step 3 — Preview EUR→USD conversion + duplicate detection + import
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /** Mutable wizard state — reset on every openCsvImport() */
+  let csvState = {
+    step: 1,
+    rawRows: [],       // parsed CSV rows (original fields)
+    isinMap: {},       // { [isin]: { ticker, cls, status: 'idle'|'loading'|'ok'|'err'|'manual' } }
+    previewRows: [],   // enriched + converted rows ready to import
+    dupCount: 0,
+  };
+
+  /** Open the CSV import wizard */
+  function openCsvImport() {
+    csvState = { step: 1, rawRows: [], isinMap: {}, previewRows: [], dupCount: 0 };
+    el('csv-ov').classList.add('open');
+    renderCsvStep();
+  }
+
+  /** Close the CSV import wizard */
+  function closeCsvImport() {
+    el('csv-ov').classList.remove('open');
+  }
+
+  /** Update the step indicator bar */
+  function updateCsvStepIndicator(step) {
+    [1, 2, 3].forEach(i => {
+      const s = el('cstep-' + i);
+      s.classList.remove('active', 'done');
+      if (i < step) s.classList.add('done');
+      else if (i === step) s.classList.add('active');
+      const num = s.querySelector('.csv-step-num');
+      if (i < step) num.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+      else num.textContent = i;
+    });
+    [1, 2].forEach(i => {
+      const line = el('cline-' + i);
+      if (i < step) line.classList.add('done');
+      else line.classList.remove('done');
+    });
+  }
+
+  /** Main render dispatcher — renders the body and footer for the current step */
+  function renderCsvStep() {
+    updateCsvStepIndicator(csvState.step);
+    if (csvState.step === 1) renderCsvStep1();
+    else if (csvState.step === 2) renderCsvStep2();
+    else renderCsvStep3();
+  }
+
+  /* ── Step 1: Upload & Parse ──────────────────────────────────────── */
+  function renderCsvStep1() {
+    const body = el('csv-body');
+
+    const hasRows = csvState.rawRows.length > 0;
+
+    body.innerHTML = `
+      <div id="csv-drop-area" class="csv-drop" onclick="el('csv-file-inp').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="App.csvDropHandler(event)">
+        <input type="file" id="csv-file-inp" accept=".csv,text/csv" style="display:none"
+               onchange="App.csvFileSelected(event)">
+        <div class="csv-drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <polyline points="12 18 12 12"/>
+            <polyline points="9 15 12 12 15 15"/>
+          </svg>
+        </div>
+        <div>${hasRows ? '✓ File loaded — drop another to replace' : 'Drop your depot <strong style="color:var(--blue)">.csv</strong> here'}</div>
+        <div class="csv-drop-sub">${hasRows ? '' : 'or click to browse — expects: date, isin, shares, price, type, currency'}</div>
+      </div>
+      ${hasRows ? `
+      <div class="csv-summary-card">
+        <div class="csv-sum-item">
+          <div class="csv-sum-lbl">Transactions</div>
+          <div class="csv-sum-val csv-sum-ok">${csvState.rawRows.length}</div>
+        </div>
+        <div class="csv-sum-item">
+          <div class="csv-sum-lbl">Unique ISINs</div>
+          <div class="csv-sum-val">${Object.keys(csvState.isinMap).length}</div>
+        </div>
+        <div class="csv-sum-item">
+          <div class="csv-sum-lbl">Date Range</div>
+          <div class="csv-sum-val" style="font-size:12px">${csvState.rawRows.at(-1).dateISO} → ${csvState.rawRows[0].dateISO}</div>
+        </div>
+        <div class="csv-sum-item">
+          <div class="csv-sum-lbl">Currencies</div>
+          <div class="csv-sum-val" style="font-size:12px">${[...new Set(csvState.rawRows.map(r => r.currency))].join(', ')}</div>
+        </div>
+        <div class="csv-sum-item">
+          <div class="csv-sum-lbl">Buy / Sell</div>
+          <div class="csv-sum-val" style="font-size:12px">
+            <span style="color:var(--green)">${csvState.rawRows.filter(r=>r.type==='BUY').length}B</span>
+            / <span style="color:var(--red)">${csvState.rawRows.filter(r=>r.type==='SELL').length}S</span>
+          </div>
+        </div>
+      </div>` : ''}
+    `;
+
+    const foot = el('csv-foot');
+    foot.innerHTML = `
+      <button class="cancel-btn" onclick="App.closeCsvImport()">Cancel</button>
+      <button class="csv-nav-btn next" onclick="App.csvGoStep(2)" ${hasRows ? '' : 'disabled'}>
+        Next — Resolve ISINs
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    `;
+  }
+
+  /** Handle file drop on the drop zone */
+  function csvDropHandler(event) {
+    event.preventDefault();
+    const dropArea = el('csv-drop-area');
+    if (dropArea) dropArea.classList.remove('drag-over');
+    const file = event.dataTransfer.files[0];
+    if (file) readCsvFile(file);
+  }
+
+  /** Handle file selected from the file input */
+  function csvFileSelected(event) {
+    const file = event.target.files[0];
+    if (file) readCsvFile(file);
+    event.target.value = '';
+  }
+
+  /** Read and parse a CSV file */
+  function readCsvFile(file) {
+    if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+      toast('Please select a .csv file', 'error'); return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const result = parseCsvText(e.target.result);
+      if (result.error) { toast('Parse error: ' + result.error, 'error'); return; }
+      csvState.rawRows = result.rows;
+      csvState.isinMap = result.isinMap;
+      renderCsvStep();
+    };
+    reader.readAsText(file);
+  }
+
+  /**
+   * Parse depot CSV text.
+   * Expected columns: date, time, description, assetType, type, isin, shares, price, currency
+   * Returns { rows, isinMap } or { error }
+   */
+  function parseCsvText(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+    if (lines.length < 2) return { error: 'File is empty or has only a header row' };
+
+    // Parse header (case-insensitive, trim spaces)
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const col = name => headers.indexOf(name);
+
+    // Required column check
+    const required = ['date', 'isin', 'shares', 'price', 'type'];
+    for (const r of required) {
+      if (col(r) === -1) return { error: `Missing required column: "${r}"` };
+    }
+
+    const rows = [];
+    const isinMap = {};
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Simple CSV split (handles basic quoted fields)
+      const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g) || [];
+      const get = name => {
+        const idx = col(name);
+        return idx >= 0 && vals[idx] !== undefined ? vals[idx].replace(/^"|"$/g, '').trim() : '';
+      };
+
+      // Parse date DD/MM/YYYY → YYYY-MM-DD
+      const rawDate = get('date');
+      const dateParts = rawDate.split('/');
+      if (dateParts.length !== 3) continue;  // skip malformed
+      const dateISO = `${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}`;
+
+      // Normalise type
+      const rawType = get('type').toLowerCase();
+      const type = rawType === 'buy' ? 'BUY' : rawType === 'sell' ? 'SELL' : null;
+      if (!type) continue;
+
+      const isin = get('isin').trim().toUpperCase();
+      if (!isin) continue;
+
+      const shares = parseFloat(get('shares'));
+      const price  = parseFloat(get('price'));
+      if (isNaN(shares) || isNaN(price) || shares <= 0 || price <= 0) continue;
+
+      const currency    = (get('currency') || 'EUR').toUpperCase();
+      const description = get('description') || get('name') || '';
+      const assetType   = get('assettype') || get('asset_type') || get('assettype') || 'Security';
+
+      rows.push({ dateISO, type, isin, shares, price, currency, description, assetType, _line: i });
+
+      // Build ISIN map
+      if (!isinMap[isin]) {
+        // Guess class from assetType field
+        const atl = assetType.toLowerCase();
+        let cls = 'Stock';
+        if (atl.includes('etf') || atl.includes('fund')) cls = 'ETF';
+        else if (atl.includes('crypto') || atl.includes('coin')) cls = 'Crypto';
+        else if (atl.includes('bond') || atl.includes('fixed')) cls = 'Bond';
+        isinMap[isin] = { ticker: '', cls, status: 'idle' };
+      }
+    }
+
+    if (!rows.length) return { error: 'No valid transaction rows found' };
+
+    // Sort newest first
+    rows.sort((a, b) => b.dateISO.localeCompare(a.dateISO));
+
+    return { rows, isinMap };
+  }
+
+  /* ── Step 2: Resolve ISINs ───────────────────────────────────────── */
+  function renderCsvStep2() {
+    const body = el('csv-body');
+    const isins = Object.keys(csvState.isinMap);
+    const allResolved = isins.every(i => ['ok','manual'].includes(csvState.isinMap[i].status));
+
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--muted)">
+          Map each ISIN to a ticker symbol. Auto-resolve uses the free OpenFIGI API.
+        </div>
+        <button class="resolve-btn" id="resolve-all-btn" onclick="App.csvAutoResolve()" ${csvState._resolving ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          ${csvState._resolving ? 'Resolving…' : 'Auto-Resolve via OpenFIGI'}
+        </button>
+      </div>
+      <div class="isin-list" id="isin-list">
+        ${isins.map(isin => renderISINRow(isin)).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin-top:9px">
+        OpenFIGI is a free Bloomberg API — no API key needed. If auto-resolve fails, type the ticker manually.
+      </div>
+    `;
+
+    const foot = el('csv-foot');
+    foot.innerHTML = `
+      <button class="csv-nav-btn back" onclick="App.csvGoStep(1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div style="flex:1"></div>
+      <button class="csv-nav-btn next" id="csv-next-2" onclick="App.csvGoStep(3)" ${allResolved ? '' : 'disabled'}>
+        Preview Import
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    `;
+  }
+
+  /** Build a single ISIN row's HTML */
+  function renderISINRow(isin) {
+    const m = csvState.isinMap[isin];
+    const rowCls = m.status === 'ok' || m.status === 'manual' ? 'resolved' : m.status === 'err' ? 'error' : '';
+    const statusHtml = {
+      idle:    `<div class="isin-status man">⬡ Pending</div>`,
+      loading: `<div class="isin-status load">⟳ Resolving…</div>`,
+      ok:      `<div class="isin-status ok">✓ Auto-resolved</div>`,
+      err:     `<div class="isin-status err">✕ Not found — enter manually</div>`,
+      manual:  `<div class="isin-status man">✎ Manual</div>`,
+    }[m.status] || '';
+
+    const txCount = csvState.rawRows.filter(r => r.isin === isin).length;
+
+    return `
+      <div class="isin-row ${rowCls}" id="isin-row-${isin}">
+        <div class="isin-code">
+          <strong>${isin}</strong>
+          <span style="color:var(--dim)">${txCount} transaction${txCount !== 1 ? 's' : ''}</span>
+          ${statusHtml}
+        </div>
+        <input class="finp" type="text" placeholder="Ticker (e.g. MSTR)"
+               style="text-transform:uppercase;font-size:12px"
+               value="${m.ticker}"
+               oninput="App.csvTickerInput('${isin}', this.value)"
+               id="isin-ticker-${isin}">
+        <select class="fsel" style="font-size:11px" onchange="App.csvClsChange('${isin}', this.value)">
+          ${['Stock','ETF','Crypto','Bond','MF'].map(c =>
+            `<option value="${c}" ${m.cls === c ? 'selected' : ''}>${c}</option>`
+          ).join('')}
+        </select>
+        <button class="isin-clear-btn" onclick="App.csvClearISIN('${isin}')" title="Clear / reset">✕</button>
+      </div>
+    `;
+  }
+
+  /** User typed a ticker manually */
+  function csvTickerInput(isin, value) {
+    const v = value.toUpperCase().trim();
+    csvState.isinMap[isin].ticker = v;
+    csvState.isinMap[isin].status = v ? 'manual' : 'idle';
+    // refresh row class
+    const row = el('isin-row-' + isin);
+    if (row) {
+      row.classList.toggle('resolved', !!v);
+      row.classList.remove('error');
+    }
+    // enable/disable next button
+    const allResolved = Object.values(csvState.isinMap).every(m => ['ok','manual'].includes(m.status));
+    const nextBtn = el('csv-next-2');
+    if (nextBtn) nextBtn.disabled = !allResolved;
+  }
+
+  /** User changed asset class */
+  function csvClsChange(isin, cls) {
+    csvState.isinMap[isin].cls = cls;
+  }
+
+  /** Clear an ISIN's ticker back to idle */
+  function csvClearISIN(isin) {
+    csvState.isinMap[isin].ticker = '';
+    csvState.isinMap[isin].status = 'idle';
+    renderCsvStep2();
+  }
+
+  /** Call OpenFIGI to auto-resolve all ISINs in one batched request */
+  async function csvAutoResolve() {
+    const isins = Object.keys(csvState.isinMap);
+    if (!isins.length) return;
+
+    csvState._resolving = true;
+
+    // Mark all as loading
+    isins.forEach(isin => { csvState.isinMap[isin].status = 'loading'; });
+    renderCsvStep2();
+
+    try {
+      const body = isins.map(isin => ({ idType: 'ID_ISIN', idValue: isin }));
+      const resp = await fetch('https://api.openfigi.com/v3/mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) throw new Error('OpenFIGI HTTP ' + resp.status);
+      const data = await resp.json();
+
+      data.forEach((result, idx) => {
+        const isin = isins[idx];
+        if (result.data && result.data.length > 0) {
+          // Prefer US exchange listings, fall back to first result
+          const us = result.data.find(d => d.exchCode === 'US' || d.exchCode === 'UW' || d.exchCode === 'UN');
+          const best = us || result.data[0];
+          const ticker = (best.ticker || '').replace('/', '-');
+          if (ticker) {
+            csvState.isinMap[isin].ticker = ticker;
+            csvState.isinMap[isin].status = 'ok';
+            // Infer class from securityType
+            const st = (best.securityType || '').toLowerCase();
+            if (st.includes('etf') || st.includes('fund')) csvState.isinMap[isin].cls = 'ETF';
+            else if (st.includes('crypto') || best.exchCode === 'CRYP') csvState.isinMap[isin].cls = 'Crypto';
+            else if (st.includes('bond') || st.includes('govt') || st.includes('corp')) csvState.isinMap[isin].cls = 'Bond';
+            else csvState.isinMap[isin].cls = 'Stock';
+          } else {
+            csvState.isinMap[isin].status = 'err';
+          }
+        } else {
+          csvState.isinMap[isin].status = 'err';
+        }
+      });
+    } catch (err) {
+      console.error('[OpenFIGI]', err);
+      isins.forEach(isin => {
+        if (csvState.isinMap[isin].status === 'loading') csvState.isinMap[isin].status = 'err';
+      });
+      toast('OpenFIGI lookup failed — please enter tickers manually', 'warn');
+    }
+
+    csvState._resolving = false;
+    renderCsvStep2();
+  }
+
+  /* ── Step 3: Preview & Import ────────────────────────────────────── */
+
+  /** Build preview rows: EUR→USD conversion, duplicate detection */
+  function buildPreviewRows() {
+    const existing = state.transactions;
+    const rows = [];
+    let dupCount = 0;
+
+    csvState.rawRows.forEach(raw => {
+      const map = csvState.isinMap[raw.isin];
+      if (!map || !map.ticker) return;
+
+      const ticker = map.ticker;
+      const cls    = map.cls;
+
+      // EUR → USD conversion using historical FX rate
+      let priceUSD = raw.price;
+      if (raw.currency === 'EUR') {
+        const rate = fxDaily.USD[raw.dateISO] || fxLatest.USD || 1.08;
+        priceUSD = raw.price * rate;
+      } else if (raw.currency !== 'USD') {
+        // For other currencies, use latest as approximation
+        priceUSD = raw.price * (fxLatest.USD || 1.08);
+      }
+      priceUSD = Math.round(priceUSD * 100) / 100;
+
+      // Duplicate detection: same date + ticker + type + qty
+      const isDuplicate = existing.some(t =>
+        t.date === raw.dateISO &&
+        t.ticker === ticker &&
+        t.type === raw.type &&
+        Math.abs(t.qty - raw.shares) < 0.0001
+      );
+
+      if (isDuplicate) dupCount++;
+
+      rows.push({
+        ...raw,
+        ticker,
+        cls,
+        priceUSD,
+        priceEUR: raw.price,
+        notes: raw.description || '',
+        isDuplicate,
+      });
+    });
+
+    csvState.previewRows = rows;
+    csvState.dupCount = dupCount;
+  }
+
+  function renderCsvStep3() {
+    buildPreviewRows();
+    const body = el('csv-body');
+    const importable = csvState.previewRows.filter(r => !r.isDuplicate);
+
+    body.innerHTML = `
+      <div class="prev-summary">
+        <strong>${importable.length}</strong> transactions ready to import
+        ${csvState.dupCount > 0 ? `· <span class="warn">${csvState.dupCount} duplicate${csvState.dupCount>1?'s':''} will be skipped</span>` : ''}
+        · prices converted from <strong>EUR → USD</strong> using ECB historical rates
+      </div>
+      <div class="prev-wrap">
+        <table class="prev-tbl">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ticker</th>
+              <th>Type</th>
+              <th>Qty</th>
+              <th>Price EUR</th>
+              <th>Price USD</th>
+              <th>Class</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${csvState.previewRows.map(r => `
+              <tr class="${r.isDuplicate ? 'dup-row' : ''}">
+                <td>${r.dateISO}</td>
+                <td style="color:var(--text);font-weight:700">${r.ticker}</td>
+                <td>
+                  <span class="type-badge ${r.type==='BUY'?'buy':'sell'}">${r.type}</span>
+                  ${r.isDuplicate ? '<span class="dup-badge" style="margin-left:4px">DUP</span>' : ''}
+                </td>
+                <td>${r.shares}</td>
+                <td style="color:var(--muted)">€${r.priceEUR.toFixed(2)}</td>
+                <td style="color:var(--text)">$${r.priceUSD.toFixed(2)}</td>
+                <td>
+                  <span class="cls-badge cb-${r.cls.toLowerCase()}" style="font-size:9px;padding:1px 5px;border-radius:3px">${r.cls}</span>
+                </td>
+                <td style="color:var(--dim);max-width:110px;overflow:hidden;text-overflow:ellipsis">${r.notes}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const foot = el('csv-foot');
+    foot.innerHTML = `
+      <button class="csv-nav-btn back" onclick="App.csvGoStep(2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div style="flex:1"></div>
+      <button class="csv-nav-btn import" onclick="App.csvExecuteImport()" ${importable.length > 0 ? '' : 'disabled'}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Import ${importable.length} Transaction${importable.length !== 1 ? 's' : ''}
+      </button>
+    `;
+  }
+
+  /** Navigate to a wizard step (with validation) */
+  function csvGoStep(n) {
+    if (n === 2 && !csvState.rawRows.length) return;
+    if (n === 3) {
+      const unresolved = Object.values(csvState.isinMap).filter(m => !['ok','manual'].includes(m.status));
+      if (unresolved.length) { toast('Please resolve all ISINs before proceeding', 'warn'); return; }
+    }
+    csvState.step = n;
+    renderCsvStep();
+  }
+
+  /** Final import: add importable rows to state */
+  function csvExecuteImport() {
+    const importable = csvState.previewRows.filter(r => !r.isDuplicate);
+    if (!importable.length) return;
+
+    const genId = () => Math.random().toString(36).slice(2, 9);
+
+    importable.forEach(r => {
+      // Update tickerMeta with class info
+      if (!state.tickerMeta[r.ticker]) state.tickerMeta[r.ticker] = {};
+      state.tickerMeta[r.ticker].cls = r.cls;
+
+      state.transactions.push({
+        id:     genId(),
+        date:   r.dateISO,
+        ticker: r.ticker,
+        type:   r.type,
+        qty:    r.shares,
+        price:  r.priceUSD,
+        notes:  r.notes,
+      });
+    });
+
+    saveState();
+    render();
+    closeCsvImport();
+
+    const msg = csvState.dupCount > 0
+      ? `Imported ${importable.length} transactions (${csvState.dupCount} duplicates skipped)`
+      : `Imported ${importable.length} transactions`;
+    toast(msg, 'success');
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════════
      DATA EXPORT / IMPORT
      ═══════════════════════════════════════════════════════════════════ */
 
@@ -3501,6 +4373,7 @@ const App = (function () {
       closeDrawer();
       closeSettings();
       closeConfirm();
+      closeCsvImport();
     }
   });
 
@@ -3528,18 +4401,25 @@ const App = (function () {
     // Load sample data if this is a fresh install
     if (!state.transactions.length) applySampleData();
 
+    // Seed mock prices for all tickers immediately so the UI shows instantly
+    const allTickers = [...new Set(state.transactions.map(t => t.ticker))];
+    for (const ticker of allTickers) {
+      if (!state.priceCache[ticker]) {
+        state.priceCache[ticker] = { price: getMockPrice(ticker), ts: 0, src: 'sim' };
+      }
+    }
+
     syncSettingsUI();
     render();
-    setHeaderStatus('load', 'Loading ECB FX rates + prices…');
+    setHeaderStatus('live', 'Simulated prices · refreshing…');
+    updateSourceBadge();
 
-    // Fetch FX rates and prices in parallel
-    const [fxOK] = await Promise.all([fetchFX(), refreshPrices()]);
-
-    // Re-render with real FX rates if fetch succeeded
-    if (fxOK) render();
+    // All network fetches run in the background — UI is already showing mock data
+    fetchFxLatest().then(() => render());
+    fetchFX().then(ok => { if (ok) render(); });
+    refreshPrices();
 
     updateStorageStatus();
-    updateSourceBadge();
   }
 
   init();
@@ -3547,52 +4427,82 @@ const App = (function () {
 
   /* ═══════════════════════════════════════════════════════════════════
      PUBLIC API
-     Functions exposed to HTML onclick handlers via the global App object.
-     Only these functions are accessible from outside the IIFE.
+     ─────────────────────────────────────────────────────────────────
+     Only the functions listed here are accessible from HTML onclick
+     handlers via the global `App` object. Everything else is private.
      ═══════════════════════════════════════════════════════════════════ */
 
   return {
-    // Navigation & tabs
+    // Navigation
+    /** Switch main tab. @param {string} name @param {HTMLElement} btn */
     showTab,
+    /** Toggle allocation donut view. @param {'asset'|'class'} tab */
     switchAllocTab,
 
-    // Positions
+    // Positions tab
+    /** Filter position cards by class. @param {string} cls */
     setClsFilter,
+    /** Open position detail drawer. @param {string} ticker */
     openDrawer,
     closeDrawer,
+    /** Prompt to delete all lots for a ticker. @param {string} ticker */
     confirmDeletePos,
 
-    // History
+    // History tab
     renderHistory,
+    /** Set BUY/SELL/ALL filter. @param {'all'|'buy'|'sell'} filter */
     setHistFilter,
 
-    // Modal
+    // Add Transaction modal
+    /** Open modal, optionally pre-filling ticker. @param {string} [ticker] */
     openModal,
     closeModal,
+    /** Toggle BUY/SELL. @param {'BUY'|'SELL'} type */
     setType,
+    /** Pre-fill ticker field. @param {string} ticker */
     setTicker,
     onTickerInput,
     validateForm,
     submitTransaction,
 
-    // Settings
+    // CSV Import wizard (3-step: Upload → Resolve ISINs → Preview)
+    openCsvImport,
+    closeCsvImport,
+    /** Handle drag-drop onto upload zone. @param {DragEvent} e */
+    csvDropHandler,
+    /** Handle file input change. @param {Event} e */
+    csvFileSelected,
+    /** Navigate wizard step. @param {1|2|3} n */
+    csvGoStep,
+    /** Auto-resolve all ISINs via OpenFIGI (free, no key needed). */
+    csvAutoResolve,
+    csvTickerInput,
+    csvClsChange,
+    csvClearISIN,
+    /** Commit all non-duplicate rows to the portfolio. */
+    csvExecuteImport,
+
+    // Settings panel
     openSettings,
     closeSettings,
     saveSettings,
 
     // Data management
     exportData,
+    /** Import portfolio from JSON file. @param {Event} e */
     importData,
     clearAllData,
     reloadSampleData,
 
-    // Header actions
+    // Header
+    /** Force-refresh all prices bypassing cache TTL. */
     doRefresh: () => refreshPrices(true),
     onCurrencyChange,
 
-    // Confirm dialog
+    // Confirmation dialog
     confirmOk,
     closeConfirm,
+    /** Prompt to delete a single transaction. @param {string} id @param {string} ticker @param {number} qty */
     confirmDelTx,
   };
 })();
