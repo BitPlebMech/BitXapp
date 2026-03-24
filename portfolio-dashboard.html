@@ -15,14 +15,15 @@
   ║    state.transactions  [{id, date, ticker, type, qty, price, notes}] ║
   ║    state.priceCache    {[ticker]: {price, ts, src}}                  ║
   ║    state.tickerMeta    {[ticker]: {cls}}                             ║
-  ║    state.settings      {currency, apiKey, cacheTTL}                  ║
+  ║    state.settings      {currency, apiKey, cacheTTL, theme,           ║
+  ║                         gistToken, gistId}                        ║
   ║                                                                      ║
   ║  All prices stored internally in USD.                                ║
   ║  Display conversion: USD → EUR or INR via historical ECB rates.      ║
   ║  P&L uses FIFO lot matching with per-date FX rates on both sides.    ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,6 +76,49 @@
   --font-mono: 'DM Mono', monospace;
 }
 
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIGHT THEME TOKENS
+   Applied when <html data-theme="light"> — overrides every :root value.
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg:    #f0f4fb;
+  --surf:  #ffffff;
+  --surf2: #f7f9fe;
+  --surf3: #eef2fa;
+  --b1:    #dde5f5;
+  --b2:    #c8d6ee;
+  --text:  #0c1a2e;
+  --muted: #6b82a0;
+  --dim:   #a8bcd8;
+  --blue:   #2563eb;
+  --green:  #059669;
+  --red:    #dc2626;
+  --amber:  #b45309;
+  --purple: #7c3aed;
+  --orange: #c2410c;
+  --blue-bg: rgba(37,99,235,0.07);
+}
+[data-theme="light"] body::before {
+  background-image:
+    linear-gradient(rgba(37,99,235,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,0.025) 1px, transparent 1px);
+}
+[data-theme="light"] body::after {
+  background: radial-gradient(ellipse 78% 44% at 50% -5%,rgba(37,99,235,0.055) 0%,transparent 68%);
+}
+[data-theme="light"] .tab-nav,
+[data-theme="light"] .tab-nav::before { background: var(--bg); }
+[data-theme="light"] .modal       { background: #ffffff; }
+[data-theme="light"] .sp          { background: #f7f9fe; border-left-color: var(--b1); }
+[data-theme="light"] .drw         { background: #ffffff; border-top-color: var(--b1); }
+[data-theme="light"] .confirm-box { background: #ffffff; }
+[data-theme="light"] .toast.success { background: #ecfdf5; }
+[data-theme="light"] .toast.error   { background: #fef2f2; }
+[data-theme="light"] .toast.info    { background: #eff6ff; }
+[data-theme="light"] .toast.warn    { background: #fffbeb; }
+/* select/option backgrounds inherit var(--surf) — no explicit light override needed */
 
 /* ═══════════════════════════════════════════════════════════════════════
    RESET & BASE STYLES
@@ -231,7 +275,7 @@ body::after {
   background-repeat: no-repeat;
   background-position: right 2px center;
 }
-.cur-sel select option { background: #111827; }
+.cur-sel select option { background: var(--surf); }
 
 /* FX rate status pill (green=ok, amber=partial, red=error) */
 .fx-pill {
@@ -414,7 +458,7 @@ body::after {
 }
 .leg-row:last-child { border-bottom: none; }
 .leg-row:hover      { background: var(--surf2); }
-.leg-left   { display: flex; align-items: center; gap: 7px; color: #7a90b0; }
+.leg-left   { display: flex; align-items: center; gap: 7px; color: var(--muted); }
 .leg-dot    { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .leg-ticker { font-weight: 800; color: var(--text); font-size: 12px; }
 .leg-cls-tag {
@@ -422,7 +466,7 @@ body::after {
   padding: 1px 5px; border-radius: 3px; margin-left: 2px;
 }
 .leg-right {
-  font-family: var(--font-mono); font-size: 11px; color: #7a90b0;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
   display: flex; gap: 7px; align-items: center;
 }
 
@@ -599,7 +643,7 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M1 1l3.5 3 3.5-3' stroke='%234f6285' stroke-width='1.3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
 }
-.sort-select option { background: #111827; }
+.sort-select option { background: var(--surf); }
 
 /* History data table */
 .tbl-wrap { overflow-x: auto; }
@@ -748,7 +792,7 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234f6285' stroke-width='1.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
 }
-.fsel option       { background: #111827; }
+.fsel option       { background: var(--surf); }
 .finp:focus,
 .fsel:focus        { border-color: var(--blue); }
 .finp::placeholder { color: var(--dim); }
@@ -994,7 +1038,7 @@ body::after {
 }
 .ltbl thead th:first-child { text-align: left; }
 .ltbl tbody td {
-  font-family: var(--font-mono); font-size: 11.5px; color: #7a90b0;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
   padding: 9px 11px; text-align: right; border-bottom: 0.5px solid var(--b1);
 }
 .ltbl tbody td:first-child     { text-align: left; }
@@ -1303,6 +1347,13 @@ body::after {
       Refresh
     </button>
 
+    <!-- Theme toggle: moon icon = currently dark, click for light; sun icon = currently light -->
+    <button class="hdr-btn icon-only" id="h-theme-btn" onclick="App.toggleTheme()" title="Toggle light / dark mode">
+      <svg id="h-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+
     <!-- Settings gear button -->
     <button class="hdr-btn icon-only" onclick="App.openSettings()" title="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
@@ -1525,11 +1576,11 @@ body::after {
         </div>
         <div class="fgrp">
           <label class="flbl">Quantity (Shares)</label>
-          <input type="number" class="finp" id="f-qty" placeholder="0" min="0.0001" step="0.0001" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-qty" placeholder="0" oninput="App.validateForm()">
         </div>
         <div class="fgrp">
           <label class="flbl">Price per Share (USD)</label>
-          <input type="number" class="finp" id="f-price" placeholder="0.00" min="0.0001" step="0.01" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-price" placeholder="0,00" oninput="App.validateForm()">
         </div>
         <div class="fgrp">
           <label class="flbl">Estimated Total (<span id="f-cur-lbl">EUR</span>)</label>
@@ -1675,6 +1726,41 @@ body::after {
       </button>
     </div>
 
+    <!-- GitHub Gist sync section -->
+    <div class="sp-sec">
+      <div class="sp-sec-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        GitHub Gist Sync
+      </div>
+      <div class="info-box">
+        <strong>Cross-device sync — 3 steps:</strong><br>
+        1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+        2. Name it "Portfolio" · tick <strong>gist</strong> scope only · Generate<br>
+        3. Paste token below → Save Settings → click <strong>Save to Gist</strong><br><br>
+        On any other device: paste same token + Gist ID → Load from Gist.<br>
+        Data auto-saves 4 s after every change once both fields are set.
+      </div>
+      <div class="fgrp">
+        <label class="flbl">GitHub Personal Access Token</label>
+        <input type="password" class="finp" id="cfg-gist-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+      </div>
+      <div class="fgrp">
+        <label class="flbl">Gist ID <span style="font-weight:400;opacity:.5">(auto-filled after first save)</span></label>
+        <input type="text" class="finp" id="cfg-gist-id" placeholder="Leave empty to create new Gist on first save">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="abtn green" onclick="App.gistSave(false)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Save to Gist
+        </button>
+        <button class="abtn outline" onclick="App.gistLoad()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Load from Gist
+        </button>
+      </div>
+      <div id="gist-status" style="font-size:11px;color:var(--muted);min-height:16px;font-family:var(--font-mono)"></div>
+    </div>
+
     <!-- Sample data section -->
     <div class="sp-sec">
       <div class="sp-sec-title">
@@ -1811,7 +1897,7 @@ body::after {
  *   XIRR · PORTFOLIO CALCULATIONS · FORMATTING · COLOURS · CRUD
  *   RENDER PIPELINE · OVERVIEW · POSITIONS · HISTORY · DRAWER
  *   DUMBBELL CHART · MODAL · CSV IMPORT · SETTINGS · DATA MANAGEMENT
- *   SAMPLE DATA · TOAST · KEYBOARD · INIT · PUBLIC API
+ *   SAMPLE DATA · TOAST · KEYBOARD · THEME · GIST SYNC · INIT · PUBLIC API
  */
 const App = (function () {
 
@@ -1871,7 +1957,6 @@ const App = (function () {
     ORCL: 'Oracle', CRM: 'Salesforce',
   };
 
-  /** Fallback prices in USD used when no API key is configured */
   /** Sets for auto-detecting asset class from ticker symbol */
   const CRYPTO_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'ADA', 'XRP', 'DOT', 'DOGE', 'MATIC', 'LINK', 'UNI', 'ATOM', 'AVAX']);
   const ETF_TICKERS    = new Set(['SPY', 'QQQ', 'VOO', 'VTI', 'IVV', 'VUG', 'ARKK', 'GLD', 'SLV', 'TLT', 'HYG', 'IEF', 'XLK', 'XLF', 'IWM', 'EEM', 'VEA', 'VWO', 'SCHD', 'JEPI', 'VGT', 'SMH', 'SOXX', 'XBI', 'BOTZ', 'USO', 'IAU']);
@@ -1901,6 +1986,9 @@ const App = (function () {
       currency: 'EUR',   // Display currency: EUR | USD | INR
       apiKey: '',         // Alpha Vantage API key (optional)
       cacheTTL: 14400000, // Price cache time-to-live in ms (default: 4 hours)
+      theme: 'dark',      // 'dark' | 'light' — persisted preference
+      gistToken: '',      // GitHub PAT with gist scope
+      gistId: '',         // GitHub Gist ID (auto-filled after first save)
     },
   };
 
@@ -1934,13 +2022,19 @@ const App = (function () {
      PERSISTENCE (localStorage)
      ═══════════════════════════════════════════════════════════════════ */
 
-  /** Load state from localStorage, merging with defaults */
+  /**
+   * Load state from localStorage and merge with defaults.
+   * Settings are deep-merged so new keys added in app updates survive old saves.
+   */
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
-        state = { ...state, ...saved };
+        // Deep-merge settings so any new setting keys (e.g. theme, gistToken)
+        // are not lost when loading a save that predates them.
+        const mergedSettings = { ...state.settings, ...(saved.settings || {}) };
+        state = { ...state, ...saved, settings: mergedSettings };
       }
     } catch (e) {
       console.warn('[Storage] Failed to load:', e.message);
@@ -1952,6 +2046,7 @@ const App = (function () {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       updateStorageStatus();
+      scheduleGistAutoSave();
     } catch (e) {
       toast('Storage save failed', 'error');
     }
@@ -2106,7 +2201,7 @@ const App = (function () {
       fxPill.className = 'fx-pill ' + (allOK ? 'ok' : partialOK ? 'load' : 'err');
       el('h-fx-text').textContent = 'FX: ' + (
         allOK
-          ? `1€ = $${fxLatest.USD.toFixed(4)} · ₹${fxLatest.INR.toFixed(1)}`
+          ? `1€ = $${fmtNum(fxLatest.USD, 4)} · ₹${fmtNum(fxLatest.INR, 1)}`
           : partialOK ? 'Partial' : 'Approx.'
       );
     }
@@ -2116,8 +2211,8 @@ const App = (function () {
     if (chips) {
       const lastDate = Object.keys(fxDaily.USD).sort().at(-1) || '—';
       chips.innerHTML = `
-        <div class="fx-chip"><span><span class="src">EUR → USD (ECB live)</span></span><strong>1 EUR = ${fxLatest.USD.toFixed(4)} USD</strong></div>
-        <div class="fx-chip"><span><span class="src">EUR → INR (ECB live)</span></span><strong>1 EUR = ₹${fxLatest.INR.toFixed(2)}</strong></div>
+        <div class="fx-chip"><span><span class="src">EUR → USD (ECB live)</span></span><strong>1 EUR = ${fmtNum(fxLatest.USD, 4)} USD</strong></div>
+        <div class="fx-chip"><span><span class="src">EUR → INR (ECB live)</span></span><strong>1 EUR = ₹${fmtNum(fxLatest.INR, 2)}</strong></div>
         <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>
         <div class="fx-chip" style="flex-direction:column;align-items:flex-start;gap:2px">
           <span class="src">Historical coverage · ECB publishes on business days only</span>
@@ -2633,52 +2728,206 @@ const App = (function () {
 
   /* ═══════════════════════════════════════════════════════════════════
      FORMATTING & DISPLAY HELPERS
+     ─────────────────────────────────────────────────────────────────
+     Single source of truth for ALL number and currency display.
+
+     Region → locale → separators:
+       USD  →  en-US  →  1,234,567.89   $1,234.56
+       EUR  →  de-DE  →  1.234.567,89   1.234,56 €
+       INR  →  en-IN  →  12,34,567.89   ₹12,34,567
+
+     Rules:
+       • All formatting goes through Intl.NumberFormat (never raw .toFixed)
+       • fmtNum()      — locale-aware plain number
+       • fmtCurrency() — locale-aware currency with symbol
+       • fmtValue()    — whole-number currency (KPI cards, totals)
+       • fmtCompact()  — compact price display (K / M / L / Cr)
+       • fmtPct()      — percentage with sign
+       • fmtXIRR()     — XIRR value
+       • fmtCAGR()     — CAGR value
+       • fmtQty()      — share quantities
+       • fmtInputNum() — pre-fill value for <input> fields
+       • parseLocaleFloat() — parse user-typed numbers
      ═══════════════════════════════════════════════════════════════════ */
 
-  /** Get the symbol for the current display currency */
-  function currencySymbol() { return CUR_SYMBOLS[state.settings.currency] || '$'; }
-
-  /**
-   * Format a number as currency with the active display currency.
-   * @param {number} n - Amount
-   * @param {number} decimals - Decimal places (default 2)
-   * @returns {string}
-   */
-  function fmtCurrency(n, decimals = 2) {
-    const sym = currencySymbol();
-    if (state.settings.currency === 'INR') {
-      return sym + Math.round(n).toLocaleString('en-IN');
+  /** Locale tag for the active currency (drives Intl.NumberFormat). */
+  function activeLocale() {
+    switch (state.settings.currency) {
+      case 'USD': return 'en-US';
+      case 'INR': return 'en-IN';
+      default:    return 'de-DE';   // EUR uses German convention
     }
-    return sym + n.toLocaleString('en-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
 
-  /** Format as whole-number currency (no decimals) */
+  /** ISO 4217 code for the active currency. */
+  function activeCurrencyCode() {
+    return state.settings.currency || 'EUR';
+  }
+
+  /** Currency symbol for the active currency. */
+  function currencySymbol() { return CUR_SYMBOLS[state.settings.currency] || '€'; }
+
+  /**
+   * Low-level number formatter — all other fmt* functions call this.
+   * Returns '—' for null / undefined / non-finite values.
+   * @param {number|null|undefined} n
+   * @param {Intl.NumberFormatOptions} opts
+   * @returns {string}
+   */
+  function _fmt(n, opts) {
+    if (n === null || n === undefined || !isFinite(n)) return '—';
+    try { return new Intl.NumberFormat(activeLocale(), opts).format(n); }
+    catch (e) { return String(n); }
+  }
+
+  /**
+   * Format a plain number with the active locale's separators.
+   *   EUR: 1.234,56    USD: 1,234.56    INR: 1,234.56
+   * @param {number} n
+   * @param {number} [places=2]
+   * @returns {string}
+   */
+  function fmtNum(n, places) {
+    const p = (places === undefined) ? 2 : places;
+    return _fmt(n, { minimumFractionDigits: p, maximumFractionDigits: p });
+  }
+
+  /**
+   * Format a monetary value with the active currency and locale.
+   *   EUR: 1.234,56 €    USD: $1,234.56    INR: ₹1,23,456
+   * @param {number} n
+   * @param {number} [decimals=2]
+   * @returns {string}
+   */
+  function fmtCurrency(n, decimals) {
+    const d = (decimals === undefined) ? 2 : decimals;
+    if (n === null || n === undefined || !isFinite(n)) return '—';
+    try {
+      return new Intl.NumberFormat(activeLocale(), {
+        style: 'currency',
+        currency: activeCurrencyCode(),
+        minimumFractionDigits: d,
+        maximumFractionDigits: d,
+      }).format(n);
+    } catch (e) { return String(n); }
+  }
+
+  /** Format as whole-number currency — used for KPI totals, P&L values. */
   function fmtValue(n) { return fmtCurrency(n, 0); }
 
   /**
-   * Format a number as compact currency (K/M/L/Cr).
+   * Compact currency for per-share price display.
+   * Large numbers use locale-aware K / M / L / Cr suffixes.
    * @param {number} v
    * @returns {string}
    */
   function fmtCompact(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '—';
+    const cur = state.settings.currency;
     const sym = currencySymbol();
-    if (state.settings.currency === 'INR') {
-      if (v >= 10000000) return sym + (v / 10000000).toFixed(2) + 'Cr';
-      if (v >= 100000)   return sym + (v / 100000).toFixed(2) + 'L';
+    if (cur === 'INR') {
+      if (v >= 10000000) return sym + fmtNum(v / 10000000, 2) + ' Cr';
+      if (v >= 100000)   return sym + fmtNum(v / 100000,   2) + ' L';
     }
-    if (v >= 1000000) return sym + (v / 1000000).toFixed(2) + 'M';
-    if (v >= 1000)    return sym + (v / 1000).toFixed(1) + 'K';
+    // For EUR/USD: use full fmtCurrency but append suffix
+    if (v >= 1000000) return fmtCurrency(v / 1000000, 2) + ' M';
+    if (v >= 1000)    return fmtCurrency(v / 1000,    1) + ' K';
     return fmtCurrency(v, 2);
   }
 
-  /** Format a percentage with sign */
-  function fmtPct(n) { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+  /**
+   * Format a percentage with explicit sign.
+   *   EUR: +18,40 %    USD: +18.40 %    INR: +18.40 %
+   * @param {number} n
+   * @param {number} [places=2]
+   * @returns {string}
+   */
+  function fmtPct(n, places) {
+    if (n === null || n === undefined || !isFinite(n)) return '—';
+    const p = (places === undefined) ? 2 : places;
+    return (n >= 0 ? '+' : '') + fmtNum(n, p) + ' %';
+  }
 
-  /** Format an XIRR value for display */
-  function fmtXIRR(v) { return v === null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '% XIRR'; }
+  /**
+   * Format an XIRR value for display.
+   *   EUR: +22,1 % XIRR    USD: +22.1 % XIRR
+   */
+  function fmtXIRR(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '—';
+    return (v >= 0 ? '+' : '') + fmtNum(v, 1) + ' % XIRR';
+  }
 
-  /** Format a CAGR value for display */
-  function fmtCAGR(v) { return v === null ? '< 6mo' : (v >= 0 ? '+' : '') + v.toFixed(1) + '% p.a.'; }
+  /**
+   * Format a CAGR value for display.
+   *   EUR: +8,3 % p.a.    USD: +8.3 % p.a.
+   */
+  function fmtCAGR(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '< 6mo';
+    return (v >= 0 ? '+' : '') + fmtNum(v, 1) + ' % p.a.';
+  }
+
+  /**
+   * Format a share quantity — integers shown without decimals,
+   * fractional shares shown with up to 4 decimal places.
+   * @param {number} qty
+   * @returns {string}
+   */
+  function fmtQty(qty) {
+    if (qty === null || qty === undefined) return '—';
+    return qty % 1 === 0
+      ? _fmt(qty, { maximumFractionDigits: 0 })
+      : _fmt(+qty, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+
+  /**
+   * Detect the decimal separator character for the active locale.
+   * de-DE → ","    en-US / en-IN → "."
+   * @returns {',' | '.'}
+   */
+  function decimalSep() {
+    const sample = new Intl.NumberFormat(activeLocale()).format(1.1);
+    return sample.charAt(1); // the character between 1 and 1
+  }
+
+  /**
+   * Format a number for an INPUT field — uses the locale decimal separator
+   * so that placeholders and pre-fills match the user's regional convention.
+   *   EUR: "853,40"    USD: "853.40"    INR: "853.40"
+   * @param {number} n
+   * @param {number} [places=2]
+   * @returns {string}
+   */
+  function fmtInputNum(n, places) {
+    const p = (places === undefined) ? 2 : places;
+    if (!isFinite(n)) return '';
+    return n.toFixed(p).replace('.', decimalSep());
+  }
+
+  /**
+   * Parse a user-typed decimal number that may use any locale convention.
+   *   EU  "1.234,56"  → 1234.56
+   *   US  "1,234.56"  → 1234.56
+   *   IN  "1,23,456.78" → 123456.78
+   *   Plain "285,50" or "285.50" both work.
+   * @param {string} s
+   * @returns {number}
+   */
+  function parseLocaleFloat(s) {
+    if (typeof s !== 'string') return parseFloat(s);
+    const str = s.trim();
+    if (!str) return NaN;
+    const lastComma  = str.lastIndexOf(',');
+    const lastPeriod = str.lastIndexOf('.');
+    let normalised;
+    if (lastComma > lastPeriod) {
+      // Decimal comma (EU format): strip thousand dots, convert decimal comma
+      normalised = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Decimal period (US/IN format): strip thousand commas
+      normalised = str.replace(/,/g, '');
+    }
+    return parseFloat(normalised);
+  }
 
   /** Format an ISO date string as "01 Mar 2024" */
   function fmtDate(s) {
@@ -2690,7 +2939,7 @@ const App = (function () {
     return new Date(s + 'T12:00:00').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
   }
 
-  /** Generate a unique ID for transactions */
+  /** Generate a unique transaction ID */
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
@@ -2704,11 +2953,9 @@ const App = (function () {
     return Math.floor(seconds / 86400) + 'd ago';
   }
 
-  /** Format a quantity — show decimals only for fractional shares */
-  function fmtQty(qty) { return qty % 1 === 0 ? qty : (+qty).toFixed(4); }
-
   /** Promise-based sleep */
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -2789,10 +3036,13 @@ const App = (function () {
 
     saveState();
     render();
-    toast(`${data.type === 'BUY' ? '✅ Bought' : '🔴 Sold'} ${data.qty} ${data.ticker} @ $${data.price}`, 'success');
+    toast(`${data.type === 'BUY' ? 'Bought' : 'Sold'} ${data.qty} ${data.ticker}`, 'success');
   }
 
-  /** Delete a single transaction by ID */
+  /**
+   * Delete a single transaction by its unique ID.
+   * @param {string} id - Transaction ID to remove
+   */
   function deleteTransaction(id) {
     state.transactions = state.transactions.filter(t => t.id !== id);
     saveState();
@@ -2800,7 +3050,10 @@ const App = (function () {
     toast('Transaction deleted', 'info');
   }
 
-  /** Delete an entire position (all transactions for a ticker) */
+  /**
+   * Delete all transactions for a ticker and clean up its cached data.
+   * @param {string} ticker - Ticker symbol (e.g. 'AAPL')
+   */
   function deletePosition(ticker) {
     state.transactions = state.transactions.filter(t => t.ticker !== ticker);
     delete state.priceCache[ticker];
@@ -2818,7 +3071,11 @@ const App = (function () {
      Each tab has its own render function.
      ═══════════════════════════════════════════════════════════════════ */
 
-  /** Re-render all visible UI from current state */
+  /**
+   * Re-render all visible UI from current state.
+   * Recomputes positions and summary on every call.
+   * Called after every state mutation.
+   */
   function render() {
     const positions = computePositions();
     const summary = computeSummary(positions);
@@ -2958,7 +3215,7 @@ const App = (function () {
         paths += `<path d="M${x1} ${y1} A${outerR} ${outerR} 0 ${largeArc} 1 ${x2} ${y2} L${x3} ${y3} A${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4}Z"
           fill="${slice.color}" style="cursor:${slice.ticker ? 'pointer' : 'default'};transition:opacity .15s" ${clickHandler}
           onmouseover="this.style.opacity='.78'" onmouseout="this.style.opacity='1'">
-          <title>${slice.label} · ${(fraction * 100).toFixed(1)}% · ${fmtValue(slice.value)}</title></path>`;
+          <title>${slice.label} · ${fmtNum(fraction * 100, 1)} % · ${fmtValue(slice.value)}</title></path>`;
       }
       angle += fraction * Math.PI * 2;
     }
@@ -2966,9 +3223,9 @@ const App = (function () {
     el(svgContainerId).innerHTML = `
       <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" style="width:220px;height:220px;overflow:visible">
         ${paths}
-        <circle cx="${cx}" cy="${cy}" r="${innerR}" fill="#0b1120"/>
-        <text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" fill="#e4ecff" font-family="DM Mono,monospace" font-size="11" font-weight="500">${slices.length} ${slices[0]?.cls ? 'Classes' : 'Assets'}</text>
-        <text x="${cx}" y="${cy + 10}" text-anchor="middle" dominant-baseline="middle" fill="#4f6285" font-family="DM Mono,monospace" font-size="10">${fmtValue(total)}</text>
+        <circle cx="${cx}" cy="${cy}" r="${innerR}" fill="var(--surf)"/>
+        <text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" fill="var(--text)" font-family="DM Mono,monospace" font-size="11" font-weight="500">${slices.length} ${slices[0]?.cls ? 'Classes' : 'Assets'}</text>
+        <text x="${cx}" y="${cy + 10}" text-anchor="middle" dominant-baseline="middle" fill="var(--muted)" font-family="DM Mono,monospace" font-size="10">${fmtValue(total)}</text>
       </svg>`;
 
     el(legendId).innerHTML = slices.map(s => `
@@ -2979,7 +3236,7 @@ const App = (function () {
           ${classLegendTag(s.cls)}
         </div>
         <div class="leg-right">
-          <span style="color:var(--text)">${((s.value / total) * 100).toFixed(1)}%</span>
+          <span style="color:var(--text)">${fmtNum((s.value / total) * 100, 1)} %</span>
           <span>${fmtValue(s.value)}</span>
         </div>
       </div>`).join('');
@@ -2997,10 +3254,11 @@ const App = (function () {
   /* ── Positions Tab ───────────────────────────────────────────────── */
 
   function renderPositions(positions) {
-    let rows = Object.values(positions);
-    el('pos-count').textContent = rows.length;
+    const allRows = Object.values(positions);
+    // Show total position count, not the filtered count
+    el('pos-count').textContent = allRows.length;
 
-    if (clsFilter !== 'all') rows = rows.filter(r => r.cls === clsFilter);
+    let rows = clsFilter === 'all' ? allRows : allRows.filter(r => r.cls === clsFilter);
 
     if (!rows.length) {
       el('pos-grid').innerHTML = `<div class="empty-state">
@@ -3046,7 +3304,7 @@ const App = (function () {
               <div class="pm-lbl">Returns</div>
               <div class="xirr-row">
                 <div class="xirr-kpi"><span class="lbl">CAGR</span><span class="${gainClass(cagrFlag)}">${fmtCAGR(p.cagr)}</span></div>
-                <div class="xirr-kpi"><span class="lbl">XIRR</span><span class="${gainClass(xirrFlag)}">${p.xirr !== null ? (p.xirr >= 0 ? '+' : '') + p.xirr.toFixed(1) + '%' : '—'}</span></div>
+                <div class="xirr-kpi"><span class="lbl">XIRR</span><span class="${gainClass(xirrFlag)}">${p.xirr !== null ? fmtXIRR(p.xirr) : '—'}</span></div>
               </div>
             </div>
           </div>
@@ -3055,7 +3313,7 @@ const App = (function () {
           <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
             <span style="font-family:var(--font-mono);font-size:10px;color:${gainColor};white-space:nowrap">${fmtPct(p.unrealizedPct)}</span>
             <div class="pos-bar-wrap"><div class="pos-bar-fill" style="width:${Math.min(Math.abs(p.unrealizedPct) / 50 * 100, 100)}%;background:${gainColor}"></div></div>
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap">${allocationPct.toFixed(1)}%</span>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap">${fmtNum(allocationPct, 1)} %</span>
           </div>
           <div class="pos-actions">
             <button class="pos-btn" onclick="App.openDrawer('${p.ticker}')">
@@ -3198,7 +3456,7 @@ const App = (function () {
       <span class="dv" style="color:${xirrColor}">${fmtXIRR(pos.xirr)}</span>
       <span class="dsep">·</span>
       <span class="dl">Avg hold</span>
-      <span class="dv">${pos.avgYears.toFixed(1)}yr</span>
+      <span class="dv">${fmtNum(pos.avgYears, 1)} yr</span>
       <span class="dsep">·</span>
       <span class="dl">FX</span>
       <span class="dv" style="color:var(--blue)">${state.settings.currency}${fxLoaded.USD ? ' ✓ hist' : ' approx'}</span>`;
@@ -3287,6 +3545,16 @@ const App = (function () {
      Draws buy-price vs current-price for each open lot as connected dots.
      ─────────────────────────────────────────────────────────────────── */
 
+  /**
+   * Read a CSS variable value from the document root.
+   * Used by the canvas chart to stay in sync with the active theme.
+   * @param {string} varName - e.g. '--muted'
+   * @returns {string} Resolved colour value
+   */
+  function cssVar(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
   /** Draw a rounded rectangle path on a canvas context */
   function roundedRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -3356,11 +3624,11 @@ const App = (function () {
     for (let i = 0; i <= 4; i++) {
       const price = minPrice + (i / 4) * (maxPrice - minPrice);
       const x = priceToX(price);
-      ctx.strokeStyle = 'rgba(255,255,255,.022)';
+      ctx.strokeStyle = cssVar('--dim') || 'rgba(255,255,255,.022)';
       ctx.lineWidth = 0.8;
       ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(x, PAD_TOP - 14); ctx.lineTo(x, cssH - PAD_BOT + 4); ctx.stroke();
-      ctx.fillStyle = '#273a52';
+      ctx.fillStyle = cssVar('--dim');
       ctx.font = '9px DM Mono,monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
       ctx.fillText(fmtCompact(price), x, cssH - PAD_BOT + 6);
@@ -3396,14 +3664,14 @@ const App = (function () {
       const gc = isUp ? '#00dba8' : '#ff3d5a';
 
       // Alternating row background
-      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,.011)' : 'transparent';
+      ctx.fillStyle = i % 2 === 0 ? (cssVar('--surf2') || 'rgba(255,255,255,.011)') : 'transparent';
       ctx.fillRect(0, rowCenterY - ROW_H / 2, cssW, ROW_H);
 
       // Row labels (left side)
-      ctx.fillStyle = '#5c6e90'; ctx.font = '500 10px DM Mono,monospace';
+      ctx.fillStyle = cssVar('--muted'); ctx.font = '500 10px DM Mono,monospace';
       ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       ctx.fillText('L' + (i + 1), PAD_L - 10, rowCenterY - 10);
-      ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace';
+      ctx.fillStyle = cssVar('--dim'); ctx.font = '400 9px DM Mono,monospace';
       ctx.fillText(fmtDateShort(lot.date), PAD_L - 10, rowCenterY + 5);
 
       // Gradient connecting line between buy and current
@@ -3418,13 +3686,13 @@ const App = (function () {
       const dotR = Math.min(Math.max(5 + sizeRatio * 7, 5), 12);
 
       // Buy dot
-      ctx.fillStyle = '#5c6e90'; ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#8fa0c0'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.fillStyle = cssVar('--b2') || '#5c6e90'; ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = cssVar('--muted') || '#8fa0c0'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
       ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#8fa0c0'; ctx.font = '500 10px DM Mono,monospace';
+      ctx.fillStyle = cssVar('--muted'); ctx.font = '500 10px DM Mono,monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.fillText(fmtCompact(buyPriceD), buyX, rowCenterY - dotR - 4);
-      ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace'; ctx.textBaseline = 'top';
+      ctx.fillStyle = cssVar('--dim'); ctx.font = '400 9px DM Mono,monospace'; ctx.textBaseline = 'top';
       ctx.fillText(fmtQty(lot.qty), buyX, rowCenterY + dotR + 4);
 
       // Current price dot with gain/loss halo
@@ -3444,7 +3712,7 @@ const App = (function () {
       ctx.setLineDash([]);
 
       // Info box background
-      ctx.fillStyle = 'rgba(14,22,40,.96)';
+      ctx.fillStyle = cssVar('--surf') || 'rgba(14,22,40,.96)';
       roundedRect(ctx, boxX, boxY, INFO_W, INFO_H, 5); ctx.fill();
       ctx.strokeStyle = isUp ? 'rgba(0,219,168,.28)' : 'rgba(255,61,90,.28)'; ctx.lineWidth = 0.8;
       roundedRect(ctx, boxX, boxY, INFO_W, INFO_H, 5); ctx.stroke();
@@ -3452,11 +3720,11 @@ const App = (function () {
       // Info box text
       ctx.fillStyle = gc; ctx.font = '700 11.5px Cabinet Grotesk,sans-serif';
       ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.fillText((gainPct >= 0 ? '+' : '') + gainPct.toFixed(2) + '%', boxX + 8, boxY + 7);
-      ctx.fillStyle = '#8fa0c0'; ctx.font = '400 9.5px DM Mono,monospace';
-      ctx.fillText(xirr !== null ? 'XIRR: ' + (xirr >= 0 ? '+' : '') + xirr.toFixed(1) + '%' : years < 1 ? 'Held < 1yr' : 'CAGR: ' + fmtCAGR(cagr), boxX + 8, boxY + 23);
-      ctx.fillStyle = '#3a4f6e'; ctx.font = '400 8.5px DM Mono,monospace';
-      ctx.fillText(years.toFixed(1) + 'yr · L' + (i + 1) + ' · ' + state.settings.currency, boxX + 8, boxY + 38);
+      ctx.fillText((gainPct >= 0 ? '+' : '') + fmtNum(gainPct, 2) + ' %', boxX + 8, boxY + 7);
+      ctx.fillStyle = cssVar('--muted'); ctx.font = '400 9.5px DM Mono,monospace';
+      ctx.fillText(xirr !== null ? 'XIRR: ' + fmtXIRR(xirr) : years < 1 ? 'Held < 1yr' : 'CAGR: ' + fmtCAGR(cagr), boxX + 8, boxY + 23);
+      ctx.fillStyle = cssVar('--dim'); ctx.font = '400 8.5px DM Mono,monospace';
+      ctx.fillText(fmtNum(years, 1) + ' yr · L' + (i + 1) + ' · ' + state.settings.currency, boxX + 8, boxY + 38);
     });
   }
 
@@ -3472,6 +3740,10 @@ const App = (function () {
     el('f-qty').value = '';
     el('f-price').value = '';
     el('f-notes').value = '';
+    // Set decimal separator in placeholders to match selected currency
+    const _sep = decimalSep();
+    el('f-qty').placeholder   = '0';
+    el('f-price').placeholder = '0' + _sep + '00';
     el('f-total').textContent = '—';
     el('f-total').style.color = 'var(--muted)';
     el('f-hint').textContent = '';
@@ -3506,7 +3778,7 @@ const App = (function () {
   function setTicker(ticker, focus = true) {
     el('f-ticker').value = ticker;
     el('f-cls').value = state.tickerMeta[ticker]?.cls || guessClass(ticker);
-    el('f-price').value = getMockPrice(ticker).toFixed(2);
+    el('f-price').value = fmtInputNum(getMockPrice(ticker), 2);
     onTickerInput();
     validateForm();
     if (focus) el('f-ticker').focus();
@@ -3534,9 +3806,14 @@ const App = (function () {
   /** Validate the form and update the estimated total display */
   function validateForm() {
     const ticker = el('f-ticker').value.toUpperCase().trim();
-    const qty = parseFloat(el('f-qty').value);
-    const price = parseFloat(el('f-price').value);
-    const hint = el('f-hint');
+    const qty   = parseLocaleFloat(el('f-qty').value);
+    const price = parseLocaleFloat(el('f-price').value);
+    const hint  = el('f-hint');
+    const sep   = decimalSep();
+
+    // Keep placeholders in sync with active currency convention
+    el('f-qty').placeholder   = '0';
+    el('f-price').placeholder = '0' + sep + '00';
 
     hint.textContent = '';
     hint.className = 'fhint';
@@ -3551,15 +3828,14 @@ const App = (function () {
       el('f-total').style.color = 'var(--muted)';
     }
 
-    // Warn if selling more than held
+    // Warn if selling more than held — only compute positions when needed
     if (modalType === 'SELL' && ticker && qty > 0) {
-      const positions = computePositions();
-      const pos = positions[ticker];
+      const pos = computePositions()[ticker];
       if (!pos) {
         hint.textContent = '⚠ No position for ' + ticker;
         hint.className = 'fhint warn';
       } else if (qty > pos.shares) {
-        hint.textContent = `⚠ Only ${pos.shares} shares held`;
+        hint.textContent = `⚠ Only ${fmtQty(pos.shares)} shares held`;
         hint.className = 'fhint warn';
       }
     }
@@ -3568,8 +3844,8 @@ const App = (function () {
   /** Submit the transaction form */
   function submitTransaction() {
     const ticker = el('f-ticker').value.toUpperCase().trim();
-    const qty = parseFloat(el('f-qty').value);
-    const price = parseFloat(el('f-price').value);
+    const qty   = parseLocaleFloat(el('f-qty').value);
+    const price = parseLocaleFloat(el('f-price').value);
     const date = el('f-date').value;
     const notes = el('f-notes').value.trim();
     const cls = el('f-cls').value;
@@ -3590,24 +3866,29 @@ const App = (function () {
      SETTINGS PANEL
      ═══════════════════════════════════════════════════════════════════ */
 
+  /** Open the settings side panel, syncing all inputs from current state */
   function openSettings() {
-    el('cfg-apikey').value = state.settings.apiKey || '';
-    el('cfg-cache').value = state.settings.cacheTTL || 14400000;
+    // Sync all form inputs from current state (avoids duplicating field assignments)
+    syncSettingsUI();
     updateStorageStatus();
     el('sp-ov').classList.add('open');
     el('sp').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 
+  /** Close the settings side panel */
   function closeSettings() {
     el('sp-ov').classList.remove('open');
     el('sp').classList.remove('open');
     document.body.style.overflow = '';
   }
 
+  /** Read settings form inputs and persist them to state */
   function saveSettings() {
-    state.settings.apiKey = (el('cfg-apikey').value || '').trim();
-    state.settings.cacheTTL = parseInt(el('cfg-cache').value);
+    state.settings.apiKey    = (el('cfg-apikey').value    || '').trim();
+    state.settings.cacheTTL  = parseInt(el('cfg-cache').value);
+    state.settings.gistToken = (el('cfg-gist-token').value || '').trim();
+    state.settings.gistId    = (el('cfg-gist-id').value    || '').trim();
     saveState();
     render();
     updateSourceBadge();
@@ -3621,6 +3902,11 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   /** Switch between Overview / Positions / History tabs */
+  /**
+   * Switch between Overview, Positions, and History tabs.
+   * @param {string} name - 'overview' | 'positions' | 'history'
+   * @param {HTMLElement} buttonEl - The tab button that was clicked
+   */
   function showTab(name, buttonEl) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -3648,6 +3934,7 @@ const App = (function () {
   }
 
   /** Handle display currency change */
+  /** Handle the display currency selector change in the header */
   function onCurrencyChange() {
     state.settings.currency = el('h-currency').value;
     saveState();
@@ -3672,6 +3959,14 @@ const App = (function () {
      Reusable confirmation popup for destructive actions.
      ═══════════════════════════════════════════════════════════════════ */
 
+  /**
+   * Show the confirm dialog for a destructive action.
+   * @param {string} title
+   * @param {string} message
+   * @param {string} icon - Emoji displayed above the title
+   * @param {string} buttonLabel - Text for the confirm button
+   * @param {Function} callback - Called if user confirms
+   */
   function confirmAction(title, message, icon, buttonLabel, callback) {
     el('ci').textContent = icon || '⚠️';
     el('ct').textContent = title;
@@ -3709,20 +4004,23 @@ const App = (function () {
   /** Mutable wizard state — reset on every openCsvImport() */
   let csvState = {
     step: 1,
-    rawRows: [],       // parsed CSV rows (original fields)
-    isinMap: {},       // { [isin]: { ticker, cls, status: 'idle'|'loading'|'ok'|'err'|'manual' } }
-    previewRows: [],   // enriched + converted rows ready to import
+    rawRows: [],        // parsed CSV rows (original fields)
+    isinMap: {},        // { [isin]: { ticker, cls, status: 'idle'|'loading'|'ok'|'err'|'manual' } }
+    previewRows: [],    // enriched + converted rows ready to import
     dupCount: 0,
+    _resolving: false,  // true while OpenFIGI request is in-flight
   };
 
   /** Open the CSV import wizard */
+  /** Open the CSV import wizard and reset all wizard state */
   function openCsvImport() {
-    csvState = { step: 1, rawRows: [], isinMap: {}, previewRows: [], dupCount: 0 };
+    csvState = { step: 1, rawRows: [], isinMap: {}, previewRows: [], dupCount: 0, _resolving: false };
     el('csv-ov').classList.add('open');
     renderCsvStep();
   }
 
   /** Close the CSV import wizard */
+  /** Close the CSV import wizard without importing */
   function closeCsvImport() {
     el('csv-ov').classList.remove('open');
   }
@@ -3900,7 +4198,7 @@ const App = (function () {
 
       const currency    = (get('currency') || 'EUR').toUpperCase();
       const description = get('description') || get('name') || '';
-      const assetType   = get('assettype') || get('asset_type') || get('assettype') || 'Security';
+      const assetType   = get('assettype') || get('asset_type') || 'Security';
 
       rows.push({ dateISO, type, isin, shares, price, currency, description, assetType, _line: i });
 
@@ -4099,14 +4397,14 @@ const App = (function () {
       const ticker = map.ticker;
       const cls    = map.cls;
 
-      // EUR → USD conversion using historical FX rate
+      // EUR → USD conversion using historical FX rate where available
       let priceUSD = raw.price;
       if (raw.currency === 'EUR') {
-        const rate = fxDaily.USD[raw.dateISO] || fxLatest.USD || 1.08;
+        const rate = fxDaily.USD[raw.dateISO] || fxLatest.USD;
         priceUSD = raw.price * rate;
       } else if (raw.currency !== 'USD') {
-        // For other currencies, use latest as approximation
-        priceUSD = raw.price * (fxLatest.USD || 1.08);
+        // Non-EUR/USD currency — approximate via latest EUR→USD rate
+        priceUSD = raw.price * fxLatest.USD;
       }
       priceUSD = Math.round(priceUSD * 100) / 100;
 
@@ -4170,8 +4468,8 @@ const App = (function () {
                   ${r.isDuplicate ? '<span class="dup-badge" style="margin-left:4px">DUP</span>' : ''}
                 </td>
                 <td>${r.shares}</td>
-                <td style="color:var(--muted)">€${r.priceEUR.toFixed(2)}</td>
-                <td style="color:var(--text)">$${r.priceUSD.toFixed(2)}</td>
+                <td style="color:var(--muted)">${new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:2}).format(r.priceEUR)}</td>
+                <td style="color:var(--text)">${new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(r.priceUSD)}</td>
                 <td>
                   <span class="cls-badge cb-${r.cls.toLowerCase()}" style="font-size:9px;padding:1px 5px;border-radius:3px">${r.cls}</span>
                 </td>
@@ -4213,15 +4511,13 @@ const App = (function () {
     const importable = csvState.previewRows.filter(r => !r.isDuplicate);
     if (!importable.length) return;
 
-    const genId = () => Math.random().toString(36).slice(2, 9);
-
     importable.forEach(r => {
       // Update tickerMeta with class info
       if (!state.tickerMeta[r.ticker]) state.tickerMeta[r.ticker] = {};
       state.tickerMeta[r.ticker].cls = r.cls;
 
       state.transactions.push({
-        id:     genId(),
+        id:     generateId(), // uses module-level generateId() — no local duplicate
         date:   r.dateISO,
         ticker: r.ticker,
         type:   r.type,
@@ -4246,6 +4542,7 @@ const App = (function () {
      DATA EXPORT / IMPORT
      ═══════════════════════════════════════════════════════════════════ */
 
+  /** Serialise current state to a timestamped JSON file and trigger a browser download */
   function exportData() {
     const blob = new Blob(
       [JSON.stringify({ ...state, _exported: new Date().toISOString() }, null, 2)],
@@ -4259,6 +4556,11 @@ const App = (function () {
     toast('Portfolio exported', 'success');
   }
 
+  /**
+   * Read a JSON backup file from a file-input event and replace current state.
+   * Shows a confirmation dialog before overwriting to prevent accidental data loss.
+   * @param {Event} event - The file input change event
+   */
   function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -4288,6 +4590,7 @@ const App = (function () {
     reader.readAsText(file);
   }
 
+  /** Prompt then wipe all transactions, price cache, and ticker metadata */
   function clearAllData() {
     confirmAction('Clear all data?', 'Delete all transactions, positions and price cache.', '🗑', 'Clear All', () => {
       state.transactions = [];
@@ -4299,6 +4602,7 @@ const App = (function () {
     });
   }
 
+  /** Prompt then replace all transactions with the built-in demo portfolio */
   function reloadSampleData() {
     confirmAction('Reload sample data?', 'Replace current transactions with sample portfolio.', '🔄', 'Reload', applySampleData);
   }
@@ -4384,19 +4688,160 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   function syncSettingsUI() {
-    el('cfg-apikey').value = state.settings.apiKey || '';
-    el('cfg-cache').value = state.settings.cacheTTL || 14400000;
-    el('h-currency').value = state.settings.currency || 'EUR';
+    el('cfg-apikey').value       = state.settings.apiKey    || '';
+    el('cfg-cache').value        = state.settings.cacheTTL  || 14400000;
+    el('h-currency').value       = state.settings.currency  || 'EUR';
+    el('cfg-gist-token').value   = state.settings.gistToken || '';
+    el('cfg-gist-id').value      = state.settings.gistId    || '';
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════════
+     THEME — light / dark toggle
+     ═══════════════════════════════════════════════════════════════════ */
+
+  const MOON_SVG = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  const SUN_SVG  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+
+  function applyTheme() {
+    const theme = state.settings.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeIcon(theme);
+  }
+
+  function updateThemeIcon(theme) {
+    const icon = el('h-theme-icon');
+    if (!icon) return;
+    icon.innerHTML = (theme === 'dark') ? MOON_SVG : SUN_SVG;
+  }
+
+  function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next   = isDark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    state.settings.theme = next;
+    updateThemeIcon(next);
+    saveState();
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════════
+     GITHUB GIST SYNC
+     Saves / loads portfolio-data.json to a private GitHub Gist.
+     Token stays in localStorage — never leaves the browser.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  let _gistTimer = null;
+
+  function setGistStatus(msg, ok = null) {
+    const node = el('gist-status');
+    if (!node) return;
+    node.textContent = msg;
+    node.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--muted)';
+  }
+
+  /** Read token + id from state (fallback to live DOM if settings panel open) */
+  function _gistCreds() {
+    const token = ((el('cfg-gist-token') && el('cfg-gist-token').value) || state.settings.gistToken || '').trim();
+    const id    = ((el('cfg-gist-id')    && el('cfg-gist-id').value)    || state.settings.gistId    || '').trim();
+    return { token, id };
+  }
+
+  async function gistSave(silent = false) {
+    const { token, id } = _gistCreds();
+    if (!token) {
+      if (!silent) toast('Add your GitHub token in Settings → Gist Sync', 'error');
+      return;
+    }
+    if (!silent) setGistStatus('Saving…');
+    const payload = {
+      description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
+      public: false,
+      files: {
+        'portfolio-data.json': {
+          content: JSON.stringify({ ...state, _saved: new Date().toISOString() }, null, 2)
+        }
+      }
+    };
+    try {
+      const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
+      const method = id ? 'PATCH' : 'POST';
+      const resp   = await fetch(url, {
+        method,
+        headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || resp.status); }
+      const data = await resp.json();
+      if (!id) {
+        // First save — store the new Gist ID
+        state.settings.gistId = data.id;
+        if (el('cfg-gist-id')) el('cfg-gist-id').value = data.id;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setGistStatus('Gist created — ID: ' + data.id, true);
+      } else {
+        if (!silent) setGistStatus('Saved · ' + new Date().toLocaleTimeString(), true);
+      }
+      if (!silent) toast('Saved to GitHub Gist', 'success');
+    } catch (e) {
+      setGistStatus('Save failed: ' + e.message, false);
+      if (!silent) toast('Gist save failed: ' + e.message, 'error');
+    }
+  }
+
+  async function gistLoad() {
+    const { token, id } = _gistCreds();
+    if (!token) { toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
+    if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
+    setGistStatus('Loading…');
+    try {
+      const resp = await fetch(`https://api.github.com/gists/${id}`, {
+        headers: { 'Authorization': 'token ' + token }
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || resp.status); }
+      const data   = await resp.json();
+      const raw    = data.files?.['portfolio-data.json']?.content;
+      if (!raw) throw new Error('portfolio-data.json not found in Gist');
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.transactions)) throw new Error('Invalid portfolio format');
+      confirmAction(
+        'Load from Gist?',
+        `Replace current data with ${parsed.transactions.length} transactions from Gist?`,
+        '☁️', 'Load',
+        () => {
+          state = { ...state, ...parsed };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          render();
+          syncSettingsUI();
+          applyTheme();
+          setGistStatus('Loaded · ' + new Date().toLocaleTimeString(), true);
+          toast('Portfolio loaded from GitHub Gist', 'success');
+        }
+      );
+    } catch (e) {
+      setGistStatus('Load failed: ' + e.message, false);
+      toast('Gist load failed: ' + e.message, 'error');
+    }
+  }
+
+  /** Called by saveState() — debounces auto-save to Gist by 4 s */
+  function scheduleGistAutoSave() {
+    const { token, id } = _gistCreds();
+    if (!token || !id) return;        // only auto-save once both are configured
+    clearTimeout(_gistTimer);
+    _gistTimer = setTimeout(() => gistSave(true), 4000);
   }
 
 
   /* ═══════════════════════════════════════════════════════════════════
      INITIALISATION
-     Boot sequence: load → render → fetch FX → refresh prices.
+     Boot sequence: load state → apply theme → render with mock prices
+     → fetch FX rates (background) → fetch live prices (background).
      ═══════════════════════════════════════════════════════════════════ */
 
   async function init() {
     loadState();
+    applyTheme();
 
     // Load sample data if this is a fresh install
     if (!state.transactions.length) applySampleData();
@@ -4498,6 +4943,14 @@ const App = (function () {
     /** Force-refresh all prices bypassing cache TTL. */
     doRefresh: () => refreshPrices(true),
     onCurrencyChange,
+    /** Toggle between light and dark theme. */
+    toggleTheme,
+
+    // GitHub Gist sync
+    /** Manually save to GitHub Gist. @param {boolean} silent */
+    gistSave,
+    /** Load portfolio data from GitHub Gist. */
+    gistLoad,
 
     // Confirmation dialog
     confirmOk,
