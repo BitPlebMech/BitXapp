@@ -1733,11 +1733,14 @@ body::after {
         GitHub Gist Sync
       </div>
       <div class="info-box">
-        <strong>Cross-device sync — 3 steps:</strong><br>
+        <strong>First-time setup:</strong><br>
         1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
         2. Name it "Portfolio" · tick <strong>gist</strong> scope only · Generate<br>
-        3. Paste token below → Save Settings → click <strong>Save to Gist</strong><br><br>
-        On any other device: paste same token + Gist ID → Load from Gist.<br>
+        3. Paste token below → Save Settings → click <strong>Save to Gist</strong><br>
+        4. Copy the Gist ID that appears and save it with your token in Notes<br><br>
+        <strong>On any other browser or after clearing cache:</strong><br>
+        Paste your saved token + Gist ID → Save Settings → Load from Gist.<br>
+        Both fields are needed — treat the Gist ID like a second password.<br><br>
         Data auto-saves 4 s after every change once both fields are set.
       </div>
       <div class="fgrp">
@@ -1745,8 +1748,8 @@ body::after {
         <input type="password" class="finp" id="cfg-gist-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
       </div>
       <div class="fgrp">
-        <label class="flbl">Gist ID <span style="font-weight:400;opacity:.5">(auto-filled after first save)</span></label>
-        <input type="text" class="finp" id="cfg-gist-id" placeholder="Leave empty to create new Gist on first save">
+        <label class="flbl">Gist ID <span style="font-weight:400;opacity:.5">(auto-filled on first save — save this value in your Notes)</span></label>
+        <input type="text" class="finp" id="cfg-gist-id" placeholder="Paste your saved Gist ID here, or leave blank to create a new one">
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="abtn green" onclick="App.gistSave(false)">
@@ -1756,6 +1759,10 @@ body::after {
         <button class="abtn outline" onclick="App.gistLoad()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Load from Gist
+        </button>
+        <button class="abtn red" onclick="App.gistClearCredentials()" title="Clear saved token and Gist ID from this browser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear Credentials
         </button>
       </div>
       <div id="gist-status" style="font-size:11px;color:var(--muted);min-height:16px;font-family:var(--font-mono)"></div>
@@ -4544,10 +4551,8 @@ const App = (function () {
 
   /** Serialise current state to a timestamped JSON file and trigger a browser download */
   function exportData() {
-    // Strip token from export — the token is personal and should never be in a shared file.
-    const safeState = { ...state, settings: { ...state.settings, gistToken: '' } };
     const blob = new Blob(
-      [JSON.stringify({ ...safeState, _exported: new Date().toISOString() }, null, 2)],
+      [JSON.stringify({ ...state, settings: { ...state.settings, gistToken: '' }, _exported: new Date().toISOString() }, null, 2)],
       { type: 'application/json' }
     );
     const link = document.createElement('a');
@@ -4755,10 +4760,30 @@ const App = (function () {
       if (!silent) toast('Add your GitHub token in Settings → Gist Sync', 'error');
       return;
     }
+
+    // If no Gist ID is set and this is a manual save, confirm before creating
+    // a brand-new Gist — prevents accidental duplicate databases on new browsers.
+    if (!id && !silent) {
+      confirmAction(
+        'Create a new Gist?',
+        'No Gist ID is set. This will create a brand-new Gist database. ' +
+        'If you already have a Gist, paste its ID in the field above first.',
+        '☁️', 'Create new Gist',
+        () => _performGistSave(token, id, silent)
+      );
+      return;
+    }
+
+    _performGistSave(token, id, silent);
+  }
+
+  /** Internal — performs the actual Gist API call */
+  async function _performGistSave(token, id, silent = false) {
     if (!silent) setGistStatus('Saving…');
-    // Strip the token before saving — never write it to any external file.
-    // GitHub scans Gist content for exposed secrets and auto-revokes found tokens.
-    const safeState = { ...state, settings: { ...state.settings, gistToken: '' } };
+    // Strip token before writing — GitHub scans Gist content and
+    // auto-revokes any ghp_ token it finds, even in private Gists.
+    const { gistToken: _t, ...safeSettings } = state.settings;
+    const safeState = { ...state, settings: safeSettings };
     const payload = {
       description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
       public: false,
@@ -4814,7 +4839,13 @@ const App = (function () {
         `Replace current data with ${parsed.transactions.length} transactions from Gist?`,
         '☁️', 'Load',
         () => {
+          // Preserve current credentials — never overwrite with values
+          // from the Gist file. The file intentionally has gistToken:''
+          const currentToken  = state.settings.gistToken;
+          const currentGistId = state.settings.gistId;
           state = { ...state, ...parsed };
+          state.settings.gistToken = currentToken;
+          state.settings.gistId    = currentGistId;
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
           render();
           syncSettingsUI();
@@ -4827,6 +4858,29 @@ const App = (function () {
       setGistStatus('Load failed: ' + e.message, false);
       toast('Gist load failed: ' + e.message, 'error');
     }
+  }
+
+  /**
+   * Clear saved token and Gist ID from this browser only.
+   * Your Gist data on GitHub is completely untouched.
+   * Use this to re-enter fresh credentials without clearing all browser data.
+   */
+  function gistClearCredentials() {
+    confirmAction(
+      'Clear Gist credentials?',
+      'Removes the saved token and Gist ID from this browser only. ' +
+      'Your data on GitHub is not affected. You can re-enter credentials at any time.',
+      '🔑', 'Clear',
+      () => {
+        state.settings.gistToken = '';
+        state.settings.gistId    = '';
+        el('cfg-gist-token').value = '';
+        el('cfg-gist-id').value    = '';
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setGistStatus('Credentials cleared — paste your token and Gist ID to reconnect', null);
+        toast('Gist credentials cleared', 'info');
+      }
+    );
   }
 
   /** Called by saveState() — debounces auto-save to Gist by 4 s */
@@ -4956,6 +5010,8 @@ const App = (function () {
     gistSave,
     /** Load portfolio data from GitHub Gist. */
     gistLoad,
+    /** Clear saved token and Gist ID from this browser. */
+    gistClearCredentials,
 
     // Confirmation dialog
     confirmOk,
