@@ -76,8 +76,6 @@
   --font-mono: 'DM Mono', monospace;
 }
 
-
-
 /* ═══════════════════════════════════════════════════════════════════════
    LIGHT THEME TOKENS
    Applied when <html data-theme="light"> — overrides every :root value.
@@ -173,7 +171,6 @@ body::after {
   padding: 0 22px 110px;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    KEYFRAME ANIMATIONS
    ═══════════════════════════════════════════════════════════════════════ */
@@ -187,7 +184,6 @@ body::after {
   from { opacity: 0; transform: translateY(18px) scale(0.95); }
   to   { opacity: 1; transform: none; }
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    HEADER
@@ -308,7 +304,6 @@ body::after {
 /* Spin animation applied to refresh button during fetch */
 .hdr-btn.spin-me svg.spin-target { animation: spin 0.7s linear infinite; }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    TABS
    Sticky navigation bar below header
@@ -341,7 +336,6 @@ body::after {
 /* Tab content panes — only .active is visible */
 .tab-pane        { display: none; padding-top: 24px; }
 .tab-pane.active { display: block; animation: fadeUp 0.3s ease forwards; }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    KPI CARDS
@@ -381,7 +375,6 @@ body::after {
 }
 .kpi-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    PANELS
    Reusable card containers with optional header
@@ -406,7 +399,6 @@ body::after {
   border: 0.5px solid var(--b1); border-radius: 5px;
   padding: 2px 8px; font-family: var(--font-mono);
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    OVERVIEW TAB LAYOUT
@@ -490,7 +482,6 @@ body::after {
 .perf-right { display: flex; flex-direction: column; align-items: flex-end; min-width: 110px; }
 .perf-pct   { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
 .perf-xirr  { font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    POSITIONS TAB
@@ -604,7 +595,6 @@ body::after {
 .empty-state h3  { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
 .empty-state p   { font-size: 13px; line-height: 1.65; }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    HISTORY TAB
    Searchable, filterable transaction table
@@ -660,7 +650,7 @@ body::after {
 .htbl tbody tr:hover { background: var(--surf2); }
 
 .htbl tbody td {
-  font-family: var(--font-mono); font-size: 12px; color: #8fa0c0;
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted);
   padding: 10px 12px; text-align: right;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
@@ -686,7 +676,6 @@ body::after {
 .del-btn:hover { color: var(--red); }
 .del-btn svg   { width: 13px; height: 13px; }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    FLOATING ACTION BUTTON
    Fixed "+" button in bottom-right corner
@@ -704,7 +693,6 @@ body::after {
   box-shadow: 0 6px 32px rgba(91, 156, 255, 0.56);
 }
 .fab svg { width: 22px; height: 22px; }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    MODAL (Add Transaction)
@@ -827,7 +815,6 @@ body::after {
 }
 .cancel-btn:hover { border-color: var(--muted); color: var(--text); }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    SETTINGS SIDE PANEL
    Slides in from the right edge
@@ -916,7 +903,6 @@ body::after {
 }
 .fx-chip strong { color: var(--text); }
 .fx-chip .src   { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    POSITION DETAIL DRAWER
@@ -1052,7 +1038,6 @@ body::after {
   font-size: 10px; font-weight: 500;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    CSV IMPORT MODAL
    3-step wizard: Parse → Resolve ISINs → Preview & Import
@@ -1169,7 +1154,7 @@ body::after {
 .prev-tbl thead th:first-child, .prev-tbl thead th:nth-child(2),
 .prev-tbl thead th:nth-child(3) { text-align: left; }
 .prev-tbl tbody td {
-  font-family: var(--font-mono); font-size: 11px; color: #8fa0c0;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
   padding: 8px 10px; text-align: right; border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
 .prev-tbl tbody td:first-child, .prev-tbl tbody td:nth-child(2),
@@ -1230,7 +1215,6 @@ body::after {
 .confirm-msg   { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
 .confirm-btns  { display: flex; gap: 9px; justify-content: flex-end; }
 
-
 /* ═══════════════════════════════════════════════════════════════════════
    TOAST NOTIFICATIONS
    Stacked in bottom-right corner
@@ -1249,7 +1233,6 @@ body::after {
 .toast.error   { background: #1d0810; border: 0.5px solid rgba(255, 61, 90, 0.3);  color: var(--red); }
 .toast.info    { background: #0a1828; border: 0.5px solid rgba(91, 156, 255, 0.3);  color: var(--blue); }
 .toast.warn    { background: #1c1400; border: 0.5px solid rgba(255, 170, 32, 0.3);  color: var(--amber); }
-
 
 /* ═══════════════════════════════════════════════════════════════════════
    UTILITY CLASSES
@@ -1364,7 +1347,6 @@ body::after {
   </div>
 </header>
 
-
 <!-- ═══════════════════════════════════════════════════════════════════════
      TAB NAVIGATION
      ═══════════════════════════════════════════════════════════════════════ -->
@@ -1382,7 +1364,6 @@ body::after {
     History
   </button>
 </nav>
-
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      OVERVIEW TAB
@@ -1425,7 +1406,6 @@ body::after {
   </div>
 </div>
 
-
 <!-- ═══════════════════════════════════════════════════════════════════════
      POSITIONS TAB
      Filterable card grid of all open positions
@@ -1456,7 +1436,6 @@ body::after {
   </div>
   <div class="pos-grid" id="pos-grid"></div>
 </div>
-
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      HISTORY TAB
@@ -1503,12 +1482,10 @@ body::after {
 
 </div><!-- /.page -->
 
-
 <!-- Floating "Add Transaction" button -->
 <button class="fab" onclick="App.openModal()" title="Add Transaction">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
-
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      MODAL — Add Transaction Form
@@ -1603,7 +1580,6 @@ body::after {
   </div>
 </div>
 
-
 <!-- ═══════════════════════════════════════════════════════════════════════
      CSV IMPORT MODAL — 3-step wizard
      Step 1: Upload & Parse  |  Step 2: Resolve ISINs  |  Step 3: Preview & Import
@@ -1638,7 +1614,6 @@ body::after {
     <div class="modal-foot" id="csv-foot"></div>
   </div>
 </div>
-
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      SETTINGS SIDE PANEL
@@ -1786,7 +1761,6 @@ body::after {
   </div>
 </div>
 
-
 <!-- ═══════════════════════════════════════════════════════════════════════
      POSITION DETAIL DRAWER
      Bottom sheet with lots breakdown, dumbbell chart, transaction history
@@ -1858,7 +1832,6 @@ body::after {
   </div>
 </div>
 
-
 <!-- ═══════════════════════════════════════════════════════════════════════
      CONFIRM DIALOG
      ═══════════════════════════════════════════════════════════════════════ -->
@@ -1876,7 +1849,6 @@ body::after {
 
 <!-- Toast notification container -->
 <div class="toast-wrap" id="toast-wrap"></div>
-
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      JAVASCRIPT
@@ -1914,7 +1886,6 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
   /** @param {string} id @returns {HTMLElement|null} */
   function el(id) { return document.getElementById(id); }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      CONSTANTS & REFERENCE DATA
@@ -1977,7 +1948,6 @@ const App = (function () {
     BNB: 'binancecoin', LTC: 'litecoin', ALGO: 'algorand',
   };
 
-
   /* ═══════════════════════════════════════════════════════════════════
      APPLICATION STATE
      Mutable data that changes during the session.
@@ -2024,7 +1994,6 @@ const App = (function () {
   /** Cache for deterministic ticker → colour assignments */
   const tickerColorCache = {};
 
-
   /* ═══════════════════════════════════════════════════════════════════
      PERSISTENCE (localStorage)
      ═══════════════════════════════════════════════════════════════════ */
@@ -2069,7 +2038,6 @@ const App = (function () {
       target.innerHTML = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${sizeKB} KB</strong> in localStorage · Auto-saved after every change`;
     }
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      FX RATES — ECB via frankfurter.app
@@ -2227,7 +2195,6 @@ const App = (function () {
         </div>`;
     }
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      PRICE ENGINE
@@ -2437,7 +2404,6 @@ const App = (function () {
     else              { badge.className = 'price-src-badge sim';  badge.textContent = 'Simulated'; }
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      XIRR CALCULATOR
      Newton-Raphson solver with multiple seed points for robustness.
@@ -2573,7 +2539,6 @@ const App = (function () {
     }
     return { cashflows, dates };
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      PORTFOLIO CALCULATIONS (FIFO + CAGR)
@@ -2731,7 +2696,6 @@ const App = (function () {
     if (ETF_TICKERS.has(ticker)) return 'ETF';
     return 'Stock';
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      FORMATTING & DISPLAY HELPERS
@@ -2963,8 +2927,6 @@ const App = (function () {
   /** Promise-based sleep */
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-
-
   /* ═══════════════════════════════════════════════════════════════════
      COLOUR HELPERS
      Deterministic colour assignment for tickers and badges.
@@ -3011,7 +2973,6 @@ const App = (function () {
   function gainClass(flag) {
     return flag === 'n' ? 'c-muted' : flag === 'g' ? 'c-green' : 'c-red';
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      CRUD OPERATIONS
@@ -3071,7 +3032,6 @@ const App = (function () {
     toast(ticker + ' removed', 'info');
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      RENDER PIPELINE
      Main render() function triggers all tab renders.
@@ -3091,7 +3051,6 @@ const App = (function () {
     renderHistory();
     updateStorageStatus();
   }
-
 
   /* ── Overview Tab ────────────────────────────────────────────────── */
 
@@ -3190,7 +3149,6 @@ const App = (function () {
     }).join('');
   }
 
-
   /* ── SVG Donut Chart ─────────────────────────────────────────────── */
 
   /**
@@ -3256,7 +3214,6 @@ const App = (function () {
       el(`aview-${key}`).classList.toggle('active', key === tab);
     });
   }
-
 
   /* ── Positions Tab ───────────────────────────────────────────────── */
 
@@ -3339,7 +3296,6 @@ const App = (function () {
     }).join('');
   }
 
-
   /* ── History Tab ─────────────────────────────────────────────────── */
 
   function renderHistory() {
@@ -3404,7 +3360,6 @@ const App = (function () {
       </tr>`;
     }).join('');
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      POSITION DETAIL DRAWER
@@ -3547,7 +3502,6 @@ const App = (function () {
     document.body.style.overflow = '';
   }
 
-
   /* ── Dumbbell Chart (Canvas) ─────────────────────────────────────
      Draws buy-price vs current-price for each open lot as connected dots.
      ─────────────────────────────────────────────────────────────────── */
@@ -3631,7 +3585,7 @@ const App = (function () {
     for (let i = 0; i <= 4; i++) {
       const price = minPrice + (i / 4) * (maxPrice - minPrice);
       const x = priceToX(price);
-      ctx.strokeStyle = cssVar('--dim') || 'rgba(255,255,255,.022)';
+      ctx.strokeStyle = cssVar('--dim');
       ctx.lineWidth = 0.8;
       ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(x, PAD_TOP - 14); ctx.lineTo(x, cssH - PAD_BOT + 4); ctx.stroke();
@@ -3671,7 +3625,7 @@ const App = (function () {
       const gc = isUp ? '#00dba8' : '#ff3d5a';
 
       // Alternating row background
-      ctx.fillStyle = i % 2 === 0 ? (cssVar('--surf2') || 'rgba(255,255,255,.011)') : 'transparent';
+      ctx.fillStyle = i % 2 === 0 ? cssVar('--surf2') : 'transparent';
       ctx.fillRect(0, rowCenterY - ROW_H / 2, cssW, ROW_H);
 
       // Row labels (left side)
@@ -3693,8 +3647,8 @@ const App = (function () {
       const dotR = Math.min(Math.max(5 + sizeRatio * 7, 5), 12);
 
       // Buy dot
-      ctx.fillStyle = cssVar('--b2') || '#5c6e90'; ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = cssVar('--muted') || '#8fa0c0'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.fillStyle = cssVar('--b2'); ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1.5; ctx.setLineDash([]);
       ctx.beginPath(); ctx.arc(buyX, rowCenterY, dotR, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = cssVar('--muted'); ctx.font = '500 10px DM Mono,monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
@@ -3719,7 +3673,7 @@ const App = (function () {
       ctx.setLineDash([]);
 
       // Info box background
-      ctx.fillStyle = cssVar('--surf') || 'rgba(14,22,40,.96)';
+      ctx.fillStyle = cssVar('--surf');
       roundedRect(ctx, boxX, boxY, INFO_W, INFO_H, 5); ctx.fill();
       ctx.strokeStyle = isUp ? 'rgba(0,219,168,.28)' : 'rgba(255,61,90,.28)'; ctx.lineWidth = 0.8;
       roundedRect(ctx, boxX, boxY, INFO_W, INFO_H, 5); ctx.stroke();
@@ -3734,7 +3688,6 @@ const App = (function () {
       ctx.fillText(fmtNum(years, 1) + ' yr · L' + (i + 1) + ' · ' + state.settings.currency, boxX + 8, boxY + 38);
     });
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      MODAL (Add Transaction Form)
@@ -3868,7 +3821,6 @@ const App = (function () {
     closeModal();
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      SETTINGS PANEL
      ═══════════════════════════════════════════════════════════════════ */
@@ -3901,7 +3853,6 @@ const App = (function () {
     updateSourceBadge();
     toast('Settings saved', 'success');
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      UI INTERACTION HANDLERS
@@ -3960,7 +3911,6 @@ const App = (function () {
     el('h-status').textContent = text;
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      CONFIRM DIALOG
      Reusable confirmation popup for destructive actions.
@@ -3999,7 +3949,6 @@ const App = (function () {
     const count = state.transactions.filter(t => t.ticker === ticker).length;
     confirmAction(`Delete ${ticker}?`, `Remove all ${count} transaction(s) — cannot be undone.`, '⚠️', 'Delete All', () => deletePosition(ticker));
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      CSV IMPORT WIZARD
@@ -4544,7 +4493,6 @@ const App = (function () {
     toast(msg, 'success');
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      DATA EXPORT / IMPORT
      ═══════════════════════════════════════════════════════════════════ */
@@ -4614,7 +4562,6 @@ const App = (function () {
     confirmAction('Reload sample data?', 'Replace current transactions with sample portfolio.', '🔄', 'Reload', applySampleData);
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      SAMPLE DATA
      Pre-loaded portfolio for demonstration purposes.
@@ -4647,7 +4594,6 @@ const App = (function () {
     toast('Sample portfolio loaded', 'success');
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      TOAST NOTIFICATIONS
      Brief feedback messages that auto-dismiss.
@@ -4673,7 +4619,6 @@ const App = (function () {
     }, duration);
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      KEYBOARD SHORTCUTS
      ═══════════════════════════════════════════════════════════════════ */
@@ -4688,7 +4633,6 @@ const App = (function () {
     }
   });
 
-
   /* ═══════════════════════════════════════════════════════════════════
      SETTINGS UI SYNC
      Ensures form inputs reflect the current state values.
@@ -4701,7 +4645,6 @@ const App = (function () {
     el('cfg-gist-token').value   = state.settings.gistToken || '';
     el('cfg-gist-id').value      = state.settings.gistId    || '';
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      THEME — light / dark toggle
@@ -4730,7 +4673,6 @@ const App = (function () {
     updateThemeIcon(next);
     saveState();
   }
-
 
   /* ═══════════════════════════════════════════════════════════════════
      GITHUB GIST SYNC
@@ -4891,7 +4833,6 @@ const App = (function () {
     _gistTimer = setTimeout(() => gistSave(true), 4000);
   }
 
-
   /* ═══════════════════════════════════════════════════════════════════
      INITIALISATION
      Boot sequence: load state → apply theme → render with mock prices
@@ -4927,7 +4868,6 @@ const App = (function () {
   }
 
   init();
-
 
   /* ═══════════════════════════════════════════════════════════════════
      PUBLIC API
