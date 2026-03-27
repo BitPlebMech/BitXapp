@@ -4544,8 +4544,10 @@ const App = (function () {
 
   /** Serialise current state to a timestamped JSON file and trigger a browser download */
   function exportData() {
+    // Strip token from export — the token is personal and should never be in a shared file.
+    const safeState = { ...state, settings: { ...state.settings, gistToken: '' } };
     const blob = new Blob(
-      [JSON.stringify({ ...state, _exported: new Date().toISOString() }, null, 2)],
+      [JSON.stringify({ ...safeState, _exported: new Date().toISOString() }, null, 2)],
       { type: 'application/json' }
     );
     const link = document.createElement('a');
@@ -4754,12 +4756,15 @@ const App = (function () {
       return;
     }
     if (!silent) setGistStatus('Saving…');
+    // Strip the token before saving — never write it to any external file.
+    // GitHub scans Gist content for exposed secrets and auto-revokes found tokens.
+    const safeState = { ...state, settings: { ...state.settings, gistToken: '' } };
     const payload = {
       description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
       public: false,
       files: {
         'portfolio-data.json': {
-          content: JSON.stringify({ ...state, _saved: new Date().toISOString() }, null, 2)
+          content: JSON.stringify({ ...safeState, _saved: new Date().toISOString() }, null, 2)
         }
       }
     };
