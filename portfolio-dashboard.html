@@ -650,7 +650,7 @@ body::after {
 .htbl tbody tr:hover { background: var(--surf2); }
 
 .htbl tbody td {
-  font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+  font-family: var(--font-mono); font-size: 12px; color: #8fa0c0;
   padding: 10px 12px; text-align: right;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
@@ -1154,7 +1154,7 @@ body::after {
 .prev-tbl thead th:first-child, .prev-tbl thead th:nth-child(2),
 .prev-tbl thead th:nth-child(3) { text-align: left; }
 .prev-tbl tbody td {
-  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  font-family: var(--font-mono); font-size: 11px; color: #8fa0c0;
   padding: 8px 10px; text-align: right; border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
 .prev-tbl tbody td:first-child, .prev-tbl tbody td:nth-child(2),
@@ -1271,6 +1271,119 @@ body::after {
 ::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOCK SCREEN
+   Full-screen PIN gate shown on every page load.
+   The app renders behind it — fades away on correct PIN entry.
+   ═══════════════════════════════════════════════════════════════════════ */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 600;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 1; transition: opacity 0.3s ease;
+}
+.lock-screen.hidden {
+  opacity: 0; pointer-events: none;
+}
+
+.lock-inner {
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%; max-width: 300px; padding: 24px 20px;
+}
+
+/* App logo repeated on lock screen */
+.lock-logo {
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(91,156,255,0.15), rgba(160,124,248,0.15));
+  border: 1px solid rgba(91,156,255,0.24);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue); margin-bottom: 14px;
+}
+.lock-logo svg { width: 24px; height: 24px; }
+
+.lock-title    { font-size: 20px; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 4px; }
+.lock-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 28px; letter-spacing: 0.04em; text-align: center; }
+
+/* Six PIN entry dots */
+.pin-dots {
+  display: flex; gap: 12px; margin-bottom: 10px;
+}
+.pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--b2); background: transparent;
+  transition: all 0.15s;
+}
+.pin-dot.filled { background: var(--blue);  border-color: var(--blue); }
+.pin-dot.error  { background: var(--red);   border-color: var(--red);  }
+
+/* Error/status message below dots */
+.pin-error {
+  font-family: var(--font-mono); font-size: 11px; color: var(--red);
+  min-height: 18px; margin-bottom: 20px; text-align: center;
+}
+
+/* 3×4 numeric keypad */
+.pin-keypad {
+  display: grid; grid-template-columns: repeat(3, 72px);
+  gap: 10px; margin-bottom: 24px;
+}
+.pin-key {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--surf); border: 0.5px solid var(--b2);
+  color: var(--text); font-size: 22px; font-weight: 500;
+  font-family: var(--font-mono); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+  user-select: none;
+}
+.pin-key:hover  { background: var(--surf2); border-color: var(--blue); }
+.pin-key:active { transform: scale(0.91);  background: var(--surf3); }
+.pin-key.action { font-size: 17px; color: var(--muted); }
+.pin-key.action:hover { color: var(--text); border-color: var(--muted); }
+.pin-key.empty  { background: transparent; border-color: transparent; pointer-events: none; cursor: default; }
+
+/* Shake animation on wrong PIN */
+@keyframes pinShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-9px); }
+  40%      { transform: translateX(9px); }
+  60%      { transform: translateX(-6px); }
+  80%      { transform: translateX(6px); }
+}
+.pin-dots.shake { animation: pinShake 0.42s ease; }
+
+/* Reset / forgot PIN text link */
+.lock-reset-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-ui); font-size: 11px;
+  color: var(--dim); text-decoration: underline;
+  transition: color 0.14s; padding: 4px 8px;
+}
+.lock-reset-btn:hover { color: var(--muted); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CREDENTIALS POPUP
+   Shown when GitHub token or Gist ID are missing (fresh browser,
+   after cache clear, or after reset). Sits above the lock screen.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cred-ov {
+  position: fixed; inset: 0; z-index: 620;
+  background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.22s;
+}
+.cred-ov.open  { opacity: 1; pointer-events: all; }
+
+.cred-box {
+  background: var(--surf); border: 0.5px solid var(--b2);
+  border-radius: 16px; padding: 26px 24px;
+  width: 100%; max-width: 400px;
+}
+.cred-icon  { font-size: 28px; margin-bottom: 10px; }
+.cred-title { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 6px; }
+.cred-msg   { font-size: 12px; color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
+
 </style>
 </head>
 
@@ -1320,6 +1433,15 @@ body::after {
 
     <!-- Last-refresh timestamp -->
     <div class="ts-pill" id="h-ts">—</div>
+
+    <!-- Save to Gist button — manual sync, amber dot = unsaved local changes -->
+    <button class="hdr-btn" id="h-gist-save" onclick="App.gistSave(false)" title="Save portfolio data to GitHub Gist">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+      </svg>
+      Gist
+      <span class="gist-unsaved-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+    </button>
 
     <!-- Refresh prices button -->
     <button class="hdr-btn primary" id="h-refresh" onclick="App.doRefresh()">
@@ -1716,7 +1838,7 @@ body::after {
         <strong>On any other browser or after clearing cache:</strong><br>
         Paste your saved token + Gist ID → Save Settings → Load from Gist.<br>
         Both fields are needed — treat the Gist ID like a second password.<br><br>
-        Data auto-saves 4 s after every change once both fields are set.
+        Use the <strong>Gist</strong> button in the header to sync manually.
       </div>
       <div class="fgrp">
         <label class="flbl">GitHub Personal Access Token</label>
@@ -1849,6 +1971,96 @@ body::after {
 
 <!-- Toast notification container -->
 <div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     LOCK SCREEN
+     Rendered on top of the app. Fades away after correct PIN entry.
+     App loads fully behind it so unlock is instant.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div id="lock-screen" class="lock-screen">
+  <div class="lock-inner">
+
+    <!-- Logo + title -->
+    <div class="lock-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+      </svg>
+    </div>
+    <div class="lock-title">Portfolio Terminal</div>
+    <div class="lock-subtitle" id="lock-subtitle">Enter your PIN</div>
+
+    <!-- Six entry dots -->
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+
+    <!-- Error / status message -->
+    <div class="pin-error" id="pin-error"></div>
+
+    <!-- Numeric keypad: 1–9, backspace, 0 -->
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="App.pinKeyPress('1')">1</button>
+      <button class="pin-key" onclick="App.pinKeyPress('2')">2</button>
+      <button class="pin-key" onclick="App.pinKeyPress('3')">3</button>
+      <button class="pin-key" onclick="App.pinKeyPress('4')">4</button>
+      <button class="pin-key" onclick="App.pinKeyPress('5')">5</button>
+      <button class="pin-key" onclick="App.pinKeyPress('6')">6</button>
+      <button class="pin-key" onclick="App.pinKeyPress('7')">7</button>
+      <button class="pin-key" onclick="App.pinKeyPress('8')">8</button>
+      <button class="pin-key" onclick="App.pinKeyPress('9')">9</button>
+      <button class="pin-key action" onclick="App.pinKeyPress('back')" title="Backspace">⌫</button>
+      <button class="pin-key" onclick="App.pinKeyPress('0')">0</button>
+      <div class="pin-key empty"></div>
+    </div>
+
+    <!-- Forgot / reset link (hidden during PIN setup) -->
+    <button class="lock-reset-btn" id="lock-reset-btn" onclick="App.lockReset()">
+      Forgot PIN · Reset credentials
+    </button>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     CREDENTIALS POPUP
+     Shown when GitHub token / Gist ID are missing — sits above lock screen.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="cred-ov" id="cred-ov">
+  <div class="cred-box">
+    <div class="cred-icon">🔑</div>
+    <div class="cred-title">Connect to GitHub Gist</div>
+    <div class="cred-msg">
+      Enter your GitHub Personal Access Token and Gist ID to access your
+      portfolio data. Save both values in your Notes app — you will need
+      them again after any cache clear.
+    </div>
+    <div class="fgrp">
+      <label class="flbl">GitHub Personal Access Token</label>
+      <input type="password" class="finp" id="lock-token"
+             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    </div>
+    <div class="fgrp" style="margin-top:10px">
+      <label class="flbl">Gist ID</label>
+      <input type="text" class="finp" id="lock-gist-id"
+             placeholder="Your Gist ID">
+    </div>
+    <div id="cred-hint" style="font-size:11px;min-height:14px;margin-top:6px"></div>
+    <button class="submit-btn"
+            style="margin-top:16px;width:100%;justify-content:center"
+            onclick="App.saveCredentials()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"
+           style="width:13px;height:13px"><polyline points="20 6 9 17 4 12"/></svg>
+      Save &amp; Continue
+    </button>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      JAVASCRIPT
@@ -2018,11 +2230,16 @@ const App = (function () {
   }
 
   /** Persist current state to localStorage */
+  /**
+   * Persist current state to localStorage only.
+   * Gist sync is manual — use the Save to Gist button in the header.
+   * This prevents local/test sessions from silently overwriting Gist data.
+   */
   function saveState() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       updateStorageStatus();
-      scheduleGistAutoSave();
+      updateGistSaveIndicator();
     } catch (e) {
       toast('Storage save failed', 'error');
     }
@@ -2035,7 +2252,7 @@ const App = (function () {
     const posCount = new Set(state.transactions.map(t => t.ticker)).size;
     const target = el('sp-storage');
     if (target) {
-      target.innerHTML = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${sizeKB} KB</strong> in localStorage · Auto-saved after every change`;
+      target.innerHTML = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${sizeKB} KB</strong> in localStorage · Use the Gist button in the header to sync`;
     }
   }
 
@@ -3657,7 +3874,7 @@ const App = (function () {
       ctx.fillText(fmtQty(lot.qty), buyX, rowCenterY + dotR + 4);
 
       // Current price dot with gain/loss halo
-      ctx.fillStyle = '#ff9848'; ctx.beginPath(); ctx.arc(currentX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = cssVar('--orange'); ctx.beginPath(); ctx.arc(currentX, rowCenterY, dotR, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = isUp ? 'rgba(0,219,168,.65)' : 'rgba(255,61,90,.65)';
       ctx.lineWidth = 2; ctx.setLineDash([]);
       ctx.beginPath(); ctx.arc(currentX, rowCenterY, dotR + 3, 0, Math.PI * 2); ctx.stroke();
@@ -4624,6 +4841,12 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   document.addEventListener('keydown', e => {
+    // While locked, route digit/backspace keys to PIN entry and block all else
+    if (_isLocked) {
+      if (e.key >= '0' && e.key <= '9') { pinKeyPress(e.key); return; }
+      if (e.key === 'Backspace')         { pinKeyPress('back'); return; }
+      return;
+    }
     if (e.key === 'Escape') {
       closeModal();
       closeDrawer();
@@ -4680,13 +4903,24 @@ const App = (function () {
      Token stays in localStorage — never leaves the browser.
      ═══════════════════════════════════════════════════════════════════ */
 
-  let _gistTimer = null;
-
   function setGistStatus(msg, ok = null) {
     const node = el('gist-status');
     if (!node) return;
     node.textContent = msg;
     node.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--muted)';
+  }
+
+  /**
+   * Show the amber unsaved-changes dot on the header Gist button
+   * whenever Gist is configured and local data may differ from last save.
+   * Dot is hidden after a successful save.
+   */
+  function updateGistSaveIndicator() {
+    const btn = el('h-gist-save');
+    if (!btn) return;
+    const { token, id } = _gistCreds();
+    const dot = btn.querySelector('.gist-unsaved-dot');
+    if (dot) dot.style.display = (token && id) ? '' : 'none';
   }
 
   /** Read token + id from state (fallback to live DOM if settings panel open) */
@@ -4754,6 +4988,9 @@ const App = (function () {
       } else {
         if (!silent) setGistStatus('Saved · ' + new Date().toLocaleTimeString(), true);
       }
+      // Hide the unsaved-changes dot — Gist is now in sync with local state
+      const dot = el('h-gist-save')?.querySelector('.gist-unsaved-dot');
+      if (dot) dot.style.display = 'none';
       if (!silent) toast('Saved to GitHub Gist', 'success');
     } catch (e) {
       setGistStatus('Save failed: ' + e.message, false);
@@ -4825,12 +5062,304 @@ const App = (function () {
     );
   }
 
-  /** Called by saveState() — debounces auto-save to Gist by 4 s */
-  function scheduleGistAutoSave() {
-    const { token, id } = _gistCreds();
-    if (!token || !id) return;        // only auto-save once both are configured
-    clearTimeout(_gistTimer);
-    _gistTimer = setTimeout(() => gistSave(true), 4000);
+  /* ═══════════════════════════════════════════════════════════════════
+     LOCK SCREEN — 6-digit PIN gate
+     ─────────────────────────────────────────────────────────────────
+     Shown on every page load. App renders behind it for instant unlock.
+
+     Access flow:
+       First visit / after cache clear:
+         No credentials → Credentials popup → PIN setup → App
+       Every subsequent visit:
+         PIN entry → App
+       Reset:
+         Credentials popup → PIN setup → App
+
+     PIN hash: SHA-256 via Web Crypto API (UI-level protection only).
+     The PIN hash and credentials are stored in localStorage.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /** localStorage key for the hashed PIN */
+  const PIN_STORAGE_KEY = 'portfolio_pin';
+
+  let _pinBuffer   = '';       // digits typed so far in current session
+  let _pinMode     = '';       // 'entry' | 'setup' | 'confirm'
+  let _pinFirst    = '';       // first entry captured during setup confirm step
+  let _credCallback = null;    // callback fired after credentials are saved
+  let _isLocked    = true;     // false once correct PIN entered this session
+
+  /**
+   * Hash a PIN string with a fixed app salt using SHA-256.
+   * Ensures the raw PIN is never stored.
+   * @param {string} pin
+   * @returns {Promise<string>} Hex digest
+   */
+  async function _hashPIN(pin) {
+    const data = new TextEncoder().encode('portfolio_terminal_v1:' + pin);
+    const buf  = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /** Return the stored PIN hash, or empty string if none is set */
+  function _storedPINHash() {
+    return localStorage.getItem(PIN_STORAGE_KEY) || '';
+  }
+
+  /**
+   * Entry point called from init().
+   * Decides whether to show the credentials popup, PIN setup, or PIN entry.
+   */
+  function initLockScreen() {
+    const hasToken  = !!(state.settings.gistToken || '').trim();
+    const hasGistId = !!(state.settings.gistId    || '').trim();
+    const hasPIN    = !!_storedPINHash();
+
+    if (!hasToken || !hasGistId) {
+      // Credentials are missing — must be entered before PIN
+      openCredentialsPopup(() => {
+        if (!_storedPINHash()) {
+          openLockScreen('setup');
+        } else {
+          // PIN already exists — credentials re-entered, just unlock
+          closeLockScreen();
+        }
+      });
+      return;
+    }
+
+    openLockScreen(hasPIN ? 'entry' : 'setup');
+  }
+
+  /**
+   * Show the lock screen in a given mode.
+   * @param {'entry'|'setup'|'confirm'} mode
+   */
+  function openLockScreen(mode) {
+    _pinMode   = mode;
+    _pinBuffer = '';
+    _pinFirst  = '';
+
+    const screen = el('lock-screen');
+    screen.style.display = '';
+    screen.classList.remove('hidden');
+
+    // Subtitle and reset button visibility vary by mode
+    const subtitles = {
+      entry:   'Enter your PIN',
+      setup:   'Create a 6-digit PIN',
+      confirm: 'Confirm your PIN',
+    };
+    el('lock-subtitle').textContent  = subtitles[mode] || '';
+    el('lock-reset-btn').style.display = mode === 'entry' ? '' : 'none';
+    el('pin-error').textContent = '';
+    _renderPINDots();
+  }
+
+  /** Fade out and remove the lock screen, revealing the app */
+  function closeLockScreen() {
+    _isLocked = false;
+    const screen = el('lock-screen');
+    screen.classList.add('hidden');
+    // Remove from layout after transition completes so it never blocks clicks
+    setTimeout(() => { screen.style.display = 'none'; }, 340);
+  }
+
+  /**
+   * Re-draw the 6 PIN dots based on the current buffer length.
+   * @param {'normal'|'error'} state
+   */
+  function _renderPINDots(dotState = 'normal') {
+    const dotsEl = el('pin-dots');
+    dotsEl.classList.remove('shake');
+    dotsEl.innerHTML = Array.from({ length: 6 }, (_, i) => {
+      let cls = 'pin-dot';
+      if (dotState === 'error')       cls += ' error';
+      else if (i < _pinBuffer.length) cls += ' filled';
+      return `<div class="${cls}"></div>`;
+    }).join('');
+  }
+
+  /**
+   * Handle a keypad button press — called from HTML onclick handlers
+   * and also from the keyboard listener.
+   * @param {string} value - '0'–'9' or 'back'
+   */
+  function pinKeyPress(value) {
+    if (!_isLocked) return;  // shouldn't be called when unlocked
+
+    if (value === 'back') {
+      _pinBuffer = _pinBuffer.slice(0, -1);
+      _renderPINDots();
+      el('pin-error').textContent = '';
+      return;
+    }
+
+    if (_pinBuffer.length >= 6) return;
+    _pinBuffer += value;
+    _renderPINDots();
+
+    // Auto-submit on 6th digit — brief delay so the last dot renders first
+    if (_pinBuffer.length === 6) {
+      setTimeout(_submitPIN, 130);
+    }
+  }
+
+  /** Process the completed 6-digit buffer according to the current mode */
+  async function _submitPIN() {
+    const entered = _pinBuffer;
+
+    if (_pinMode === 'entry') {
+      const hash = await _hashPIN(entered);
+      if (hash === _storedPINHash()) {
+        // Correct PIN — unlock the app
+        closeLockScreen();
+        // If credentials were cleared while PIN still existed, prompt now
+        const hasToken  = !!(state.settings.gistToken || '').trim();
+        const hasGistId = !!(state.settings.gistId    || '').trim();
+        if (!hasToken || !hasGistId) {
+          openCredentialsPopup(() => {});
+        }
+      } else {
+        // Wrong PIN — shake and reset
+        _pinBuffer = '';
+        _renderPINDots('error');
+        el('pin-dots').classList.add('shake');
+        el('pin-error').textContent = 'Incorrect PIN — try again';
+        setTimeout(() => {
+          _renderPINDots();
+          el('pin-error').textContent = '';
+        }, 1300);
+      }
+
+    } else if (_pinMode === 'setup') {
+      // First entry — ask user to confirm
+      _pinFirst  = entered;
+      _pinBuffer = '';
+      _pinMode   = 'confirm';
+      el('lock-subtitle').textContent = 'Confirm your PIN';
+      _renderPINDots();
+
+    } else if (_pinMode === 'confirm') {
+      if (entered === _pinFirst) {
+        // Match — hash and store
+        const hash = await _hashPIN(entered);
+        localStorage.setItem(PIN_STORAGE_KEY, hash);
+        closeLockScreen();
+        toast('PIN set — you\'re all set', 'success');
+      } else {
+        // No match — restart setup from scratch
+        _pinBuffer = '';
+        _pinFirst  = '';
+        _pinMode   = 'setup';
+        _renderPINDots('error');
+        el('pin-dots').classList.add('shake');
+        el('lock-subtitle').textContent = 'Create a 6-digit PIN';
+        el('pin-error').textContent = 'PINs did not match — try again';
+        setTimeout(() => {
+          _renderPINDots();
+          el('pin-error').textContent = '';
+        }, 1400);
+      }
+    }
+  }
+
+  /**
+   * Reset: confirm, then clear PIN + credentials and restart the setup flow.
+   * Gist data on GitHub is not affected.
+   */
+  function lockReset() {
+    confirmAction(
+      'Reset access?',
+      'This clears your PIN and GitHub credentials from this browser. ' +
+      'Your portfolio data on GitHub is not affected.',
+      '🔑', 'Reset',
+      () => {
+        // Clear PIN hash
+        localStorage.removeItem(PIN_STORAGE_KEY);
+        // Clear credentials from state, DOM, and localStorage
+        state.settings.gistToken = '';
+        state.settings.gistId    = '';
+        if (el('cfg-gist-token')) el('cfg-gist-token').value = '';
+        if (el('cfg-gist-id'))    el('cfg-gist-id').value    = '';
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        // Restart the access flow
+        _isLocked = true;
+        openCredentialsPopup(() => openLockScreen('setup'));
+      }
+    );
+  }
+
+  /**
+   * Open the credentials popup.
+   * @param {Function} callback - Called after credentials are saved
+   */
+  function openCredentialsPopup(callback) {
+    _credCallback = callback;
+    el('lock-token').value   = '';
+    el('lock-gist-id').value = '';
+    el('cred-hint').textContent  = '';
+    el('cred-hint').style.color  = 'var(--muted)';
+    el('cred-ov').classList.add('open');
+    // Auto-focus the token field
+    setTimeout(() => el('lock-token').focus(), 80);
+  }
+
+  /**
+   * Save credentials entered in the popup, then ask whether to load from
+   * Gist or keep the current local data. Gives the user full control —
+   * choosing Skip means nothing is pulled from Gist, preventing accidental
+   * overwrites of local test data or sample data.
+   */
+  function saveCredentials() {
+    const token  = (el('lock-token').value   || '').trim();
+    const gistId = (el('lock-gist-id').value || '').trim();
+    const hint   = el('cred-hint');
+
+    if (!token) {
+      hint.textContent = 'GitHub token is required';
+      hint.style.color = 'var(--red)';
+      return;
+    }
+    if (!gistId) {
+      hint.textContent = 'Gist ID is required';
+      hint.style.color = 'var(--red)';
+      return;
+    }
+
+    // Persist credentials — do NOT auto-save to Gist here
+    state.settings.gistToken = token;
+    state.settings.gistId    = gistId;
+    if (el('cfg-gist-token')) el('cfg-gist-token').value = token;
+    if (el('cfg-gist-id'))    el('cfg-gist-id').value    = gistId;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+    // Close credentials popup
+    el('cred-ov').classList.remove('open');
+    const cb = _credCallback;
+    _credCallback = null;
+
+    // Ask: load Gist data or keep current local data?
+    // Patching the cancel button to say "Skip" for this specific confirm.
+    confirmAction(
+      'Load data from Gist?',
+      'Would you like to replace the current data with your saved portfolio from GitHub Gist? Choose Skip to keep the current local data.',
+      '☁️', 'Load from Gist',
+      () => { gistLoad().then(() => { if (cb) cb(); }); }
+    );
+
+    // Patch cancel button to "Skip" — restore after dialog closes
+    const cancelBtn = el('confirm-ov')?.querySelector('.cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.textContent = 'Skip';
+      const origOnClick = cancelBtn.onclick;
+      cancelBtn.onclick = () => {
+        closeConfirm();
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = origOnClick;
+        if (cb) cb();
+      };
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -4865,6 +5394,9 @@ const App = (function () {
     refreshPrices();
 
     updateStorageStatus();
+
+    // Show lock screen — PIN entry, setup, or credentials popup as needed
+    initLockScreen();
   }
 
   init();
@@ -4958,6 +5490,14 @@ const App = (function () {
     closeConfirm,
     /** Prompt to delete a single transaction. @param {string} id @param {string} ticker @param {number} qty */
     confirmDelTx,
+
+    // Lock screen — PIN gate
+    /** Handle a keypad button press. @param {string} value - '0'–'9' or 'back' */
+    pinKeyPress,
+    /** Reset PIN and credentials, restart the access setup flow. */
+    lockReset,
+    /** Save credentials from the credentials popup and proceed. */
+    saveCredentials,
   };
 })();
 </script>
