@@ -1516,25 +1516,37 @@ html, body { height: 100%; overflow: hidden; }
 }
 .ov-bar-row {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px; min-height: 28px;
+  margin-bottom: 10px; min-height: 36px;
 }
 .ov-bar-tick {
   width: 52px; flex-shrink: 0;
   font-weight: 800; font-size: 11px; font-family: var(--font-ui);
   color: var(--text); text-align: right;
 }
+/* Two separate bars stacked vertically — invested on top, market below */
 .ov-bar-track {
-  flex: 1; position: relative; height: 20px;
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
 }
-.ov-bar-invested {
-  position: absolute; top: 0; left: 0; height: 100%;
-  border-radius: 3px; opacity: 0.42;
+.ov-bar-pair {
+  display: flex; align-items: center; gap: 6px;
+}
+.ov-bar-pair-lbl {
+  width: 12px; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 8px; font-weight: 500;
+  color: var(--dim); text-align: right; text-transform: uppercase;
+}
+.ov-bar-rail {
+  flex: 1; height: 9px;
+  background: var(--surf3); border-radius: 3px; overflow: hidden;
+}
+.ov-bar-fill {
+  height: 100%; border-radius: 3px;
   transition: width 0.55s cubic-bezier(.22,1,.36,1);
 }
-.ov-bar-market {
-  position: absolute; top: 0; left: 0; height: 100%;
-  border-radius: 3px; opacity: 0.82;
-  transition: width 0.55s cubic-bezier(.22,1,.36,1);
+.ov-bar-amt {
+  flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+  min-width: 56px; text-align: right;
 }
 .ov-bar-val {
   width: 72px; flex-shrink: 0; text-align: right;
@@ -1699,8 +1711,8 @@ html, body { height: 100%; overflow: hidden; }
         </span>
       </div>
       <div class="ov-bar-legend">
-        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.42;background:var(--blue)"></div>Invested</div>
-        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.82;background:var(--blue)"></div>Market</div>
+        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.45;background:var(--blue)"></div>Invested</div>
+        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.85;background:var(--blue)"></div>Market Value</div>
       </div>
       <div class="ov-bar-chart-sec" id="ov-bar-chart"></div>
     </div>
@@ -3625,12 +3637,19 @@ const App = (function () {
         return `<div class="ov-bar-row">
           <div class="ov-bar-tick" style="color:${color}">${r.ticker}</div>
           <div class="ov-bar-track">
-            <div class="ov-bar-invested" style="width:${invW}%;background:${color}"></div>
-            <div class="ov-bar-market"   style="width:${mktW}%;background:${color}"></div>
+            <div class="ov-bar-pair">
+              <div class="ov-bar-pair-lbl">Inv</div>
+              <div class="ov-bar-rail"><div class="ov-bar-fill" style="width:${invW}%;background:${color};opacity:.45"></div></div>
+              <div class="ov-bar-amt">${fmtCompact(r.costDisp)}</div>
+            </div>
+            <div class="ov-bar-pair">
+              <div class="ov-bar-pair-lbl">Mkt</div>
+              <div class="ov-bar-rail"><div class="ov-bar-fill" style="width:${mktW}%;background:${color};opacity:.85"></div></div>
+              <div class="ov-bar-amt" style="color:var(--text)">${fmtCompact(r.value)}</div>
+            </div>
           </div>
           <div class="ov-bar-val">
-            <span style="color:${gainColor};font-size:9px">${r.unrealized>=0?'+':''}${fmtPct(r.unrealizedPct)}</span>
-            <span>${fmtCompact(r.value)}</span>
+            <span style="color:${gainColor};font-size:9px">${fmtPct(r.unrealizedPct)}</span>
           </div>
         </div>`;
       }).join('');
@@ -4009,7 +4028,7 @@ const App = (function () {
               <div class="xirr-row">
                 <div class="xirr-kpi"><span class="lbl">CAGR</span><span class="${gainClass(cagrFlag)}">${fmtCAGR(p.cagr)}</span></div>
                 <div class="xirr-kpi"><span class="lbl">XIRR</span><span class="${gainClass(xirrFlag)}">${p.xirr !== null ? fmtXIRR(p.xirr) : '—'}</span></div>
-                <div class="xirr-kpi"><span class="lbl">ABS</span><span style="color:${gainColor}">${p.unrealized>=0?'+':''}${fmtPct(p.unrealizedPct)}</span></div>
+                <div class="xirr-kpi"><span class="lbl">ABS</span><span style="color:${gainColor}">${fmtPct(p.unrealizedPct)}</span></div>
               </div>
             </div>
           </div>
