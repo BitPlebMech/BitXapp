@@ -18,8 +18,8 @@
   ║    state.settings      {currency, apiKey, cacheTTL, theme,           ║
   ║                         gistToken, gistId}                        ║
   ║                                                                      ║
-  ║  All prices stored internally in USD.                                ║
-  ║  Display conversion: USD → EUR or INR via historical ECB rates.      ║
+  ║  All prices stored internally in EUR.                                ║
+  ║  Display conversion: EUR → USD or INR via historical ECB rates.      ║
   ║  P&L uses FIFO lot matching with per-date FX rates on both sides.    ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
@@ -161,15 +161,6 @@ body::after {
   background: radial-gradient(ellipse 78% 44% at 50% -5%, rgba(91, 156, 255, 0.065) 0%, transparent 68%);
   pointer-events: none;
   z-index: 0;
-}
-
-/* Page container — centres content, provides padding */
-.page {
-  position: relative;
-  z-index: 1;
-  max-width: 1380px;
-  margin: 0 auto;
-  padding: 0 22px 110px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1279,7 +1270,6 @@ body::after {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
 
-/* PIN lock screen removed */
 
 /* ═══════════════════════════════════════════════════════════════════════
    CREDENTIALS POPUP
@@ -1332,10 +1322,6 @@ html, body { height: 100%; overflow: hidden; }
 /* ── Status Strip ───────────────────────────────────────────────────── */
 
 .ss-sep { width: 0.5px; height: 12px; background: var(--b2); flex-shrink: 0; }
-/* Flatten existing pills inside status strip */
-
-
-
 
 /* ── Body Row ───────────────────────────────────────────────────────── */
 .body-row { display: flex; flex: 1; overflow: hidden; }
@@ -2209,14 +2195,8 @@ html, body { height: 100%; overflow: hidden; }
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     LOCK SCREEN
-     Rendered on top of the app. Fades away after correct PIN entry.
-     App loads fully behind it so unlock is instant.
-     ═══════════════════════════════════════════════════════════════════════ -->
-
-<!-- ═══════════════════════════════════════════════════════════════════════
      CREDENTIALS POPUP
-     Shown when GitHub token / Gist ID are missing — sits above lock screen.
+     Shown when GitHub token / Gist ID are missing.
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="cred-ov" id="cred-ov">
   <div class="cred-box">
@@ -2391,6 +2371,9 @@ const App = (function () {
   /** Current modal transaction type */
   let modalType = 'BUY';
 
+  /** Credentials popup callback — set when waiting for user to enter Gist token/ID */
+  let _credCallback = null;
+
   /** Cache for deterministic ticker → colour assignments */
   const tickerColorCache = {};
 
@@ -2417,11 +2400,9 @@ const App = (function () {
     }
   }
 
-  /** Persist current state to localStorage */
   /**
    * Persist current state to localStorage only.
    * Gist sync is manual — use the Save to Gist button in the header.
-   * This prevents local/test sessions from silently overwriting Gist data.
    */
   function saveState() {
     try {
@@ -2569,8 +2550,7 @@ const App = (function () {
     return eurAmount * rate;
   }
 
-  /** @deprecated alias kept for backward compat during transition */
-  function usdToDisplay(amount, dateStr = null) { return eurToDisplay(amount, dateStr); }
+
 
   /**
    * Convert a USD price (from Yahoo/CoinGecko) to EUR for internal storage.
@@ -2584,7 +2564,6 @@ const App = (function () {
   }
 
   /** Update all FX-related UI elements (header pill + settings chips) */
-  /* keep histPrice header updated */
 
   function updateFXUI() {
     const allOK = fxLoaded.USD && fxLoaded.INR;
@@ -2911,12 +2890,12 @@ const App = (function () {
 
   /**
    * Calculate XIRR for a single open lot.
-   * @param {Object} lot           - {qty, priceUSD, date}
+   * @param {Object} lot           - {qty, priceEUR, date}
    * @param {number} currentPriceD - Current price in display currency
    * @returns {number|null}
    */
   function lotXIRR(lot, currentPriceD) {
-    const buyPriceD = usdToDisplay(lot.priceUSD, lot.date);
+    const buyPriceD = eurToDisplay(lot.priceEUR || lot.priceUSD || 0, lot.date);
     return calcXIRR(
       [-(lot.qty * buyPriceD), lot.qty * currentPriceD],
       [new Date(lot.date + 'T12:00:00'), new Date()]
@@ -3545,7 +3524,7 @@ const App = (function () {
         const d = txBuys[Math.floor(i * txBuys.length / n)].date;
         return state.transactions
           .filter(t => t.date <= d && t.type === 'BUY')
-          .reduce((s, t) => s + t.qty * usdToDisplay(t.price, t.date), 0);
+          .reduce((s, t) => s + t.qty * eurToDisplay(t.price, t.date), 0);
       });
       const mn = Math.min(...pts), mx = Math.max(...pts) || 1;
       const norm = pts.map(v => 18 - (v - mn) / (mx - mn + 0.001) * 15);
@@ -3936,7 +3915,6 @@ const App = (function () {
       </div>`).join('');
   }
 
-  /** Switch between "By Asset" and "By Class" allocation views */
   /* ── Module Switcher ─────────────────────────────────────────────── */
 
   /** Switch the active top-level module (sidebar icon navigation) */
@@ -3946,7 +3924,8 @@ const App = (function () {
       const pane = el('mod-' + m);
       if (pane) pane.classList.toggle('active', m === modId);
     });
-    ['portfolio'].forEach(id => {
+    // Toggle active state on all sidebar icons
+    modules.forEach(id => {
       const btn = el('sb-' + id);
       if (btn) btn.classList.toggle('active', id === modId);
     });
@@ -3958,7 +3937,7 @@ const App = (function () {
   let _anSortKey = 'value';
   let _anSortAsc = false;
 
-  /** Handle click on an analytics column header */
+  /** Handle click on an analytics column header — re-renders overview */
   function analyticsSort(key) {
     if (_anSortKey === key) {
       _anSortAsc = !_anSortAsc;
@@ -3966,241 +3945,7 @@ const App = (function () {
       _anSortKey = key;
       _anSortAsc = (key === 'ticker');
     }
-    renderAnalytics();
-  }
-
-  /**
-   * Render the Analytics tab.
-   * Shows portfolio-level XIRR/CAGR/Win Rate KPI cards,
-   * a sortable per-position table, and XIRR performance bars.
-   */
-  function renderAnalytics() {
-    const target = el('an-content');
-    if (!target) return;
-
-    const positions = computePositions();
-    const summary   = computeSummary(positions);
-    const rows      = Object.values(positions);
-
-    if (!rows.length) {
-      target.innerHTML = `<div class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>
-        <h3>No positions yet</h3><p>Add transactions to see analytics.</p></div>`;
-      return;
-    }
-
-    const winners  = rows.filter(r => r.unrealized >= 0).length;
-    const winRate  = Math.round(winners / rows.length * 100);
-
-    const withXIRR  = rows.filter(r => r.xirr !== null);
-    const bestX  = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr > a.xirr ? b : a) : null;
-    const worstX = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr < a.xirr ? b : a) : null;
-
-    const xirrColor = summary.xirr === null ? 'var(--muted)' : summary.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-    const cagrColor = summary.cagr === null ? 'var(--muted)' : summary.cagr >= 0 ? 'var(--green)' : 'var(--red)';
-    const winColor  = winRate >= 60 ? 'var(--green)' : winRate >= 40 ? 'var(--amber)' : 'var(--red)';
-
-    // Mini sparkline: 8-point portfolio value trend approximated from buys
-    function spark(color) {
-      const txSorted = [...state.transactions].filter(t => t.type === 'BUY').sort((a,b) => a.date.localeCompare(b.date));
-      if (!txSorted.length) return '';
-      const n = 8;
-      const pts = [];
-      for (let i = 0; i < n; i++) {
-        const idx = Math.floor(i * txSorted.length / n);
-        const d   = txSorted[idx].date;
-        const val = state.transactions
-          .filter(t => t.date <= d && t.type === 'BUY')
-          .reduce((s, t) => s + t.qty * usdToDisplay(t.price, t.date), 0);
-        pts.push(val);
-      }
-      const mn = Math.min(...pts), mx = Math.max(...pts) || 1;
-      const norm = pts.map(v => 20 - (v - mn) / (mx - mn + 0.001) * 17);
-      const step = 76 / Math.max(pts.length - 1, 1);
-      const d = norm.map((y, i) => (i === 0 ? 'M' : 'L') + (2 + i * step).toFixed(1) + ' ' + y.toFixed(1)).join(' ');
-      return `<svg width="100%" height="24" viewBox="0 0 80 24" preserveAspectRatio="none">
-        <path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    }
-
-    // Sort rows for table
-    const sorted = [...rows].sort((a, b) => {
-      let av = a[_anSortKey], bv = b[_anSortKey];
-      if (_anSortKey === 'ticker') return _anSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
-      av = av ?? (_anSortAsc ? Infinity : -Infinity);
-      bv = bv ?? (_anSortAsc ? Infinity : -Infinity);
-      return _anSortAsc ? av - bv : bv - av;
-    });
-
-    function th(key, label) {
-      const active = _anSortKey === key;
-      const cls = ['an-sort-active', active && !_anSortAsc ? '' : 'an-sort-asc'].filter(Boolean);
-      return `<th class="${active ? 'an-sort-active' + (_anSortAsc ? ' an-sort-asc' : '') : ''}" onclick="App.analyticsSort('${key}')">${label}</th>`;
-    }
-
-    target.innerHTML = `
-      <div class="an-kpi-row">
-        <div class="an-kpi" style="animation-delay:.04s">
-          <div class="an-kpi-bar" style="background:${xirrColor}"></div>
-          <div class="an-kpi-lbl">Portfolio XIRR</div>
-          <div class="an-kpi-val" style="color:${xirrColor}">${fmtXIRR(summary.xirr)}</div>
-          <div class="an-kpi-sub">time-weighted annual return</div>
-          <div class="an-kpi-spark">${spark(summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--muted)')}</div>
-        </div>
-        <div class="an-kpi" style="animation-delay:.08s">
-          <div class="an-kpi-bar" style="background:${cagrColor}"></div>
-          <div class="an-kpi-lbl">Portfolio CAGR</div>
-          <div class="an-kpi-val" style="color:${cagrColor}">${fmtCAGR(summary.cagr)}</div>
-          <div class="an-kpi-sub">${state.settings.currency}-adjusted compound growth</div>
-          <div class="an-kpi-spark">${spark(summary.cagr !== null && summary.cagr >= 0 ? 'var(--green)' : 'var(--muted)')}</div>
-        </div>
-        <div class="an-kpi" style="animation-delay:.12s">
-          <div class="an-kpi-bar" style="background:${winColor}"></div>
-          <div class="an-kpi-lbl">Win Rate</div>
-          <div class="an-kpi-val" style="color:${winColor}">${winRate}%</div>
-          <div class="an-kpi-sub">${winners} winning · ${rows.length - winners} losing</div>
-          <div class="an-kpi-spark">
-            <svg width="100%" height="24" viewBox="0 0 80 24">
-              ${rows.slice().sort((a,b) => b.unrealizedPct - a.unrealizedPct).map((r, i) => {
-                const x = 2 + i * (74 / Math.max(rows.length - 1, 1));
-                const h = Math.min(Math.abs(r.unrealizedPct) / 50 * 20, 20);
-                return `<rect x="${x.toFixed(1)}" y="${(22 - h).toFixed(1)}" width="5" height="${h.toFixed(1)}" rx="1" fill="${r.unrealized >= 0 ? 'var(--green)' : 'var(--red)'}" opacity=".75"/>`;
-              }).join('')}
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <div class="an-panels">
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              Position Metrics
-            </span>
-            <span class="panel-badge">click header to sort · row to open detail</span>
-          </div>
-          <div class="tbl-wrap">
-            <table class="an-tbl">
-              <thead><tr>
-                ${th('ticker','Ticker')}
-                ${th('unrealizedPct','P&L %')}
-                ${th('xirr','XIRR')}
-                ${th('cagr','CAGR')}
-                ${th('value','Value')}
-                ${th('costDisp','Cost Basis')}
-              </tr></thead>
-              <tbody>
-                ${sorted.map(r => {
-                  const gc = r.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
-                  const xc = r.xirr === null ? 'var(--muted)' : r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-                  const cc = r.cagr === null ? 'var(--muted)' : r.cagr >= 0 ? 'var(--green)' : 'var(--red)';
-                  return `<tr onclick="App.openDrawer('${r.ticker}')">
-                    <td><span style="color:${tickerColor(r.ticker)}">${r.ticker}</span> ${classBadge(r.cls)}</td>
-                    <td style="color:${gc}">${fmtPct(r.unrealizedPct)}</td>
-                    <td style="color:${xc}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</td>
-                    <td style="color:${cc}">${fmtCAGR(r.cagr)}</td>
-                    <td style="color:var(--text)">${fmtValue(r.value)}</td>
-                    <td>${fmtValue(r.costDisp)}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-              Performance Ranking
-            </span>
-            <span class="panel-badge">by XIRR</span>
-          </div>
-          <div class="perf-list">
-            ${[...rows].sort((a,b) => (b.xirr ?? -9999) - (a.xirr ?? -9999)).map(r => {
-              const gainClr = r.xirr !== null && r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-              const barClr = tickerColor(r.ticker);
-              const maxX = Math.max(...rows.map(x => Math.abs(x.xirr ?? 0)), 1);
-              const w = r.xirr !== null ? Math.abs(r.xirr) / maxX * 100 : 0;
-              return `<div class="perf-item">
-                <div class="perf-tick-wrap"><div class="perf-tick" style="color:${barClr}">${r.ticker}</div><div class="perf-cls-mini">${r.cls}</div></div>
-                <div class="perf-bar-wrap"><div class="perf-bar" style="width:${w.toFixed(1)}%;background:${barClr};opacity:.82"></div></div>
-                <div class="perf-right">
-                  <div class="perf-pct" style="color:${gainClr}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</div>
-                  <div class="perf-xirr" style="color:var(--text2)">${r.unrealized >= 0 ? '+' : ''}${fmtValue(r.unrealized)}</div>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-      </div>
-
-      <!-- Fees & Taxes by class -->
-      ${Object.keys(summary.byClass).length ? `
-      <div class="panel" style="margin-bottom:12px">
-        <div class="panel-hdr">
-          <span class="panel-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Fees & Taxes
-          </span>
-          <span class="panel-badge">accounting view</span>
-        </div>
-        <div class="tbl-wrap">
-          <table class="an-tbl">
-            <thead><tr>
-              <th style="text-align:left">Class</th>
-              <th>Invested</th><th>Market Value</th><th>Realised P&L</th>
-              <th>Fees Paid</th><th>Tax Paid</th><th>Net P&L</th>
-            </tr></thead>
-            <tbody>
-              ${Object.entries(summary.byClass).map(([cls, d]) => {
-                const net = d.realized - d.taxes;
-                return `<tr>
-                  <td>${classBadge(cls)}</td>
-                  <td>${fmtValue(d.cost)}</td>
-                  <td>${fmtValue(d.value)}</td>
-                  <td style="color:${d.realized>=0?'var(--green)':'var(--red)'}">${d.realized>=0?'+':''}${fmtValue(d.realized)}</td>
-                  <td style="color:var(--amber)">${d.fees>0?'−'+fmtValue(d.fees):'—'}</td>
-                  <td style="color:var(--red)">${d.taxes>0?'−'+fmtValue(d.taxes):'—'}</td>
-                  <td style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:700">${net>=0?'+':''}${fmtValue(net)}</td>
-                </tr>`;
-              }).join('')}
-              <tr style="border-top:.5px solid var(--b2)">
-                <td style="font-weight:800;color:var(--text)">Total</td>
-                <td>${fmtValue(summary.totalCost)}</td>
-                <td>${fmtValue(summary.totalValue)}</td>
-                <td style="color:${summary.realized>=0?'var(--green)':'var(--red)'}">${summary.realized>=0?'+':''}${fmtValue(summary.realized)}</td>
-                <td style="color:var(--amber)">${summary.totalFees>0?'−'+fmtValue(summary.totalFees):'—'}</td>
-                <td style="color:var(--red)">${summary.totalTaxes>0?'−'+fmtValue(summary.totalTaxes):'—'}</td>
-                <td style="color:${(summary.realized-summary.totalTaxes)>=0?'var(--green)':'var(--red)'};font-weight:700">${(summary.realized-summary.totalTaxes)>=0?'+':''}${fmtValue(summary.realized-summary.totalTaxes)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>` : ''}
-
-      ${(bestX || worstX) ? `
-      <div class="panel">
-        <div class="panel-hdr">
-          <span class="panel-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Highlights
-          </span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr">
-          ${bestX ? `<div style="padding:14px 16px;border-right:.5px solid var(--b1)">
-            <div class="pm-lbl">Best XIRR</div>
-            <div style="font-size:17px;font-weight:900;letter-spacing:-.02em;color:${tickerColor(bestX.ticker)};margin:4px 0 2px">${bestX.ticker}</div>
-            <div style="font-family:var(--font-mono);font-size:13px;color:var(--green)">${fmtXIRR(bestX.xirr)}</div>
-          </div>` : ''}
-          ${worstX && worstX.ticker !== bestX?.ticker ? `<div style="padding:14px 16px">
-            <div class="pm-lbl">Needs attention</div>
-            <div style="font-size:17px;font-weight:900;letter-spacing:-.02em;color:${tickerColor(worstX.ticker)};margin:4px 0 2px">${worstX.ticker}</div>
-            <div style="font-family:var(--font-mono);font-size:13px;color:var(--red)">${fmtXIRR(worstX.xirr)}</div>
-          </div>` : ''}
-        </div>
-      </div>` : ''}
-    `;
+    render();
   }
 
   function switchAllocTab(tab) {
@@ -4908,7 +4653,6 @@ const App = (function () {
     const pane = el(tabIds[name]);
     if (pane) pane.classList.add('active');
     if (buttonEl) buttonEl.classList.add('active');
-    if (name === 'analytics') renderAnalytics();
   }
 
   /** Set the history tab's BUY/SELL/ALL filter */
@@ -5004,7 +4748,6 @@ const App = (function () {
     _resolving: false,  // true while OpenFIGI request is in-flight
   };
 
-  /** Open the CSV import wizard */
   /** Open the CSV import wizard and reset all wizard state */
   function openCsvImport() {
     csvState = { step: 1, rawRows: [], isinMap: {}, previewRows: [], dupCount: 0, _resolving: false };
@@ -5013,7 +4756,6 @@ const App = (function () {
   }
 
   /** Close the CSV import wizard */
-  /** Close the CSV import wizard without importing */
   function closeCsvImport() {
     el('csv-ov').classList.remove('open');
   }
@@ -5435,7 +5177,7 @@ const App = (function () {
       <div class="prev-summary">
         <strong>${importable.length}</strong> transactions ready to import
         ${csvState.dupCount > 0 ? `· <span class="warn">${csvState.dupCount} duplicate${csvState.dupCount>1?'s':''} will be skipped</span>` : ''}
-        · prices converted from <strong>EUR → USD</strong> using ECB historical rates
+        · prices stored in <strong>EUR</strong> (original currency preserved)
       </div>
       <div class="prev-wrap">
         <table class="prev-tbl">
@@ -5878,40 +5620,11 @@ const App = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     LOCK SCREEN — 6-digit PIN gate
-     ─────────────────────────────────────────────────────────────────
-     Shown on every page load. App renders behind it for instant unlock.
-
-     Access flow:
-       First visit / after cache clear:
-         No credentials → Credentials popup → PIN setup → App
-       Every subsequent visit:
-         PIN entry → App
-       Reset:
-         Credentials popup → PIN setup → App
-
-     PIN hash: SHA-256 via Web Crypto API (UI-level protection only).
-     The PIN hash and credentials are stored in localStorage.
+     CREDENTIALS CHECK
+     Shows the credentials popup if Gist token/ID are missing.
      ═══════════════════════════════════════════════════════════════════ */
 
-  /** localStorage key for the hashed PIN */
-  // PIN lock screen removed
-
-  /**
-   * Hash a PIN string with a fixed app salt using SHA-256.
-   * Ensures the raw PIN is never stored.
-   * @param {string} pin
-   * @returns {Promise<string>} Hex digest
-   */
-
-
-  /** Return the stored PIN hash, or empty string if none is set */
-
-
-  /**
-   * Entry point called from init().
-   * Decides whether to show the credentials popup, PIN setup, or PIN entry.
-   */
+  /** Check for missing credentials on startup and show popup if needed */
   function initLockScreen() {
     // PIN removed. Only show credentials popup if Gist token/ID missing.
     const hasToken  = !!(state.settings.gistToken || '').trim();
@@ -6022,7 +5735,7 @@ const App = (function () {
 
     updateStorageStatus();
 
-    // Show lock screen — PIN entry, setup, or credentials popup as needed
+    // Show credentials popup if Gist token/ID are missing
     initLockScreen();
   }
 
