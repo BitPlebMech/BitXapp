@@ -2299,6 +2299,11 @@ const App = (function () {
   /** Maximum number of deleted transactions kept for recovery */
   const MAX_DELETED_HISTORY = 10;
   
+  /** CORS proxy for Frankfurter API (workaround for missing CORS headers)
+   *  Frankfurter API blocks JavaScript fetch from GitHub Pages origins.
+   *  Set to null to disable proxy if Frankfurter fixes their CORS policy. */
+  const CORS_PROXY = 'https://corsproxy.io/?';
+  
   /** Minimum holding period (in years) required to calculate CAGR */
   const MIN_CAGR_YEARS = 0.5;
 
@@ -2483,16 +2488,29 @@ const App = (function () {
   }
 
   /**
+   * Wrap URL with CORS proxy if configured.
+   * Frankfurter API blocks JavaScript fetch from GitHub Pages due to missing CORS headers.
+   * @param {string} url - Original API URL
+   * @returns {string} - Proxied URL or original if CORS_PROXY is null
+   */
+  function withCorsProxy(url) {
+    if (!CORS_PROXY) return url;
+    // corsproxy.io expects: https://corsproxy.io/?https://api.example.com
+    return CORS_PROXY + url;
+  }
+
+  /**
    * Fetch latest FX rates with multiple API fallbacks.
    * Tries in order: Frankfurter → ExchangeRate-API → uses built-in fallback rates
    */
   async function fetchFxLatest() {
     console.info('[FX] Fetching current rates...');
     
-    // Try primary source: Frankfurter (ECB data)
+    // Try primary source: Frankfurter (ECB data) - uses CORS proxy
     try {
+      const url = 'https://api.frankfurter.app/latest?from=EUR&to=USD,INR';
       const resp = await fetchWithTimeout(
-        'https://api.frankfurter.app/latest?from=EUR&to=USD,INR', 
+        withCorsProxy(url),
         FETCH_TIMEOUT_MS.standard
       );
       if (resp.ok) {
@@ -2557,7 +2575,7 @@ const App = (function () {
     console.info('[FX] Attempting historical fetch:', url);
     
     try {
-      const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS.bulk);
+      const response = await fetchWithTimeout(withCorsProxy(url), FETCH_TIMEOUT_MS.bulk);
       
       fxDiagnostics.httpStatus = response.status;
       
