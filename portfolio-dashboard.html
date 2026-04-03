@@ -326,7 +326,7 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════ */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -402,11 +402,10 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════ */
 .ov-charts {
   display: grid;
-  grid-template-columns: 260px 1fr 1fr;
+  grid-template-columns: 260px 1fr;
   gap: 12px;
   margin-top: 2px;
 }
-@media (max-width: 1100px) { .ov-charts { grid-template-columns: 260px 1fr; } }
 @media (max-width: 760px)  { .ov-charts { grid-template-columns: 1fr; } }
 
 /* Allocation donut sub-tabs (By Asset / By Class) */
@@ -458,27 +457,6 @@ body::after {
   font-family: var(--font-mono); font-size: 11px; color: var(--muted);
   display: flex; gap: 7px; align-items: center;
 }
-
-/* Performance bar list */
-.perf-list { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
-.perf-item { display: flex; align-items: center; gap: 10px; }
-
-.perf-tick-wrap { width: 60px; flex-shrink: 0; }
-.perf-tick      { font-weight: 800; font-size: 13px; }
-.perf-cls-mini  { font-size: 8px; font-family: var(--font-mono); color: var(--text2); }
-
-.perf-bar-wrap {
-  flex: 1; height: 7px;
-  background: var(--surf3); border-radius: 4px; overflow: hidden;
-}
-.perf-bar {
-  height: 100%; border-radius: 4px;
-  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.perf-right { display: flex; flex-direction: column; align-items: flex-end; min-width: 110px; }
-.perf-pct   { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
-.perf-xirr  { font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    POSITIONS TAB
@@ -638,21 +616,17 @@ body::after {
 .htbl              { width: 100%; border-collapse: collapse; }
 .htbl thead th     {
   font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--dim); padding: 8px 12px; text-align: right;
+  color: var(--dim); padding: 8px 12px; text-align: center;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
-.htbl thead th:first-child,
-.htbl thead th:nth-child(2) { text-align: left; }
 
 .htbl tbody tr:hover { background: var(--surf2); }
 
 .htbl tbody td {
   font-family: var(--font-mono); font-size: 12px; color: #8fa0c0;
-  padding: 10px 12px; text-align: right;
+  padding: 10px 12px; text-align: center;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
-.htbl tbody td:first-child,
-.htbl tbody td:nth-child(2) { text-align: left; }
 .htbl tbody tr:last-child td { border-bottom: none; }
 
 /* BUY / SELL type badges */
@@ -1488,27 +1462,6 @@ html, body { height: 100%; overflow: hidden; }
 
 [data-theme="light"] .mod-header { background: var(--surf2); }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   OVERVIEW + ANALYTICS combined section
-   ═══════════════════════════════════════════════════════════════════════ */
-.ov-analytics-divider {
-  display: flex; align-items: center; gap: 10px;
-  margin: 22px 0 14px;
-}
-.ov-analytics-divider::before,
-.ov-analytics-divider::after {
-  content: ''; flex: 1; height: 0.5px; background: var(--b1);
-}
-.ov-analytics-divider-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--dim);
-  background: var(--bg); padding: 0 10px;
-}
-.ov-an-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
-}
-@media (max-width: 860px) { .ov-an-grid { grid-template-columns: 1fr; } }
-
 
 /* ── Invested vs Market Value bar chart ───────────────────────────── */
 .ov-bar-chart-sec {
@@ -1549,7 +1502,7 @@ html, body { height: 100%; overflow: hidden; }
   min-width: 56px; text-align: right;
 }
 .ov-bar-val {
-  width: 72px; flex-shrink: 0; text-align: right;
+  width: 90px; flex-shrink: 0; text-align: right;
   font-family: var(--font-mono); font-size: 10px; color: var(--text2);
   display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
 }
@@ -1716,18 +1669,6 @@ html, body { height: 100%; overflow: hidden; }
       </div>
       <div class="ov-bar-chart-sec" id="ov-bar-chart"></div>
     </div>
-
-    <!-- Performance ranking panel -->
-    <div class="panel">
-      <div class="panel-hdr">
-        <span class="panel-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-          Performance by Position
-        </span>
-        <span class="panel-badge">Unrealised % · XIRR</span>
-      </div>
-      <div class="perf-list" id="ov-perf"></div>
-    </div>
   </div>
   <!-- Analytics section — rendered by renderInlineAnalytics() -->
   <div id="ov-analytics"></div>
@@ -1781,7 +1722,7 @@ html, body { height: 100%; overflow: hidden; }
     <div class="tbl-wrap">
       <table class="htbl">
         <thead><tr>
-          <th>#</th><th>Date</th><th style="text-align:center">Type</th>
+          <th>#</th><th>Date</th><th>Type</th>
           <th>Ticker</th><th>Class</th><th>Qty</th><th id="hist-price-hdr">Price (EUR)</th>
           <th>Total</th><th>Unrealised P&L</th><th></th>
         </tr></thead>
@@ -3232,7 +3173,8 @@ const App = (function () {
 
   /**
    * Compact currency for per-share price display.
-   * Large numbers use locale-aware K / M / L / Cr suffixes.
+   * Large numbers use locale-aware suffixes BEFORE the currency symbol.
+   *   EUR: 25,0 K €    USD: 25.0 K $    INR: ₹1.23 L
    * @param {number} v
    * @returns {string}
    */
@@ -3244,9 +3186,8 @@ const App = (function () {
       if (v >= 10000000) return sym + fmtNum(v / 10000000, 2) + ' Cr';
       if (v >= 100000)   return sym + fmtNum(v / 100000,   2) + ' L';
     }
-    // For EUR/USD: use full fmtCurrency but append suffix
-    if (v >= 1000000) return fmtCurrency(v / 1000000, 2) + ' M';
-    if (v >= 1000)    return fmtCurrency(v / 1000,    1) + ' K';
+    if (v >= 1000000) return fmtNum(v / 1000000, 2) + ' M ' + sym;
+    if (v >= 1000)    return fmtNum(v / 1000,    1) + ' K ' + sym;
     return fmtCurrency(v, 2);
   }
 
@@ -3527,6 +3468,14 @@ const App = (function () {
     const xirrClass = summary.xirr === null ? 'c-muted' : summary.xirr >= 0 ? 'c-green' : 'c-red';
     const cagrClass = summary.cagr === null ? 'c-muted' : summary.cagr >= 0 ? 'c-green' : 'c-red';
 
+    // Win rate + best/worst XIRR (used by KPI cards and passed to renderInlineAnalytics)
+    const winners  = rows.filter(r => r.unrealized >= 0).length;
+    const winRate  = rows.length ? Math.round(winners / rows.length * 100) : 0;
+    const winColor = winRate >= 60 ? 'var(--green)' : winRate >= 40 ? 'var(--amber)' : 'var(--red)';
+    const withXIRR = rows.filter(r => r.xirr !== null);
+    const bestX    = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr > a.xirr ? b : a) : null;
+    const worstX   = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr < a.xirr ? b : a) : null;
+
     // ── Mini sparkline helper (must be defined before kpis array uses it) ──
     const txBuys = [...state.transactions].filter(t => t.type === 'BUY').sort((a, b) => a.date.localeCompare(b.date));
     function miniSpark(color) {
@@ -3574,19 +3523,29 @@ const App = (function () {
         valClass: xirrClass, subClass: xirrClass,
         spark: miniSpark(summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--muted)'),
         icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
-      { label: 'Avg Hold Time',  value: summary.avgDaysHeld > 0 ? (summary.avgDaysHeld < 365 ? summary.avgDaysHeld + 'd' : fmtNum(summary.avgDaysHeld/365.25,1) + 'yr') : '—',
-        sub: 'weighted by cost basis', bar: 'var(--blue)', delay: '.29s',
+      { label: 'Win Rate',       value: winRate + ' %',
+        sub: winners + ' winning · ' + (rows.length - winners) + ' losing',
+        bar: winColor, delay: '.25s', valClass: winRate >= 50 ? 'c-green' : 'c-red',
+        icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
+      { label: 'Best XIRR',      value: bestX ? bestX.ticker : '—',
+        sub: bestX ? fmtXIRR(bestX.xirr) : '—',
+        subClass: bestX && bestX.xirr >= 0 ? 'c-green' : 'c-red',
+        valClass: bestX ? '' : 'c-muted',
+        bar: 'linear-gradient(90deg,var(--green),var(--blue))', delay: '.29s',
+        icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
+      { label: 'Needs Attention', value: (worstX && worstX.ticker !== bestX?.ticker) ? worstX.ticker : '—',
+        sub: (worstX && worstX.ticker !== bestX?.ticker) ? fmtXIRR(worstX.xirr) : 'all positions healthy',
+        subClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
+        valClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
+        bar: (worstX && worstX.xirr < 0) ? 'var(--red)' : 'var(--dim)', delay: '.33s',
+        icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+      { label: 'Avg Hold Time',   value: summary.avgDaysHeld > 0 ? (summary.avgDaysHeld < 365 ? summary.avgDaysHeld + 'd' : fmtNum(summary.avgDaysHeld/365.25,1) + 'yr') : '—',
+        sub: 'weighted by cost basis', bar: 'var(--blue)', delay: '.37s',
         icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
       { label: 'Concentration',   value: fmtNum(summary.concentration, 1) + ' %',
-        sub: 'largest single position', bar: summary.concentration > 40 ? 'var(--amber)' : 'var(--purple)', delay: '.33s',
+        sub: 'largest single position', bar: summary.concentration > 40 ? 'var(--amber)' : 'var(--purple)', delay: '.41s',
         valClass: summary.concentration > 40 ? 'c-muted' : '',
         icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
-      { label: 'Best Performer', value: best ? best.ticker : '—',
-        sub: best ? fmtPct(best.unrealizedPct) : '—',
-        subClass: best && best.unrealizedPct >= 0 ? 'c-green' : 'c-red',
-        valClass: best && best.unrealizedPct >= 0 ? 'c-green' : 'c-red',
-        bar: 'linear-gradient(90deg,var(--amber),var(--orange))', delay: '.25s',
-        icon: '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>' },
     ];
 
     el('ov-kpis').innerHTML = kpis.map(k => `
@@ -3649,35 +3608,12 @@ const App = (function () {
             </div>
           </div>
           <div class="ov-bar-val">
-            <span style="color:${gainColor};font-size:9px">${fmtPct(r.unrealizedPct)}</span>
+            <span style="color:${gainColor};font-weight:600">${fmtPct(r.unrealizedPct)}</span>
+            <span style="color:${gainColor}">${r.unrealized >= 0 ? '+' : ''}${fmtCompact(r.unrealized)}</span>
           </div>
         </div>`;
       }).join('');
     }
-
-    // Performance bars — sorted by unrealised %
-    const perfContainer = el('ov-perf');
-    if (!rows.length) {
-      perfContainer.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px">Add transactions to see performance</div>';
-      return;
-    }
-
-    const sortedByPct = [...rows].sort((a, b) => b.unrealizedPct - a.unrealizedPct);
-    const maxAbsPct = Math.max(...sortedByPct.map(r => Math.abs(r.unrealizedPct)), 1);
-
-    perfContainer.innerHTML = sortedByPct.map(r => {
-      const gainColor = r.unrealizedPct >= 0 ? 'var(--green)' : 'var(--red)';
-      const barColor  = tickerColor(r.ticker);  // ticker's own color for the bar
-      const barWidth  = Math.abs(r.unrealizedPct) / maxAbsPct * 100;
-      return `<div class="perf-item">
-        <div class="perf-tick-wrap"><div class="perf-tick" style="color:${barColor}">${r.ticker}</div><div class="perf-cls-mini">${r.cls}</div></div>
-        <div class="perf-bar-wrap"><div class="perf-bar" style="width:${barWidth}%;background:${barColor};opacity:.82"></div></div>
-        <div class="perf-right">
-          <div class="perf-pct" style="color:${gainColor}">${fmtPct(r.unrealizedPct)}</div>
-          <div class="perf-xirr" style="color:var(--text2)">${r.unrealized >= 0 ? '+' : ''}${fmtValue(r.unrealized)}</div>
-        </div>
-      </div>`;
-    }).join('');
 
     // ── Analytics section (merged into Overview) ───────────────────────────
     renderInlineAnalytics(rows, summary);
@@ -3685,7 +3621,7 @@ const App = (function () {
 
   /**
    * Render the analytics section inside the Overview tab.
-   * Sortable position metrics table + performance ranking + highlights.
+   * Shows: Position Metrics (by asset / by class toggle), Fees & Taxes, Yearly Trading Costs.
    */
   function renderInlineAnalytics(rows, summary) {
     const target = el('ov-analytics');
@@ -3693,16 +3629,6 @@ const App = (function () {
       if (target) target.innerHTML = '';
       return;
     }
-
-    const winners  = rows.filter(r => r.unrealized >= 0).length;
-    const winRate  = Math.round(winners / rows.length * 100);
-    const withXIRR = rows.filter(r => r.xirr !== null);
-    const bestX    = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr > a.xirr ? b : a) : null;
-    const worstX   = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr < a.xirr ? b : a) : null;
-
-    const xirrColor = summary.xirr === null ? 'var(--muted)' : summary.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-    const cagrColor = summary.cagr === null ? 'var(--muted)' : summary.cagr >= 0 ? 'var(--green)' : 'var(--red)';
-    const winColor  = winRate >= 60 ? 'var(--green)' : winRate >= 40 ? 'var(--amber)' : 'var(--red)';
 
     const sorted = [...rows].sort((a, b) => {
       let av = a[_anSortKey], bv = b[_anSortKey];
@@ -3717,117 +3643,157 @@ const App = (function () {
       return `<th class="${active ? 'an-sort-active' + (_anSortAsc ? ' an-sort-asc' : '') : ''}" onclick="App.analyticsSort('${key}')">${label}</th>`;
     }
 
+    // ── Build "By Class" aggregated rows ──
+    const byClassMap = {};
+    for (const r of rows) {
+      if (!byClassMap[r.cls]) byClassMap[r.cls] = { cls: r.cls, costDisp: 0, value: 0, unrealized: 0, unrealizedPct: 0, realized: 0, xirrs: [], cagrs: [], count: 0 };
+      const c = byClassMap[r.cls];
+      c.costDisp += r.costDisp; c.value += r.value; c.unrealized += r.unrealized; c.realized += r.realized;
+      if (r.xirr !== null) c.xirrs.push({ xirr: r.xirr, weight: r.costDisp });
+      if (r.cagr !== null) c.cagrs.push({ cagr: r.cagr, weight: r.costDisp });
+      c.count++;
+    }
+    const classRows = Object.values(byClassMap).map(c => {
+      c.unrealizedPct = c.costDisp > 0 ? (c.unrealized / c.costDisp) * 100 : 0;
+      const totalW1 = c.xirrs.reduce((s, x) => s + x.weight, 0);
+      c.xirr = totalW1 > 0 ? c.xirrs.reduce((s, x) => s + x.xirr * x.weight, 0) / totalW1 : null;
+      const totalW2 = c.cagrs.reduce((s, x) => s + x.weight, 0);
+      c.cagr = totalW2 > 0 ? c.cagrs.reduce((s, x) => s + x.cagr * x.weight, 0) / totalW2 : null;
+      c.ticker = c.cls; // for sorting compatibility
+      return c;
+    });
+
+    const isAsset = _anViewMode === 'asset';
+    const tableRows = isAsset ? sorted : classRows;
+
+    // ── Position Metrics table ──
+    function renderRow(r) {
+      const gc = r.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
+      const xc = r.xirr === null ? 'var(--muted)' : r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
+      const cc = r.cagr === null ? 'var(--muted)' : r.cagr >= 0 ? 'var(--green)' : 'var(--red)';
+      const nameCol = isAsset
+        ? `<span style="color:${tickerColor(r.ticker)}">${r.ticker}</span> ${classBadge(r.cls)}`
+        : `${classBadge(r.cls)} <span style="color:var(--text2);font-size:10px;margin-left:4px">${r.count} position${r.count !== 1 ? 's' : ''}</span>`;
+      const clickAttr = isAsset ? `onclick="App.openDrawer('${r.ticker}')"` : '';
+      return `<tr ${clickAttr} style="${isAsset ? 'cursor:pointer' : ''}">
+        <td>${nameCol}</td>
+        <td style="color:${gc}">${fmtPct(r.unrealizedPct)}</td>
+        <td style="color:${gc}">${r.unrealized >= 0 ? '+' : ''}${fmtValue(r.unrealized)}</td>
+        <td style="color:${xc}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</td>
+        <td style="color:${cc}">${fmtCAGR(r.cagr)}</td>
+        <td style="color:var(--text)">${fmtValue(r.value)}</td>
+        <td>${fmtValue(r.costDisp)}</td>
+      </tr>`;
+    }
+
+    // ── Fees & Taxes: build per-class data with proper EUR→display conversion ──
+    const feesByClass = {};
+    for (const tx of state.transactions) {
+      const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
+      if (!feesByClass[cls]) feesByClass[cls] = { fees: 0, taxes: 0, cost: 0, value: 0, realized: 0 };
+      feesByClass[cls].fees  += eurToDisplay(+(tx.fees  || 0), tx.date);
+      feesByClass[cls].taxes += eurToDisplay(+(tx.taxes || 0), tx.date);
+    }
+    for (const pos of Object.values(rows)) {
+      const cls = pos.cls;
+      if (!feesByClass[cls]) feesByClass[cls] = { fees: 0, taxes: 0, cost: 0, value: 0, realized: 0 };
+      feesByClass[cls].cost     += pos.costDisp;
+      feesByClass[cls].value    += pos.value;
+      feesByClass[cls].realized += pos.realized;
+    }
+    const totalFeesD  = Object.values(feesByClass).reduce((s, d) => s + d.fees, 0);
+    const totalTaxesD = Object.values(feesByClass).reduce((s, d) => s + d.taxes, 0);
+    const hasFeeData = totalFeesD > 0 || totalTaxesD > 0;
+
+    // ── Yearly Trading Costs breakdown ──
+    const yearlyData = {};
+    for (const tx of state.transactions) {
+      const year = tx.date.slice(0, 4);
+      if (!yearlyData[year]) yearlyData[year] = { volume: 0, fees: 0, taxes: 0, realized: 0, txCount: 0 };
+      const y = yearlyData[year];
+      y.volume += eurToDisplay(tx.qty * tx.price, tx.date);
+      y.fees   += eurToDisplay(+(tx.fees  || 0), tx.date);
+      y.taxes  += eurToDisplay(+(tx.taxes || 0), tx.date);
+      y.txCount++;
+      // Approximate realised P&L per year from sells only
+      if (tx.type === 'SELL') {
+        // We can't do exact FIFO per-year here without heavy computation,
+        // but the per-class realized is already computed above.
+        // For yearly view, we track sell proceeds minus cost approximation.
+      }
+    }
+    // Aggregate realised gains per year from sell transactions using FIFO info
+    // Simplified: use the total realized from summary spread by sell-year proportion
+    const sellsByYear = {};
+    let totalSellVolume = 0;
+    for (const tx of state.transactions) {
+      if (tx.type !== 'SELL') continue;
+      const year = tx.date.slice(0, 4);
+      const vol = eurToDisplay(tx.qty * tx.price, tx.date);
+      sellsByYear[year] = (sellsByYear[year] || 0) + vol;
+      totalSellVolume += vol;
+    }
+    for (const [year, sellVol] of Object.entries(sellsByYear)) {
+      if (yearlyData[year] && totalSellVolume > 0) {
+        yearlyData[year].realized = summary.realized * (sellVol / totalSellVolume);
+      }
+    }
+    const years = Object.keys(yearlyData).sort().reverse();
+    const hasYearlyData = years.length > 0 && (totalFeesD > 0 || totalTaxesD > 0);
+
     target.innerHTML = `
-      <div class="ov-analytics-divider">
-        <span class="ov-analytics-divider-label">Analytics</span>
-      </div>
+      <div style="margin-top:18px"></div>
 
-      <div class="an-kpi-row" style="margin-bottom:14px">
-        <div class="an-kpi" style="animation-delay:.04s">
-          <div class="an-kpi-bar" style="background:${xirrColor}"></div>
-          <div class="an-kpi-lbl">Portfolio XIRR</div>
-          <div class="an-kpi-val" style="color:${xirrColor}">${fmtXIRR(summary.xirr)}</div>
-          <div class="an-kpi-sub">time-weighted annual return</div>
-        </div>
-        <div class="an-kpi" style="animation-delay:.08s">
-          <div class="an-kpi-bar" style="background:${cagrColor}"></div>
-          <div class="an-kpi-lbl">Portfolio CAGR</div>
-          <div class="an-kpi-val" style="color:${cagrColor}">${fmtCAGR(summary.cagr)}</div>
-          <div class="an-kpi-sub">${state.settings.currency}-adjusted compound growth</div>
-        </div>
-        <div class="an-kpi" style="animation-delay:.12s">
-          <div class="an-kpi-bar" style="background:${winColor}"></div>
-          <div class="an-kpi-lbl">Win Rate</div>
-          <div class="an-kpi-val" style="color:${winColor}">${winRate}%</div>
-          <div class="an-kpi-sub">${winners} winning · ${rows.length - winners} losing</div>
-        </div>
-      </div>
-
-      <div class="ov-an-grid">
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              Position Metrics
-            </span>
-            <span class="panel-badge">click header to sort</span>
-          </div>
-          <div class="tbl-wrap">
-            <table class="an-tbl">
-              <thead><tr>
-                ${th('ticker', 'Ticker')}
-                ${th('unrealizedPct', 'P&L %')}
-                ${th('xirr', 'XIRR')}
-                ${th('cagr', 'CAGR')}
-                ${th('value', 'Value')}
-                ${th('costDisp', 'Cost')}
-              </tr></thead>
-              <tbody>
-                ${sorted.map(r => {
-                  const gc = r.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
-                  const xc = r.xirr === null ? 'var(--muted)' : r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-                  const cc = r.cagr === null ? 'var(--muted)' : r.cagr >= 0 ? 'var(--green)' : 'var(--red)';
-                  return `<tr onclick="App.openDrawer('${r.ticker}')">
-                    <td><span style="color:${tickerColor(r.ticker)}">${r.ticker}</span> ${classBadge(r.cls)}</td>
-                    <td style="color:${gc}">${fmtPct(r.unrealizedPct)}</td>
-                    <td style="color:${xc}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</td>
-                    <td style="color:${cc}">${fmtCAGR(r.cagr)}</td>
-                    <td style="color:var(--text)">${fmtValue(r.value)}</td>
-                    <td>${fmtValue(r.costDisp)}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
+      <!-- Position Metrics with By Asset / By Class toggle -->
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-hdr">
+          <span class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            Position Metrics
+          </span>
+          <div style="display:flex;gap:3px">
+            <button class="cls-fb ${isAsset ? 'active' : ''}" onclick="App.switchAnView('asset')" style="font-size:9px;padding:3px 8px">By Asset</button>
+            <button class="cls-fb ${!isAsset ? 'active' : ''}" onclick="App.switchAnView('class')" style="font-size:9px;padding:3px 8px">By Class</button>
           </div>
         </div>
-
-        <div class="panel">
-          <div class="panel-hdr">
-            <span class="panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-              Performance Ranking
-            </span>
-            <span class="panel-badge">by XIRR</span>
-          </div>
-          <div class="perf-list">
-            ${[...rows].sort((a, b) => (b.xirr ?? -9999) - (a.xirr ?? -9999)).map(r => {
-              const gainClr = r.xirr !== null && r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
-              const barClr = tickerColor(r.ticker);
-              const maxX = Math.max(...rows.map(x => Math.abs(x.xirr ?? 0)), 1);
-              const w = r.xirr !== null ? Math.abs(r.xirr) / maxX * 100 : 0;
-              return `<div class="perf-item">
-                <div class="perf-tick-wrap"><div class="perf-tick" style="color:${barClr}">${r.ticker}</div><div class="perf-cls-mini">${r.cls}</div></div>
-                <div class="perf-bar-wrap"><div class="perf-bar" style="width:${w.toFixed(1)}%;background:${barClr};opacity:.82"></div></div>
-                <div class="perf-right">
-                  <div class="perf-pct" style="color:${gainClr}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</div>
-                  <div class="perf-xirr" style="color:var(--text2)">${r.unrealized >= 0 ? '+' : ''}${fmtValue(r.unrealized)}</div>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
+        <div class="tbl-wrap">
+          <table class="an-tbl">
+            <thead><tr>
+              ${th('ticker', isAsset ? 'Ticker' : 'Class')}
+              ${th('unrealizedPct', 'P&L %')}
+              ${th('unrealized', 'P&L')}
+              ${th('xirr', 'XIRR')}
+              ${th('cagr', 'CAGR')}
+              ${th('value', 'Value')}
+              ${th('costDisp', 'Cost')}
+            </tr></thead>
+            <tbody>
+              ${tableRows.map(r => renderRow(r)).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
 
       <!-- Fees & Taxes by class -->
-      ${Object.keys(summary.byClass).length ? `
+      ${hasFeeData ? `
       <div class="panel" style="margin-bottom:12px">
         <div class="panel-hdr">
           <span class="panel-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Fees & Taxes
           </span>
-          <span class="panel-badge">accounting view</span>
+          <span class="panel-badge">${state.settings.currency} · by asset class</span>
         </div>
         <div class="tbl-wrap">
           <table class="an-tbl">
             <thead><tr>
               <th style="text-align:left">Class</th>
               <th>Invested</th><th>Market Value</th><th>Realised P&L</th>
-              <th>Fees Paid</th><th>Tax Paid</th><th>Net P&L</th>
+              <th>Fees</th><th>Taxes</th><th>Net P&L</th>
             </tr></thead>
             <tbody>
-              ${Object.entries(summary.byClass).map(([cls, d]) => {
-                const net = d.realized - d.taxes;
+              ${Object.entries(feesByClass).map(([cls, d]) => {
+                const net = d.realized - d.fees - d.taxes;
                 return `<tr>
                   <td>${classBadge(cls)}</td>
                   <td>${fmtValue(d.cost)}</td>
@@ -3843,34 +3809,55 @@ const App = (function () {
                 <td>${fmtValue(summary.totalCost)}</td>
                 <td>${fmtValue(summary.totalValue)}</td>
                 <td style="color:${summary.realized>=0?'var(--green)':'var(--red)'}">${summary.realized>=0?'+':''}${fmtValue(summary.realized)}</td>
-                <td style="color:var(--amber)">${summary.totalFees>0?'−'+fmtValue(summary.totalFees):'—'}</td>
-                <td style="color:var(--red)">${summary.totalTaxes>0?'−'+fmtValue(summary.totalTaxes):'—'}</td>
-                <td style="color:${(summary.realized-summary.totalTaxes)>=0?'var(--green)':'var(--red)'};font-weight:700">${(summary.realized-summary.totalTaxes)>=0?'+':''}${fmtValue(summary.realized-summary.totalTaxes)}</td>
+                <td style="color:var(--amber)">${totalFeesD>0?'−'+fmtValue(totalFeesD):'—'}</td>
+                <td style="color:var(--red)">${totalTaxesD>0?'−'+fmtValue(totalTaxesD):'—'}</td>
+                <td style="color:${(summary.realized-totalFeesD-totalTaxesD)>=0?'var(--green)':'var(--red)'};font-weight:700">${(summary.realized-totalFeesD-totalTaxesD)>=0?'+':''}${fmtValue(summary.realized-totalFeesD-totalTaxesD)}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>` : ''}
 
-      ${(bestX || worstX) ? `
-      <div class="panel" style="margin-bottom:0">
+      <!-- Yearly Trading Costs -->
+      ${hasYearlyData ? `
+      <div class="panel" style="margin-bottom:12px">
         <div class="panel-hdr">
           <span class="panel-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Highlights
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Yearly Trading Costs
           </span>
+          <span class="panel-badge">${state.settings.currency} · for tax planning</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr">
-          ${bestX ? `<div style="padding:13px 16px;border-right:.5px solid var(--b1)">
-            <div class="pm-lbl" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Best XIRR</div>
-            <div style="font-size:16px;font-weight:900;letter-spacing:-.02em;color:${tickerColor(bestX.ticker)};margin-bottom:2px">${bestX.ticker}</div>
-            <div style="font-family:var(--font-mono);font-size:12px;color:var(--green)">${fmtXIRR(bestX.xirr)}</div>
-          </div>` : ''}
-          ${worstX && worstX.ticker !== bestX?.ticker ? `<div style="padding:13px 16px">
-            <div class="pm-lbl" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Needs attention</div>
-            <div style="font-size:16px;font-weight:900;letter-spacing:-.02em;color:${tickerColor(worstX.ticker)};margin-bottom:2px">${worstX.ticker}</div>
-            <div style="font-family:var(--font-mono);font-size:12px;color:var(--red)">${fmtXIRR(worstX.xirr)}</div>
-          </div>` : ''}
+        <div class="tbl-wrap">
+          <table class="an-tbl">
+            <thead><tr>
+              <th style="text-align:left">Year</th>
+              <th>Trades</th>
+              <th>Volume Traded</th>
+              <th>Fees Paid</th>
+              <th>Fees %</th>
+              <th>Taxes Paid</th>
+              <th>Realised P&L</th>
+              <th>Tax Rate</th>
+            </tr></thead>
+            <tbody>
+              ${years.map(year => {
+                const y = yearlyData[year];
+                const feePct = y.volume > 0 ? (y.fees / y.volume * 100) : 0;
+                const taxRate = y.realized > 0 ? (y.taxes / y.realized * 100) : 0;
+                return `<tr>
+                  <td style="text-align:left;font-weight:800;color:var(--text)">${year}</td>
+                  <td style="color:var(--text)">${y.txCount}</td>
+                  <td>${fmtValue(y.volume)}</td>
+                  <td style="color:var(--amber)">${y.fees > 0 ? '−' + fmtValue(y.fees) : '—'}</td>
+                  <td style="color:var(--amber)">${y.fees > 0 ? fmtNum(feePct, 2) + ' %' : '—'}</td>
+                  <td style="color:var(--red)">${y.taxes > 0 ? '−' + fmtValue(y.taxes) : '—'}</td>
+                  <td style="color:${y.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${y.realized !== 0 ? (y.realized >= 0 ? '+' : '') + fmtValue(y.realized) : '—'}</td>
+                  <td style="color:${taxRate > 0 ? 'var(--red)' : 'var(--muted)'}">${y.taxes > 0 && y.realized > 0 ? fmtNum(taxRate, 1) + ' %' : '—'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       </div>` : ''}
     `;
@@ -3955,6 +3942,7 @@ const App = (function () {
   /** Sort state for analytics table */
   let _anSortKey = 'value';
   let _anSortAsc = false;
+  let _anViewMode = 'asset'; // 'asset' = per-ticker rows, 'class' = aggregated by class
 
   /** Handle click on an analytics column header — re-renders overview */
   function analyticsSort(key) {
@@ -3964,6 +3952,12 @@ const App = (function () {
       _anSortKey = key;
       _anSortAsc = (key === 'ticker');
     }
+    render();
+  }
+
+  /** Toggle Position Metrics between per-asset and per-class view */
+  function switchAnView(mode) {
+    _anViewMode = mode;
     render();
   }
 
@@ -4132,9 +4126,9 @@ const App = (function () {
       return `<tr>
         <td style="color:var(--dim)">${txs.length - i}</td>
         <td style="color:var(--text2)">${fmtDate(tx.date)}</td>
-        <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
+        <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
         <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
-        <td style="text-align:left">${classBadge(cls)}</td>
+        <td>${classBadge(cls)}</td>
         <td style="color:var(--text)">${fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${fmtCompact(buyPriceD)}</td>
         <td style="color:var(--text)">${fmtValue(totalD)}</td>
@@ -5777,6 +5771,8 @@ const App = (function () {
     analyticsSort,
     /** Toggle allocation donut view. @param {'asset'|'class'} tab */
     switchAllocTab,
+    /** Toggle Position Metrics between asset and class view. @param {'asset'|'class'} mode */
+    switchAnView,
 
     // Positions tab
     /** Filter position cards by class. @param {string} cls */
