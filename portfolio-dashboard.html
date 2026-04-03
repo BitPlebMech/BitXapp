@@ -18,8 +18,8 @@
   ║    state.settings      {currency, apiKey, cacheTTL, theme,           ║
   ║                         gistToken, gistId}                        ║
   ║                                                                      ║
-  ║  All prices stored internally in USD.                                ║
-  ║  Display conversion: USD → EUR or INR via historical ECB rates.      ║
+  ║  All prices stored internally in EUR.                                ║
+  ║  Display conversion: EUR → USD or INR via historical ECB rates.      ║
   ║  P&L uses FIFO lot matching with per-date FX rates on both sides.    ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
@@ -57,6 +57,7 @@
 
   /* Text hierarchy */
   --text:  #e4ecff;
+  --text2: #8fa0c0;   /* secondary values: dates, quantities */
   --muted: #4f6285;
   --dim:   #273a52;
 
@@ -88,6 +89,7 @@
   --b1:    #dde5f5;
   --b2:    #c8d6ee;
   --text:  #0c1a2e;
+  --text2: #4a6080;
   --muted: #6b82a0;
   --dim:   #a8bcd8;
   --blue:   #2563eb;
@@ -106,8 +108,7 @@
 [data-theme="light"] body::after {
   background: radial-gradient(ellipse 78% 44% at 50% -5%,rgba(37,99,235,0.055) 0%,transparent 68%);
 }
-[data-theme="light"] .tab-nav,
-[data-theme="light"] .tab-nav::before { background: var(--bg); }
+[data-theme="light"] .portfolio-shell .tab-nav { background: var(--surf2); }
 [data-theme="light"] .modal       { background: #ffffff; }
 [data-theme="light"] .sp          { background: #f7f9fe; border-left-color: var(--b1); }
 [data-theme="light"] .drw         { background: #ffffff; border-top-color: var(--b1); }
@@ -160,15 +161,6 @@ body::after {
   background: radial-gradient(ellipse 78% 44% at 50% -5%, rgba(91, 156, 255, 0.065) 0%, transparent 68%);
   pointer-events: none;
   z-index: 0;
-}
-
-/* Page container — centres content, provides padding */
-.page {
-  position: relative;
-  z-index: 1;
-  max-width: 1380px;
-  margin: 0 auto;
-  padding: 0 22px 110px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -308,18 +300,9 @@ body::after {
    TABS
    Sticky navigation bar below header
    ═══════════════════════════════════════════════════════════════════════ */
-.tab-nav {
-  display: flex; gap: 2px; padding: 13px 0 0;
-  position: sticky; top: 0;
-  background: var(--bg); z-index: 50;
-  border-bottom: 0.5px solid var(--b1);
-  opacity: 0; animation: fadeUp 0.35s 0.08s ease forwards;
-}
-/* Ensure sticky bar has opaque background */
-.tab-nav::before {
-  content: ''; position: absolute; inset: 0;
-  background: var(--bg); z-index: -1;
-}
+/* .tab-nav base — real styles live on .portfolio-shell .tab-nav below */
+.tab-nav { display: flex; gap: 2px; border-bottom: 0.5px solid var(--b1); }
+.tab-nav::before { display: none; }
 .tab-btn {
   font-family: var(--font-ui); font-size: 12px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
@@ -334,7 +317,7 @@ body::after {
 .tab-btn svg    { width: 13px; height: 13px; flex-shrink: 0; }
 
 /* Tab content panes — only .active is visible */
-.tab-pane        { display: none; padding-top: 24px; }
+.tab-pane        { display: none; }
 .tab-pane.active { display: block; animation: fadeUp 0.3s ease forwards; }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -343,7 +326,7 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════ */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -362,7 +345,7 @@ body::after {
 .kpi-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
 
 /* Faint background icon in top-right corner */
-.kpi-icon-bg { position: absolute; top: 14px; right: 13px; opacity: 0.16; color: var(--text); }
+.kpi-icon-bg { position: absolute; top: 14px; right: 13px; opacity: 0.28; color: var(--text); }
 .kpi-icon-bg svg { width: 18px; height: 18px; }
 
 .kpi-lbl {
@@ -373,7 +356,20 @@ body::after {
   font-family: var(--font-mono); font-size: 19px; font-weight: 500;
   line-height: 1; letter-spacing: -0.02em; margin-bottom: 4px;
 }
-.kpi-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.kpi-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+
+/* Delta row: ↑/↓ directional change shown below main value */
+.kpi-delta {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  display: flex; align-items: center; gap: 3px; margin-top: 3px;
+}
+.kpi-delta.up { color: var(--green); }
+.kpi-delta.dn { color: var(--red); }
+.kpi-delta.nt { color: var(--dim); }
+
+/* Mini sparkline at bottom of each KPI card */
+.kpi-spark { margin-top: 8px; line-height: 0; }
+.kpi-spark svg { display: block; width: 100%; }
 
 /* ═══════════════════════════════════════════════════════════════════════
    PANELS
@@ -406,11 +402,11 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════ */
 .ov-charts {
   display: grid;
-  grid-template-columns: 272px 1fr;
-  gap: 14px;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
   margin-top: 2px;
 }
-@media (max-width: 860px) { .ov-charts { grid-template-columns: 1fr; } }
+@media (max-width: 760px)  { .ov-charts { grid-template-columns: 1fr; } }
 
 /* Allocation donut sub-tabs (By Asset / By Class) */
 .alloc-tabs {
@@ -461,27 +457,6 @@ body::after {
   font-family: var(--font-mono); font-size: 11px; color: var(--muted);
   display: flex; gap: 7px; align-items: center;
 }
-
-/* Performance bar list */
-.perf-list { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
-.perf-item { display: flex; align-items: center; gap: 10px; }
-
-.perf-tick-wrap { width: 60px; flex-shrink: 0; }
-.perf-tick      { font-weight: 800; font-size: 13px; }
-.perf-cls-mini  { font-size: 8px; font-family: var(--font-mono); opacity: 0.55; }
-
-.perf-bar-wrap {
-  flex: 1; height: 7px;
-  background: var(--surf3); border-radius: 4px; overflow: hidden;
-}
-.perf-bar {
-  height: 100%; border-radius: 4px;
-  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.perf-right { display: flex; flex-direction: column; align-items: flex-end; min-width: 110px; }
-.perf-pct   { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
-.perf-xirr  { font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    POSITIONS TAB
@@ -542,16 +517,16 @@ body::after {
   font-size: 17px; font-weight: 900; letter-spacing: -0.02em;
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
 }
-.pos-name     { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pos-name     { font-size: 11px; color: var(--text2); margin-top: 2px; }
 .pos-price    { font-family: var(--font-mono); font-size: 15px; font-weight: 500; text-align: right; }
-.pos-price-ts { font-size: 9px; color: var(--dim); text-align: right; margin-top: 2px; }
+.pos-price-ts { font-size: 9px; color: var(--text2); text-align: right; margin-top: 2px; }
 
 /* Metrics grid inside each card */
 .pos-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 
 .pm      { background: var(--surf2); border-radius: 7px; padding: 7px 10px; }
 .pm.wide { grid-column: 1 / -1; }
-.pm-lbl  { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.pm-lbl  { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 3px; }
 .pm-val  { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
 .pm-val.highlight { font-size: 12.5px; }
 
@@ -641,21 +616,17 @@ body::after {
 .htbl              { width: 100%; border-collapse: collapse; }
 .htbl thead th     {
   font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--dim); padding: 8px 12px; text-align: right;
+  color: var(--dim); padding: 8px 12px; text-align: center;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
-.htbl thead th:first-child,
-.htbl thead th:nth-child(2) { text-align: left; }
 
 .htbl tbody tr:hover { background: var(--surf2); }
 
 .htbl tbody td {
   font-family: var(--font-mono); font-size: 12px; color: #8fa0c0;
-  padding: 10px 12px; text-align: right;
+  padding: 10px 12px; text-align: center;
   border-bottom: 0.5px solid var(--b1); white-space: nowrap;
 }
-.htbl tbody td:first-child,
-.htbl tbody td:nth-child(2) { text-align: left; }
 .htbl tbody tr:last-child td { border-bottom: none; }
 
 /* BUY / SELL type badges */
@@ -681,7 +652,7 @@ body::after {
    Fixed "+" button in bottom-right corner
    ═══════════════════════════════════════════════════════════════════════ */
 .fab {
-  position: fixed; bottom: 28px; right: 28px; z-index: 200;
+  position: fixed; bottom: 28px; right: 28px; left: auto; z-index: 200;
   width: 54px; height: 54px; border-radius: 50%;
   background: var(--blue); border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -966,7 +937,7 @@ body::after {
 .drw-x:hover { background: rgba(255, 61, 90, 0.1); color: var(--red); border-color: var(--red); }
 
 /* Drawer KPI row */
-.drw-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 13px; }
+.drw-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 13px; }
 @media (max-width: 700px) { .drw-kpis { grid-template-columns: repeat(2, 1fr); } }
 
 .drw-kpi {
@@ -1266,101 +1237,13 @@ body::after {
 .c-red   { color: var(--red); }
 .c-muted { color: var(--muted); }
 .c-text  { color: var(--text); }
+.c-text2 { color: var(--text2); }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   LOCK SCREEN
-   Full-screen PIN gate shown on every page load.
-   The app renders behind it — fades away on correct PIN entry.
-   ═══════════════════════════════════════════════════════════════════════ */
-.lock-screen {
-  position: fixed; inset: 0; z-index: 600;
-  background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 1; transition: opacity 0.3s ease;
-}
-.lock-screen.hidden {
-  opacity: 0; pointer-events: none;
-}
-
-.lock-inner {
-  display: flex; flex-direction: column; align-items: center;
-  width: 100%; max-width: 300px; padding: 24px 20px;
-}
-
-/* App logo repeated on lock screen */
-.lock-logo {
-  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(91,156,255,0.15), rgba(160,124,248,0.15));
-  border: 1px solid rgba(91,156,255,0.24);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--blue); margin-bottom: 14px;
-}
-.lock-logo svg { width: 24px; height: 24px; }
-
-.lock-title    { font-size: 20px; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 4px; }
-.lock-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 28px; letter-spacing: 0.04em; text-align: center; }
-
-/* Six PIN entry dots */
-.pin-dots {
-  display: flex; gap: 12px; margin-bottom: 10px;
-}
-.pin-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid var(--b2); background: transparent;
-  transition: all 0.15s;
-}
-.pin-dot.filled { background: var(--blue);  border-color: var(--blue); }
-.pin-dot.error  { background: var(--red);   border-color: var(--red);  }
-
-/* Error/status message below dots */
-.pin-error {
-  font-family: var(--font-mono); font-size: 11px; color: var(--red);
-  min-height: 18px; margin-bottom: 20px; text-align: center;
-}
-
-/* 3×4 numeric keypad */
-.pin-keypad {
-  display: grid; grid-template-columns: repeat(3, 72px);
-  gap: 10px; margin-bottom: 24px;
-}
-.pin-key {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: var(--surf); border: 0.5px solid var(--b2);
-  color: var(--text); font-size: 22px; font-weight: 500;
-  font-family: var(--font-mono); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.12s, border-color 0.12s, transform 0.1s;
-  user-select: none;
-}
-.pin-key:hover  { background: var(--surf2); border-color: var(--blue); }
-.pin-key:active { transform: scale(0.91);  background: var(--surf3); }
-.pin-key.action { font-size: 17px; color: var(--muted); }
-.pin-key.action:hover { color: var(--text); border-color: var(--muted); }
-.pin-key.empty  { background: transparent; border-color: transparent; pointer-events: none; cursor: default; }
-
-/* Shake animation on wrong PIN */
-@keyframes pinShake {
-  0%, 100% { transform: translateX(0); }
-  20%      { transform: translateX(-9px); }
-  40%      { transform: translateX(9px); }
-  60%      { transform: translateX(-6px); }
-  80%      { transform: translateX(6px); }
-}
-.pin-dots.shake { animation: pinShake 0.42s ease; }
-
-/* Reset / forgot PIN text link */
-.lock-reset-btn {
-  background: none; border: none; cursor: pointer;
-  font-family: var(--font-ui); font-size: 11px;
-  color: var(--dim); text-decoration: underline;
-  transition: color 0.14s; padding: 4px 8px;
-}
-.lock-reset-btn:hover { color: var(--muted); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    CREDENTIALS POPUP
@@ -1384,113 +1267,371 @@ body::after {
 .cred-title { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 6px; }
 .cred-msg   { font-size: 12px; color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   CONCEPT A — SHELL LAYOUT
+   Full-viewport flex shell: fixed sidebar + topbar + status strip + scrollable content
+   ═══════════════════════════════════════════════════════════════════════ */
+
+html, body { height: 100%; overflow: hidden; }
+
+/* Shell wrapper — fills viewport, no scroll */
+.app-shell {
+  display: flex; flex-direction: column; height: 100%;
+  position: relative; z-index: 1;
+}
+
+/* ── Slim Topbar ────────────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; height: 48px;
+  padding: 0 16px; gap: 9px; flex-shrink: 0;
+  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  opacity: 0; animation: fadeUp 0.38s 0.02s ease forwards;
+}
+.topbar .hdr-logo { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; }
+.topbar .hdr-logo svg { width: 13px; height: 13px; }
+.topbar .hdr-title { font-size: 15px; font-weight: 900; letter-spacing: -0.03em; }
+.topbar-left  { display: flex; align-items: center; gap: 9px; }
+.topbar-right { display: flex; align-items: center; gap: 5px; margin-left: auto; flex-wrap: nowrap; }
+
+/* ── Status Strip ───────────────────────────────────────────────────── */
+
+.ss-sep { width: 0.5px; height: 12px; background: var(--b2); flex-shrink: 0; }
+
+/* ── Body Row ───────────────────────────────────────────────────────── */
+.body-row { display: flex; flex: 1; overflow: hidden; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SIDEBAR — 52px icon rail, fixed module switcher
+   ═══════════════════════════════════════════════════════════════════════ */
+.sidebar {
+  width: 52px; flex-shrink: 0;
+  background: var(--surf); border-right: 0.5px solid var(--b1);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 0 12px; gap: 3px; overflow: visible;
+  opacity: 0; animation: fadeUp 0.38s 0.05s ease forwards;
+}
+.sb-icon {
+  position: relative;
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted);
+  transition: background 0.14s, color 0.14s; flex-shrink: 0;
+}
+.sb-icon svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sb-icon:hover               { background: var(--surf2); color: var(--text); }
+.sb-icon.active              { background: rgba(91,156,255,0.12); color: var(--blue); }
+.sb-icon.active:hover        { background: rgba(91,156,255,0.12); }
+.sb-icon.sb-soon             { opacity: 0.50; pointer-events: none; }
+.sb-sep-line  { width: 26px; height: 0.5px; background: var(--b1); margin: 5px 0; flex-shrink: 0; }
+.sb-spacer    { flex: 1; }
+
+/* Tooltip — slides in to the right on hover */
+.sb-icon .sb-tip {
+  position: fixed; left: 60px;
+  background: var(--surf3); border: 0.5px solid var(--b2);
+  color: var(--text); font-family: var(--font-ui);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+  pointer-events: none; opacity: 0; z-index: 800;
+  transition: opacity 0.14s;
+}
+.sb-icon:hover .sb-tip { opacity: 1; }
+
+/* Unsaved Gist dot */
+.sb-gist-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--amber);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAIN AREA
+   ═══════════════════════════════════════════════════════════════════════ */
+.main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Module panes — only .active is shown */
+.module-pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.module-pane.active { display: flex; }
+
+/* Portfolio module: tab-nav + scrollable content */
+.portfolio-shell { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* Scrollable content region — only element that scrolls */
+.tab-scroll {
+  flex: 1; overflow-y: auto; padding: 20px 22px 90px;
+  scrollbar-width: thin; scrollbar-color: var(--b2) transparent;
+}
+
+/* Tab nav inside module */
+.portfolio-shell .tab-nav {
+  display: flex; gap: 2px; padding: 11px 18px 0;
+  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  flex-shrink: 0; position: static;
+  opacity: 0; animation: fadeUp 0.35s 0.1s ease forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PLACEHOLDER MODULES — future pages
+   ═══════════════════════════════════════════════════════════════════════ */
+.placeholder-module {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; gap: 14px; padding: 60px 20px;
+  text-align: center; color: var(--muted);
+}
+.placeholder-module svg { opacity: 0.15; }
+.placeholder-module h2 {
+  font-size: 20px; font-weight: 900; letter-spacing: -0.02em; color: var(--text);
+}
+.placeholder-module p { font-size: 13px; line-height: 1.7; max-width: 380px; }
+.placeholder-soon-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 20px;
+  background: var(--surf2); border: 0.5px solid var(--b1); color: var(--dim);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ANALYTICS TAB
+   ═══════════════════════════════════════════════════════════════════════ */
+.an-kpi-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px;
+}
+@media (max-width:900px) { .an-kpi-row { grid-template-columns: repeat(2,1fr); } }
+@media (max-width:540px) { .an-kpi-row { grid-template-columns: 1fr; } }
+
+.an-kpi {
+  background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
+  padding: 15px 15px 12px; position: relative; overflow: hidden;
+  opacity: 0; animation: fadeUp 0.42s ease forwards;
+}
+.an-kpi-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.an-kpi-lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+}
+.an-kpi-val { font-family: var(--font-mono); font-size: 22px; font-weight: 500; line-height: 1; margin-bottom: 3px; }
+.an-kpi-sub { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.an-kpi-spark { margin-top: 9px; }
+
+.an-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width:860px) { .an-panels { grid-template-columns: 1fr; } }
+
+/* Sortable analytics table */
+.an-tbl { width: 100%; border-collapse: collapse; }
+.an-tbl thead th {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--dim); padding: 8px 12px; text-align: right;
+  border-bottom: 0.5px solid var(--b1); white-space: nowrap;
+  cursor: pointer; user-select: none; transition: color 0.14s;
+}
+.an-tbl thead th:first-child { text-align: left; }
+.an-tbl thead th:hover { color: var(--muted); }
+.an-tbl thead th.an-sort-active { color: var(--blue); }
+.an-tbl thead th.an-sort-active::after { content: ' ↓'; }
+.an-tbl thead th.an-sort-active.an-sort-asc::after { content: ' ↑'; }
+.an-tbl tbody tr { cursor: pointer; }
+.an-tbl tbody tr:hover { background: var(--surf2); }
+.an-tbl tbody td {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+  padding: 9px 12px; text-align: right;
+  border-bottom: 0.5px solid var(--b1); white-space: nowrap;
+}
+.an-tbl tbody td:first-child { text-align: left; color: var(--text); font-weight: 800; font-family: var(--font-ui); font-size: 13px; }
+.an-tbl tbody tr:last-child td { border-bottom: none; }
+
+/* Light theme adjustments */
+[data-theme="light"] .sidebar         { background: var(--surf2); }
+[data-theme="light"] .topbar          { background: var(--surf);  }
+[data-theme="light"] .portfolio-shell .tab-nav { background: var(--surf2); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODULE HEADER
+   Per-module subheader between topbar and tab-nav.
+   Contains module-specific status + action controls.
+   ═══════════════════════════════════════════════════════════════════════ */
+.mod-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; height: 44px; flex-shrink: 0;
+  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  gap: 10px; flex-wrap: nowrap; overflow: hidden;
+  opacity: 0; animation: fadeUp 0.35s 0.06s ease forwards;
+}
+.mod-header-left  { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.mod-header-right { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.mod-status-txt   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+[data-theme="light"] .mod-header { background: var(--surf2); }
+
+
+/* ── Invested vs Market Value bar chart ───────────────────────────── */
+.ov-bar-chart-sec {
+  padding: 12px 14px 10px;
+}
+.ov-bar-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; min-height: 36px;
+}
+.ov-bar-tick {
+  width: 52px; flex-shrink: 0;
+  font-weight: 800; font-size: 11px; font-family: var(--font-ui);
+  color: var(--text); text-align: right;
+}
+/* Two separate bars stacked vertically — invested on top, market below */
+.ov-bar-track {
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
+}
+.ov-bar-pair {
+  display: flex; align-items: center; gap: 6px;
+}
+.ov-bar-pair-lbl {
+  width: 12px; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 8px; font-weight: 500;
+  color: var(--dim); text-align: right; text-transform: uppercase;
+}
+.ov-bar-rail {
+  flex: 1; height: 9px;
+  background: var(--surf3); border-radius: 3px; overflow: hidden;
+}
+.ov-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.55s cubic-bezier(.22,1,.36,1);
+}
+.ov-bar-amt {
+  flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+  min-width: 56px; text-align: right;
+}
+.ov-bar-val {
+  width: 90px; flex-shrink: 0; text-align: right;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text2);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+}
+.ov-bar-legend {
+  display: flex; gap: 14px; padding: 0 14px 10px;
+}
+.ov-bar-leg-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--muted); font-family: var(--font-mono);
+}
+.ov-bar-leg-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
 </style>
 </head>
 
 <body>
-<div class="page">
+<div class="app-shell">
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     HEADER
-     Logo, status indicator, FX pill, currency picker, refresh & settings
-     ═══════════════════════════════════════════════════════════════════════ -->
-<header class="app-header">
-  <div class="hdr-left">
+<!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+<div class="topbar">
+  <div class="topbar-left">
     <div class="hdr-logo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2"/>
         <path d="M8 21h8M12 17v4M6 8h.01M9 8h6M6 11h10"/>
       </svg>
     </div>
-    <div>
-      <div class="hdr-title">Portfolio Terminal</div>
-      <div class="hdr-sub">
-        <span class="status-dot" id="h-dot"></span>
-        <span id="h-status">Initialising…</span>
-        <span class="price-src-badge sim" id="h-src-badge">Simulated</span>
-      </div>
-    </div>
+    <div class="hdr-title">Portfolio Terminal</div>
   </div>
-
-  <div class="hdr-right">
-    <!-- FX rate status indicator -->
-    <div class="fx-pill load" id="h-fx" title="ECB exchange rates via frankfurter.app">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
-      <span id="h-fx-text">FX Loading…</span>
-    </div>
-
-    <!-- Display currency selector -->
-    <div class="cur-sel">
-      <span class="cur-sel-lbl">Currency</span>
-      <select id="h-currency" onchange="App.onCurrencyChange()">
-        <option value="EUR">€ EUR</option>
-        <option value="USD">$ USD</option>
-        <option value="INR">₹ INR</option>
-      </select>
-    </div>
-
-    <!-- Last-refresh timestamp -->
-    <div class="ts-pill" id="h-ts">—</div>
-
-    <!-- Save to Gist button — manual sync, amber dot = unsaved local changes -->
-    <button class="hdr-btn" id="h-gist-save" onclick="App.gistSave(false)" title="Save portfolio data to GitHub Gist">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-      </svg>
-      Gist
-      <span class="gist-unsaved-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
-    </button>
-
-    <!-- Refresh prices button -->
-    <button class="hdr-btn primary" id="h-refresh" onclick="App.doRefresh()">
-      <svg class="spin-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-        <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-      </svg>
-      Refresh
-    </button>
-
-    <!-- Theme toggle: moon icon = currently dark, click for light; sun icon = currently light -->
-    <button class="hdr-btn icon-only" id="h-theme-btn" onclick="App.toggleTheme()" title="Toggle light / dark mode">
-      <svg id="h-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>
-    </button>
-
-    <!-- Settings gear button -->
-    <button class="hdr-btn icon-only" onclick="App.openSettings()" title="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
+  <div class="topbar-right">
+    <button class="hdr-btn icon-only" id="h-theme-btn" onclick="App.toggleTheme()" title="Toggle theme">
+      <svg id="h-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
   </div>
-</header>
+</div><!-- /.topbar -->
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     TAB NAVIGATION
-     ═══════════════════════════════════════════════════════════════════════ -->
-<nav class="tab-nav">
-  <button class="tab-btn active" onclick="App.showTab('overview',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-    Overview
-  </button>
-  <button class="tab-btn" onclick="App.showTab('positions',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-    Positions
-  </button>
-  <button class="tab-btn" onclick="App.showTab('history',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-    History
-  </button>
-</nav>
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     OVERVIEW TAB
-     KPI cards + allocation donut + performance bars
-     ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ══ BODY ROW: sidebar + main ═════════════════════════════════════════ -->
+<div class="body-row">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-icon active" id="sb-portfolio" onclick="App.switchModule('portfolio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      <span class="sb-tip">Portfolio</span>
+    </div>
+    <div class="sb-sep-line"></div>
+    <div class="sb-icon sb-soon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span class="sb-tip">Habit Tracker <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
+    </div>
+    <div class="sb-icon sb-soon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+      <span class="sb-tip">Finance Calculator <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
+    </div>
+    <div class="sb-icon sb-soon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="sb-tip">Return Comparator <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
+    </div>
+    <div class="sb-spacer"></div>
+    <div class="sb-icon" onclick="App.gistSave(false)" title="Save to Gist">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+      <div class="sb-gist-dot gist-unsaved-dot" style="display:none"></div>
+      <span class="sb-tip">Gist Sync</span>
+    </div>
+  </aside><!-- /.sidebar -->
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- ── Portfolio module (active) ─────────────────────────────────── -->
+    <div class="module-pane active" id="mod-portfolio">
+      <div class="portfolio-shell">
+
+        <!-- Portfolio module header: status + portfolio-specific controls -->
+        <div class="mod-header">
+          <div class="mod-header-left">
+            <span class="status-dot" id="h-dot"></span>
+            <span id="h-status" class="mod-status-txt">Initialising…</span>
+            <span class="price-src-badge sim" id="h-src-badge">Simulated</span>
+          </div>
+          <div class="mod-header-right">
+            <div class="fx-pill load" id="h-fx" title="ECB exchange rates via frankfurter.app" style="font-size:10px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span id="h-fx-text">FX…</span>
+            </div>
+            <span class="ts-pill" id="h-ts" style="font-size:10px">—</span>
+            <div class="cur-sel">
+              <span class="cur-sel-lbl">Currency</span>
+              <select id="h-currency" onchange="App.onCurrencyChange()">
+                <option value="EUR">€ EUR</option>
+                <option value="USD">$ USD</option>
+                <option value="INR">₹ INR</option>
+              </select>
+            </div>
+            <button class="hdr-btn" id="h-gist-save" onclick="App.gistSave(false)" title="Save to GitHub Gist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              Gist
+              <span class="gist-unsaved-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+            </button>
+            <button class="hdr-btn primary" id="h-refresh" onclick="App.doRefresh()">
+              <svg class="spin-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+              Refresh
+            </button>
+            <button class="hdr-btn icon-only" onclick="App.openSettings()" title="Settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+        </div><!-- /.mod-header -->
+
+        <nav class="tab-nav">
+          <button class="tab-btn active" onclick="App.showTab('overview',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            Analytics
+          </button>
+          <button class="tab-btn" onclick="App.showTab('positions',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Positions
+          </button>
+          <button class="tab-btn" onclick="App.showTab('history',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            History
+          </button>
+        </nav>
+
+        <div class="tab-scroll">
+
 <div id="tab-overview" class="tab-pane active">
   <div class="kpi-grid" id="ov-kpis"></div>
   <div class="ov-charts">
@@ -1514,24 +1655,26 @@ body::after {
       </div>
     </div>
 
-    <!-- Performance ranking panel -->
+    <!-- Invested vs Market Value bar chart -->
     <div class="panel">
       <div class="panel-hdr">
         <span class="panel-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-          Performance by Position
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Invested vs Market Value
         </span>
-        <span class="panel-badge">Unrealised % · XIRR</span>
       </div>
-      <div class="perf-list" id="ov-perf"></div>
+      <div class="ov-bar-legend">
+        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.45;background:var(--blue)"></div>Invested</div>
+        <div class="ov-bar-leg-item"><div class="ov-bar-leg-dot" style="opacity:.85;background:var(--blue)"></div>Market Value</div>
+      </div>
+      <div class="ov-bar-chart-sec" id="ov-bar-chart"></div>
     </div>
   </div>
+  <!-- Analytics section — rendered by renderInlineAnalytics() -->
+  <div id="ov-analytics"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     POSITIONS TAB
-     Filterable card grid of all open positions
-     ═══════════════════════════════════════════════════════════════════════ -->
+
 <div id="tab-positions" class="tab-pane">
   <div class="pos-toolbar">
     <div class="pos-left">
@@ -1559,10 +1702,7 @@ body::after {
   <div class="pos-grid" id="pos-grid"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     HISTORY TAB
-     Searchable, sortable transaction ledger
-     ═══════════════════════════════════════════════════════════════════════ -->
+
 <div id="tab-history" class="tab-pane">
   <div class="hist-toolbar">
     <input type="text" class="search-input" id="hist-search" placeholder="Search ticker…" oninput="App.renderHistory()">
@@ -1577,23 +1717,13 @@ body::after {
       <option value="ticker">Ticker A→Z</option>
       <option value="value-desc">Value ↓</option>
     </select>
-    <div style="display:flex;gap:7px;margin-left:auto">
-      <button class="hdr-btn" onclick="App.openCsvImport()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Import CSV
-      </button>
-      <button class="hdr-btn primary" onclick="App.openModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add
-      </button>
-    </div>
   </div>
   <div class="panel">
     <div class="tbl-wrap">
       <table class="htbl">
         <thead><tr>
-          <th>#</th><th>Date</th><th style="text-align:center">Type</th>
-          <th>Ticker</th><th>Class</th><th>Qty</th><th id="hist-price-hdr">Price</th>
+          <th>#</th><th>Date</th><th>Type</th>
+          <th>Ticker</th><th>Class</th><th>Qty</th><th id="hist-price-hdr">Price (EUR)</th>
           <th>Total</th><th>Unrealised P&L</th><th></th>
         </tr></thead>
         <tbody id="hist-body"></tbody>
@@ -1602,7 +1732,43 @@ body::after {
   </div>
 </div>
 
-</div><!-- /.page -->
+        </div><!-- /.tab-scroll -->
+      </div><!-- /.portfolio-shell -->
+    </div><!-- /.module-pane#mod-portfolio -->
+
+    <!-- ── Habit Tracker placeholder ─────────────────────────────────── -->
+    <div class="module-pane" id="mod-habits">
+      <div class="placeholder-module">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <h2>Habit Tracker</h2>
+        <p>Track daily habits, streaks, and goals alongside your investments. Build routines that stick.</p>
+        <span class="placeholder-soon-badge">Coming soon</span>
+      </div>
+    </div>
+
+    <!-- ── Finance Calculator placeholder ───────────────────────────── -->
+    <div class="module-pane" id="mod-calc">
+      <div class="placeholder-module">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+        <h2>Finance Calculator</h2>
+        <p>Compound interest, SIP returns, loan amortization, and more. All in one place.</p>
+        <span class="placeholder-soon-badge">Coming soon</span>
+      </div>
+    </div>
+
+    <!-- ── Return Comparator placeholder ────────────────────────────── -->
+    <div class="module-pane" id="mod-compare">
+      <div class="placeholder-module">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <h2>Return Comparator</h2>
+        <p>Compare your portfolio returns against benchmarks like VOO, S&P 500, and global indices.</p>
+        <span class="placeholder-soon-badge">Coming soon</span>
+      </div>
+    </div>
+
+  </div><!-- /.main-area -->
+</div><!-- /.body-row -->
+</div><!-- /.app-shell -->
 
 <!-- Floating "Add Transaction" button -->
 <button class="fab" onclick="App.openModal()" title="Add Transaction">
@@ -1678,7 +1844,7 @@ body::after {
           <input type="text" inputmode="decimal" class="finp" id="f-qty" placeholder="0" oninput="App.validateForm()">
         </div>
         <div class="fgrp">
-          <label class="flbl">Price per Share (USD)</label>
+          <label class="flbl">Price per Share (<span id="f-price-cur-lbl">EUR</span>)</label>
           <input type="text" inputmode="decimal" class="finp" id="f-price" placeholder="0,00" oninput="App.validateForm()">
         </div>
         <div class="fgrp">
@@ -1688,6 +1854,15 @@ body::after {
         <div class="fgrp fg-full">
           <label class="flbl">Notes (optional)</label>
           <input type="text" class="finp" id="f-notes" placeholder="e.g. Earnings dip buy">
+        </div>
+        <!-- Fees (buys) and Taxes (sells) -->
+        <div class="fgrp" id="f-fees-grp">
+          <label class="flbl">Broker Fees <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
+          <input type="text" inputmode="decimal" class="finp" id="f-fees" placeholder="0" oninput="App.validateForm()">
+        </div>
+        <div class="fgrp" id="f-taxes-grp" style="display:none">
+          <label class="flbl">Capital Gains Tax <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
+          <input type="text" inputmode="decimal" class="finp" id="f-taxes" placeholder="0" oninput="App.validateForm()">
         </div>
       </div>
       <div class="fhint" id="f-hint" style="margin-top:2px"></div>
@@ -1937,7 +2112,7 @@ body::after {
     <table class="ltbl">
       <thead><tr>
         <th>#</th><th style="text-align:center">Type</th><th style="text-align:left">Date</th>
-        <th>Qty</th><th id="drw-price-hdr">Price</th><th>Total</th><th>P&L</th><th>P&L %</th>
+        <th>Qty</th><th id="drw-price-hdr">Price</th><th>Total</th><th>Fees/Tax</th><th>P&L</th><th>P&L %</th><th></th>
       </tr></thead>
       <tbody id="drw-txs"></tbody>
     </table>
@@ -1973,63 +2148,8 @@ body::after {
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     LOCK SCREEN
-     Rendered on top of the app. Fades away after correct PIN entry.
-     App loads fully behind it so unlock is instant.
-     ═══════════════════════════════════════════════════════════════════════ -->
-<div id="lock-screen" class="lock-screen">
-  <div class="lock-inner">
-
-    <!-- Logo + title -->
-    <div class="lock-logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2"/>
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-      </svg>
-    </div>
-    <div class="lock-title">Portfolio Terminal</div>
-    <div class="lock-subtitle" id="lock-subtitle">Enter your PIN</div>
-
-    <!-- Six entry dots -->
-    <div class="pin-dots" id="pin-dots">
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-    </div>
-
-    <!-- Error / status message -->
-    <div class="pin-error" id="pin-error"></div>
-
-    <!-- Numeric keypad: 1–9, backspace, 0 -->
-    <div class="pin-keypad">
-      <button class="pin-key" onclick="App.pinKeyPress('1')">1</button>
-      <button class="pin-key" onclick="App.pinKeyPress('2')">2</button>
-      <button class="pin-key" onclick="App.pinKeyPress('3')">3</button>
-      <button class="pin-key" onclick="App.pinKeyPress('4')">4</button>
-      <button class="pin-key" onclick="App.pinKeyPress('5')">5</button>
-      <button class="pin-key" onclick="App.pinKeyPress('6')">6</button>
-      <button class="pin-key" onclick="App.pinKeyPress('7')">7</button>
-      <button class="pin-key" onclick="App.pinKeyPress('8')">8</button>
-      <button class="pin-key" onclick="App.pinKeyPress('9')">9</button>
-      <button class="pin-key action" onclick="App.pinKeyPress('back')" title="Backspace">⌫</button>
-      <button class="pin-key" onclick="App.pinKeyPress('0')">0</button>
-      <div class="pin-key empty"></div>
-    </div>
-
-    <!-- Forgot / reset link (hidden during PIN setup) -->
-    <button class="lock-reset-btn" id="lock-reset-btn" onclick="App.lockReset()">
-      Forgot PIN · Reset credentials
-    </button>
-
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════
      CREDENTIALS POPUP
-     Shown when GitHub token / Gist ID are missing — sits above lock screen.
+     Shown when GitHub token / Gist ID are missing.
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="cred-ov" id="cred-ov">
   <div class="cred-box">
@@ -2168,7 +2288,8 @@ const App = (function () {
 
   /** Main persisted state object */
   let state = {
-    transactions: [],   // Array of {id, date, ticker, type, qty, price, notes}
+    transactions: [],          // Array of {id, date, ticker, type, qty, price(EUR), fees(EUR), taxes(EUR), notes}
+    deletedTransactions: [],  // Last 20 deleted, for recovery
     priceCache: {},      // {[ticker]: {price, ts, src}}
     tickerMeta: {},      // {[ticker]: {cls}}
     settings: {
@@ -2203,6 +2324,9 @@ const App = (function () {
   /** Current modal transaction type */
   let modalType = 'BUY';
 
+  /** Credentials popup callback — set when waiting for user to enter Gist token/ID */
+  let _credCallback = null;
+
   /** Cache for deterministic ticker → colour assignments */
   const tickerColorCache = {};
 
@@ -2229,11 +2353,9 @@ const App = (function () {
     }
   }
 
-  /** Persist current state to localStorage */
   /**
    * Persist current state to localStorage only.
    * Gist sync is manual — use the Save to Gist button in the header.
-   * This prevents local/test sessions from silently overwriting Gist data.
    */
   function saveState() {
     try {
@@ -2361,28 +2483,41 @@ const App = (function () {
   }
 
   /**
-   * Convert a USD amount to the user's display currency.
-   * Uses historical FX rate when dateStr is provided, otherwise latest rate.
-   * @param {number} usdAmount - Amount in USD
+   * Convert a EUR amount (internal base) to the user's display currency.
+   * Uses historical ECB rate when dateStr is provided, otherwise latest rate.
+   * @param {number} eurAmount - Amount in EUR (internal storage currency)
    * @param {string|null} dateStr - Optional ISO date for historical rate
    * @returns {number} Amount in display currency
    */
-  function usdToDisplay(usdAmount, dateStr = null) {
+  function eurToDisplay(eurAmount, dateStr = null) {
     const currency = state.settings.currency;
-    if (currency === 'USD') return usdAmount;
-
-    // First convert USD → EUR
-    const eurUsdRate = dateStr ? getFxRate('USD', dateStr) : fxLatest.USD;
-    const eurAmount = usdAmount / eurUsdRate;
-
     if (currency === 'EUR') return eurAmount;
 
-    // Then convert EUR → INR
-    const eurInrRate = dateStr ? getFxRate('INR', dateStr) : fxLatest.INR;
-    return eurAmount * eurInrRate;
+    if (currency === 'USD') {
+      const rate = dateStr ? getFxRate('USD', dateStr) : fxLatest.USD;
+      return eurAmount * rate;
+    }
+
+    // EUR → INR
+    const rate = dateStr ? getFxRate('INR', dateStr) : fxLatest.INR;
+    return eurAmount * rate;
+  }
+
+
+
+  /**
+   * Convert a USD price (from Yahoo/CoinGecko) to EUR for internal storage.
+   * @param {number} usdPrice
+   * @param {string|null} dateStr
+   * @returns {number} EUR price
+   */
+  function usdToEur(usdPrice, dateStr = null) {
+    const rate = dateStr ? getFxRate('USD', dateStr) : fxLatest.USD;
+    return rate > 0 ? usdPrice / rate : usdPrice;
   }
 
   /** Update all FX-related UI elements (header pill + settings chips) */
+
   function updateFXUI() {
     const allOK = fxLoaded.USD && fxLoaded.INR;
     const partialOK = fxLoaded.USD || fxLoaded.INR;
@@ -2554,7 +2689,9 @@ const App = (function () {
       const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
       for (const ticker of cryptoTickers) {
         const price = cgPrices[ticker];
-        state.priceCache[ticker] = { price: price || getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
+        // CoinGecko returns USD — convert to EUR for storage
+        const priceEur = price ? usdToEur(price) : getMockPrice(ticker);
+        state.priceCache[ticker] = { price: priceEur, ts: Date.now(), src: price ? 'cg' : 'sim' };
         if (price) liveCount++;
       }
     }
@@ -2580,7 +2717,9 @@ const App = (function () {
         if (price) src = 'yahoo';
       }
 
-      state.priceCache[ticker] = { price: price || getMockPrice(ticker), ts: Date.now(), src };
+      // Yahoo/AV return USD — convert to EUR for storage
+      const priceEurStock = price ? usdToEur(price) : getMockPrice(ticker);
+      state.priceCache[ticker] = { price: priceEurStock, ts: Date.now(), src };
       if (price) liveCount++;
     }
 
@@ -2704,12 +2843,12 @@ const App = (function () {
 
   /**
    * Calculate XIRR for a single open lot.
-   * @param {Object} lot           - {qty, priceUSD, date}
+   * @param {Object} lot           - {qty, priceEUR, date}
    * @param {number} currentPriceD - Current price in display currency
    * @returns {number|null}
    */
   function lotXIRR(lot, currentPriceD) {
-    const buyPriceD = usdToDisplay(lot.priceUSD, lot.date);
+    const buyPriceD = eurToDisplay(lot.priceEUR || lot.priceUSD || 0, lot.date);
     return calcXIRR(
       [-(lot.qty * buyPriceD), lot.qty * currentPriceD],
       [new Date(lot.date + 'T12:00:00'), new Date()]
@@ -2749,7 +2888,7 @@ const App = (function () {
     const dates = [];
     for (const tx of txs) {
       const date = new Date(tx.date + 'T12:00:00');
-      const displayPrice = usdToDisplay(tx.price, tx.date);
+      const displayPrice = eurToDisplay(tx.price, tx.date);
       const amount = tx.qty * displayPrice;
       cashflows.push(tx.type === 'BUY' ? -amount : amount);
       dates.push(date);
@@ -2808,16 +2947,18 @@ const App = (function () {
 
       for (const tx of txs) {
         if (tx.type === 'BUY') {
-          lotQueue.push({ qty: +tx.qty, priceUSD: +tx.price, id: tx.id, date: tx.date });
+          // fees add to effective cost basis
+          const feesPerShare = tx.qty > 0 ? (+(tx.fees || 0)) / +tx.qty : 0;
+          lotQueue.push({ qty: +tx.qty, priceEUR: +tx.price + feesPerShare, id: tx.id, date: tx.date, fees: +(tx.fees || 0) });
         } else {
           // SELL: match against oldest lots first (FIFO)
           let remaining = +tx.qty;
           while (remaining > QTY_EPSILON && lotQueue.length > 0) {
             const lot = lotQueue[0];
             const matched = Math.min(remaining, lot.qty);
-            const sellPriceD = usdToDisplay(+tx.price, tx.date);
-            const buyPriceD = usdToDisplay(lot.priceUSD, lot.date);
-            realizedGain += (sellPriceD - buyPriceD) * matched;
+            const sellPriceD = eurToDisplay(+tx.price, tx.date);
+            const buyPriceD = eurToDisplay(lot.priceEUR, lot.date);
+            realizedGain += (sellPriceD - buyPriceD) * matched - (+(tx.taxes || 0) * matched / +tx.qty);
             lot.qty -= matched;
             remaining -= matched;
             if (lot.qty < QTY_EPSILON) lotQueue.shift();
@@ -2831,16 +2972,16 @@ const App = (function () {
 
       for (const lot of lotQueue) {
         if (lot.qty < QTY_EPSILON) continue;
-        const lotCostD = lot.qty * usdToDisplay(lot.priceUSD, lot.date);
+        const lotCostD = lot.qty * eurToDisplay(lot.priceEUR, lot.date);
         totalShares += lot.qty;
         totalCostD += lotCostD;
         weightedYears += lotCostD * yearsHeld(lot.date, now);
-        openLots.push({ ...lot, costDisp: lotCostD, avgYears: yearsHeld(lot.date, now) });
+        openLots.push({ ...lot, priceEUR: lot.priceEUR, costDisp: lotCostD, avgYears: yearsHeld(lot.date, now) });
       }
 
       // Current market data
-      const currentUSD = getPrice(ticker);
-      const currentDisp = usdToDisplay(currentUSD);
+      const currentEUR = getPrice(ticker);
+      const currentDisp = eurToDisplay(currentEUR);
       const marketValue = totalShares * currentDisp;
       const unrealizedGain = marketValue - totalCostD;
       const avgHoldYears = totalCostD > 0 ? weightedYears / totalCostD : 0;
@@ -2850,7 +2991,7 @@ const App = (function () {
         shares: +totalShares.toFixed(8),
         avgCostDisp: totalShares > 0 ? totalCostD / totalShares : 0,
         costDisp: totalCostD,
-        curUSD: currentUSD,
+        curEUR: currentEUR,
         curDisp: currentDisp,
         value: marketValue,
         unrealized: unrealizedGain,
@@ -2876,29 +3017,56 @@ const App = (function () {
    */
   function computeSummary(positions) {
     let totalValue = 0, totalCost = 0, totalRealized = 0, weightedYears = 0;
+    let totalFees = 0, totalTaxes = 0;
     const now = new Date();
+    const byClass = {};
 
     for (const pos of Object.values(positions)) {
       totalValue += pos.value;
-      totalCost += pos.costDisp;
+      totalCost  += pos.costDisp;
       totalRealized += pos.realized;
       for (const lot of pos.openLots) {
         weightedYears += lot.costDisp * yearsHeld(lot.date, now);
       }
+      // Accumulate fees and taxes
+      const cls = pos.cls;
+      if (!byClass[cls]) byClass[cls] = { fees: 0, taxes: 0, cost: 0, value: 0, realized: 0 };
+      byClass[cls].cost  += pos.costDisp;
+      byClass[cls].value += pos.value;
+      byClass[cls].realized += pos.realized;
+    }
+    for (const tx of state.transactions) {
+      const f = +(tx.fees  || 0);
+      const t = +(tx.taxes || 0);
+      totalFees  += f;
+      totalTaxes += t;
+      const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
+      if (byClass[cls]) {
+        byClass[cls].fees  = (byClass[cls].fees  || 0) + f;
+        byClass[cls].taxes = (byClass[cls].taxes || 0) + t;
+      }
     }
 
     const unrealized = totalValue - totalCost;
-    const avgYears = totalCost > 0 ? weightedYears / totalCost : 0;
+    const avgYears   = totalCost > 0 ? weightedYears / totalCost : 0;
+    const daysHeld   = avgYears * 365.25;
+    const topPos     = Object.values(positions).sort((a,b) => b.value - a.value)[0];
+    const concentration = (topPos && totalValue > 0) ? (topPos.value / totalValue * 100) : 0;
+    const netReturn  = totalCost > 0 ? ((unrealized + totalRealized) / totalCost * 100) : 0;
 
     return {
-      totalValue, totalCost,
-      unrealized,
+      totalValue, totalCost, unrealized,
       unrealizedPct: totalCost > 0 ? (unrealized / totalCost) * 100 : 0,
       realized: totalRealized,
       totalGain: unrealized + totalRealized,
-      cagr: calcCagr(totalCost, totalValue, avgYears),
-      xirr: portfolioXIRR(state.transactions, positions),
-      positions: Object.keys(positions).length,
+      totalFees, totalTaxes,
+      byClass,
+      cagr:          calcCagr(totalCost, totalValue, avgYears),
+      xirr:          portfolioXIRR(state.transactions, positions),
+      positions:     Object.keys(positions).length,
+      avgDaysHeld:   Math.round(daysHeld),
+      concentration,
+      netReturn,
     };
   }
 
@@ -3005,7 +3173,8 @@ const App = (function () {
 
   /**
    * Compact currency for per-share price display.
-   * Large numbers use locale-aware K / M / L / Cr suffixes.
+   * Large numbers use locale-aware suffixes BEFORE the currency symbol.
+   *   EUR: 25,0 K €    USD: 25.0 K $    INR: ₹1.23 L
    * @param {number} v
    * @returns {string}
    */
@@ -3017,9 +3186,8 @@ const App = (function () {
       if (v >= 10000000) return sym + fmtNum(v / 10000000, 2) + ' Cr';
       if (v >= 100000)   return sym + fmtNum(v / 100000,   2) + ' L';
     }
-    // For EUR/USD: use full fmtCurrency but append suffix
-    if (v >= 1000000) return fmtCurrency(v / 1000000, 2) + ' M';
-    if (v >= 1000)    return fmtCurrency(v / 1000,    1) + ' K';
+    if (v >= 1000000) return fmtNum(v / 1000000, 2) + ' M ' + sym;
+    if (v >= 1000)    return fmtNum(v / 1000,    1) + ' K ' + sym;
     return fmtCurrency(v, 2);
   }
 
@@ -3200,13 +3368,15 @@ const App = (function () {
   /** Add a new transaction to the ledger */
   function addTransaction(data) {
     state.transactions.push({
-      id: generateId(),
-      date: data.date,
+      id:     generateId(),
+      date:   data.date,
       ticker: data.ticker,
-      type: data.type,
-      qty: +data.qty,
-      price: +data.price,
-      notes: data.notes || '',
+      type:   data.type,
+      qty:    +data.qty,
+      price:  +data.price,
+      fees:   +(data.fees  || 0),
+      taxes:  +(data.taxes || 0),
+      notes:  data.notes || '',
     });
 
     // Auto-set asset class if not already known
@@ -3229,10 +3399,30 @@ const App = (function () {
    * @param {string} id - Transaction ID to remove
    */
   function deleteTransaction(id) {
+    const tx = state.transactions.find(t => t.id === id);
+    if (tx) {
+      if (!Array.isArray(state.deletedTransactions)) state.deletedTransactions = [];
+      state.deletedTransactions.unshift({ ...tx, _deletedAt: new Date().toISOString() });
+      if (state.deletedTransactions.length > 10) state.deletedTransactions = state.deletedTransactions.slice(0, 10);
+    }
     state.transactions = state.transactions.filter(t => t.id !== id);
     saveState();
     render();
-    toast('Transaction deleted', 'info');
+    toast('Transaction deleted — recoverable from History', 'info');
+  }
+
+  /** Restore a previously deleted transaction */
+  function restoreTransaction(id) {
+    if (!Array.isArray(state.deletedTransactions)) return;
+    const tx = state.deletedTransactions.find(t => t.id === id);
+    if (!tx) return;
+    const { _deletedAt, ...clean } = tx;
+    state.transactions.push(clean);
+    state.deletedTransactions = state.deletedTransactions.filter(t => t.id !== id);
+    if (!state.tickerMeta[clean.ticker]) state.tickerMeta[clean.ticker] = { cls: guessClass(clean.ticker) };
+    saveState();
+    render();
+    toast(clean.ticker + ' transaction restored', 'success');
   }
 
   /**
@@ -3278,34 +3468,84 @@ const App = (function () {
     const xirrClass = summary.xirr === null ? 'c-muted' : summary.xirr >= 0 ? 'c-green' : 'c-red';
     const cagrClass = summary.cagr === null ? 'c-muted' : summary.cagr >= 0 ? 'c-green' : 'c-red';
 
-    // KPI card definitions
+    // Win rate + best/worst XIRR (used by KPI cards and passed to renderInlineAnalytics)
+    const winners  = rows.filter(r => r.unrealized >= 0).length;
+    const winRate  = rows.length ? Math.round(winners / rows.length * 100) : 0;
+    const winColor = winRate >= 60 ? 'var(--green)' : winRate >= 40 ? 'var(--amber)' : 'var(--red)';
+    const withXIRR = rows.filter(r => r.xirr !== null);
+    const bestX    = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr > a.xirr ? b : a) : null;
+    const worstX   = withXIRR.length ? withXIRR.reduce((a, b) => b.xirr < a.xirr ? b : a) : null;
+
+    // ── Mini sparkline helper (must be defined before kpis array uses it) ──
+    const txBuys = [...state.transactions].filter(t => t.type === 'BUY').sort((a, b) => a.date.localeCompare(b.date));
+    function miniSpark(color) {
+      if (!txBuys.length) return '';
+      const n = 7;
+      const pts = Array.from({ length: n }, (_, i) => {
+        const d = txBuys[Math.floor(i * txBuys.length / n)].date;
+        return state.transactions
+          .filter(t => t.date <= d && t.type === 'BUY')
+          .reduce((s, t) => s + t.qty * eurToDisplay(t.price, t.date), 0);
+      });
+      const mn = Math.min(...pts), mx = Math.max(...pts) || 1;
+      const norm = pts.map(v => 18 - (v - mn) / (mx - mn + 0.001) * 15);
+      const step = 76 / Math.max(n - 1, 1);
+      const d = norm.map((y, i) => (i === 0 ? 'M' : 'L') + (2 + i * step).toFixed(1) + ' ' + y.toFixed(1)).join(' ');
+      return `<div class="kpi-spark"><svg viewBox="0 0 80 20" height="20" preserveAspectRatio="none">
+        <path d="${d}" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>
+      </svg></div>`;
+    }
+
+    // ── KPI cards ──────────────────────────────────────────────────────────
     const kpis = [
-      { label: 'Total Value',     value: fmtValue(summary.totalValue), sub: 'Cost ' + fmtValue(summary.totalCost),
+      { label: 'Total Value',    value: fmtValue(summary.totalValue),  sub: 'Cost ' + fmtValue(summary.totalCost),
         bar: 'linear-gradient(90deg,var(--blue),var(--purple))', delay: '.05s',
+        delta: summary.unrealizedPct !== 0 ? (summary.unrealizedPct >= 0 ? '↑ ' : '↓ ') + fmtPct(summary.unrealizedPct) + ' total' : null,
+        deltaClass: summary.unrealized >= 0 ? 'up' : 'dn',
+        spark: miniSpark('var(--blue)'),
         icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>' },
-      { label: 'Unrealised P&L',  value: (summary.unrealized >= 0 ? '+' : '') + fmtValue(summary.unrealized),
+      { label: 'Unrealised P&L', value: (summary.unrealized >= 0 ? '+' : '') + fmtValue(summary.unrealized),
         sub: fmtPct(summary.unrealizedPct), subClass: summary.unrealized >= 0 ? 'c-green' : 'c-red',
         bar: summary.unrealized >= 0 ? 'var(--green)' : 'var(--red)', delay: '.09s',
         valClass: summary.unrealized >= 0 ? 'c-green' : 'c-red',
+        spark: miniSpark(summary.unrealized >= 0 ? 'var(--green)' : 'var(--red)'),
         icon: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>' },
-      { label: 'Realised Gains',  value: (summary.realized >= 0 ? '+' : '') + fmtValue(summary.realized), sub: 'from closed lots',
+      { label: 'Realised Gains', value: (summary.realized >= 0 ? '+' : '') + fmtValue(summary.realized), sub: 'from closed lots',
         bar: summary.realized >= 0 ? 'var(--green)' : 'var(--red)', delay: '.13s',
         valClass: summary.realized >= 0 ? 'c-green' : 'c-red',
         icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
-      { label: 'Portfolio CAGR',  value: fmtCAGR(summary.cagr), sub: state.settings.currency + '-adj. annualised',
+      { label: 'Portfolio CAGR', value: fmtCAGR(summary.cagr),         sub: state.settings.currency + '-adj. annualised',
         bar: summary.cagr !== null && summary.cagr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.17s',
         valClass: cagrClass, subClass: cagrClass,
         icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
-      { label: 'Portfolio XIRR',  value: fmtXIRR(summary.xirr), sub: 'time-weighted returns',
+      { label: 'Portfolio XIRR', value: fmtXIRR(summary.xirr),         sub: 'time-weighted returns',
         bar: summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.21s',
         valClass: xirrClass, subClass: xirrClass,
+        spark: miniSpark(summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--muted)'),
         icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
-      { label: 'Best Performer',  value: best ? best.ticker : '—',
-        sub: best ? fmtPct(best.unrealizedPct) : '—',
-        subClass: best && best.unrealizedPct >= 0 ? 'c-green' : 'c-red',
-        valClass: best && best.unrealizedPct >= 0 ? 'c-green' : 'c-red',
-        bar: 'linear-gradient(90deg,var(--amber),var(--orange))', delay: '.25s',
-        icon: '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>' },
+      { label: 'Win Rate',       value: winRate + ' %',
+        sub: winners + ' winning · ' + (rows.length - winners) + ' losing',
+        bar: winColor, delay: '.25s', valClass: winRate >= 50 ? 'c-green' : 'c-red',
+        icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
+      { label: 'Best XIRR',      value: bestX ? bestX.ticker : '—',
+        sub: bestX ? fmtXIRR(bestX.xirr) : '—',
+        subClass: bestX && bestX.xirr >= 0 ? 'c-green' : 'c-red',
+        valClass: bestX ? '' : 'c-muted',
+        bar: 'linear-gradient(90deg,var(--green),var(--blue))', delay: '.29s',
+        icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
+      { label: 'Needs Attention', value: (worstX && worstX.ticker !== bestX?.ticker) ? worstX.ticker : '—',
+        sub: (worstX && worstX.ticker !== bestX?.ticker) ? fmtXIRR(worstX.xirr) : 'all positions healthy',
+        subClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
+        valClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
+        bar: (worstX && worstX.xirr < 0) ? 'var(--red)' : 'var(--dim)', delay: '.33s',
+        icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+      { label: 'Avg Hold Time',   value: summary.avgDaysHeld > 0 ? (summary.avgDaysHeld < 365 ? summary.avgDaysHeld + 'd' : fmtNum(summary.avgDaysHeld/365.25,1) + 'yr') : '—',
+        sub: 'weighted by cost basis', bar: 'var(--blue)', delay: '.37s',
+        icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+      { label: 'Concentration',   value: fmtNum(summary.concentration, 1) + ' %',
+        sub: 'largest single position', bar: summary.concentration > 40 ? 'var(--amber)' : 'var(--purple)', delay: '.41s',
+        valClass: summary.concentration > 40 ? 'c-muted' : '',
+        icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
     ];
 
     el('ov-kpis').innerHTML = kpis.map(k => `
@@ -3315,6 +3555,8 @@ const App = (function () {
         <div class="kpi-lbl">${k.label}</div>
         <div class="kpi-val ${k.valClass || ''}">${k.value}</div>
         <div class="kpi-sub ${k.subClass || ''}">${k.sub}</div>
+        ${k.delta ? `<div class="kpi-delta ${k.deltaClass || 'nt'}">${k.delta}</div>` : ''}
+        ${k.spark || ''}
       </div>`).join('');
 
     // Donut charts
@@ -3342,28 +3584,283 @@ const App = (function () {
       el('donut-asset-leg').innerHTML = '';
     }
 
-    // Performance bars — sorted by unrealised %
-    const perfContainer = el('ov-perf');
-    if (!rows.length) {
-      perfContainer.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px">Add transactions to see performance</div>';
+    // ── Invested vs Market Value bar chart ─────────────────────────────
+    const barContainer = el('ov-bar-chart');
+    if (barContainer) {
+      const maxVal = Math.max(...rows.map(r => Math.max(r.costDisp, r.value)), 1);
+      barContainer.innerHTML = rows.map(r => {
+        const invW  = (r.costDisp / maxVal * 100).toFixed(1);
+        const mktW  = (r.value    / maxVal * 100).toFixed(1);
+        const color = tickerColor(r.ticker);
+        const gainColor = r.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
+        return `<div class="ov-bar-row">
+          <div class="ov-bar-tick" style="color:${color}">${r.ticker}</div>
+          <div class="ov-bar-track">
+            <div class="ov-bar-pair">
+              <div class="ov-bar-pair-lbl">Inv</div>
+              <div class="ov-bar-rail"><div class="ov-bar-fill" style="width:${invW}%;background:${color};opacity:.45"></div></div>
+              <div class="ov-bar-amt">${fmtCompact(r.costDisp)}</div>
+            </div>
+            <div class="ov-bar-pair">
+              <div class="ov-bar-pair-lbl">Mkt</div>
+              <div class="ov-bar-rail"><div class="ov-bar-fill" style="width:${mktW}%;background:${color};opacity:.85"></div></div>
+              <div class="ov-bar-amt" style="color:var(--text)">${fmtCompact(r.value)}</div>
+            </div>
+          </div>
+          <div class="ov-bar-val">
+            <span style="color:${gainColor};font-weight:600">${fmtPct(r.unrealizedPct)}</span>
+            <span style="color:${gainColor}">${r.unrealized >= 0 ? '+' : ''}${fmtCompact(r.unrealized)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Analytics section (merged into Overview) ───────────────────────────
+    renderInlineAnalytics(rows, summary);
+  }
+
+  /**
+   * Render the analytics section inside the Overview tab.
+   * Shows: Position Metrics (by asset / by class toggle), Fees & Taxes, Yearly Trading Costs.
+   */
+  function renderInlineAnalytics(rows, summary) {
+    const target = el('ov-analytics');
+    if (!target || !rows.length) {
+      if (target) target.innerHTML = '';
       return;
     }
 
-    const sortedByPct = [...rows].sort((a, b) => b.unrealizedPct - a.unrealizedPct);
-    const maxAbsPct = Math.max(...sortedByPct.map(r => Math.abs(r.unrealizedPct)), 1);
+    const sorted = [...rows].sort((a, b) => {
+      let av = a[_anSortKey], bv = b[_anSortKey];
+      if (_anSortKey === 'ticker') return _anSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+      av = av ?? (_anSortAsc ? Infinity : -Infinity);
+      bv = bv ?? (_anSortAsc ? Infinity : -Infinity);
+      return _anSortAsc ? av - bv : bv - av;
+    });
 
-    perfContainer.innerHTML = sortedByPct.map(r => {
-      const color = r.unrealizedPct >= 0 ? 'var(--green)' : 'var(--red)';
-      const barWidth = Math.abs(r.unrealizedPct) / maxAbsPct * 100;
-      return `<div class="perf-item">
-        <div class="perf-tick-wrap"><div class="perf-tick" style="color:${tickerColor(r.ticker)}">${r.ticker}</div><div class="perf-cls-mini">${r.cls}</div></div>
-        <div class="perf-bar-wrap"><div class="perf-bar" style="width:${barWidth}%;background:${color}"></div></div>
-        <div class="perf-right">
-          <div class="perf-pct" style="color:${color}">${fmtPct(r.unrealizedPct)}</div>
-          <div class="perf-xirr">${r.xirr !== null ? fmtXIRR(r.xirr) : 'XIRR: —'}</div>
+    function th(key, label) {
+      const active = _anSortKey === key;
+      return `<th class="${active ? 'an-sort-active' + (_anSortAsc ? ' an-sort-asc' : '') : ''}" onclick="App.analyticsSort('${key}')">${label}</th>`;
+    }
+
+    // ── Build "By Class" aggregated rows ──
+    const byClassMap = {};
+    for (const r of rows) {
+      if (!byClassMap[r.cls]) byClassMap[r.cls] = { cls: r.cls, costDisp: 0, value: 0, unrealized: 0, unrealizedPct: 0, realized: 0, xirrs: [], cagrs: [], count: 0 };
+      const c = byClassMap[r.cls];
+      c.costDisp += r.costDisp; c.value += r.value; c.unrealized += r.unrealized; c.realized += r.realized;
+      if (r.xirr !== null) c.xirrs.push({ xirr: r.xirr, weight: r.costDisp });
+      if (r.cagr !== null) c.cagrs.push({ cagr: r.cagr, weight: r.costDisp });
+      c.count++;
+    }
+    const classRows = Object.values(byClassMap).map(c => {
+      c.unrealizedPct = c.costDisp > 0 ? (c.unrealized / c.costDisp) * 100 : 0;
+      const totalW1 = c.xirrs.reduce((s, x) => s + x.weight, 0);
+      c.xirr = totalW1 > 0 ? c.xirrs.reduce((s, x) => s + x.xirr * x.weight, 0) / totalW1 : null;
+      const totalW2 = c.cagrs.reduce((s, x) => s + x.weight, 0);
+      c.cagr = totalW2 > 0 ? c.cagrs.reduce((s, x) => s + x.cagr * x.weight, 0) / totalW2 : null;
+      c.ticker = c.cls; // for sorting compatibility
+      return c;
+    });
+
+    const isAsset = _anViewMode === 'asset';
+    const tableRows = isAsset ? sorted : classRows;
+
+    // ── Position Metrics table ──
+    function renderRow(r) {
+      const gc = r.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
+      const xc = r.xirr === null ? 'var(--muted)' : r.xirr >= 0 ? 'var(--green)' : 'var(--red)';
+      const cc = r.cagr === null ? 'var(--muted)' : r.cagr >= 0 ? 'var(--green)' : 'var(--red)';
+      const nameCol = isAsset
+        ? `<span style="color:${tickerColor(r.ticker)}">${r.ticker}</span> ${classBadge(r.cls)}`
+        : `${classBadge(r.cls)} <span style="color:var(--text2);font-size:10px;margin-left:4px">${r.count} position${r.count !== 1 ? 's' : ''}</span>`;
+      const clickAttr = isAsset ? `onclick="App.openDrawer('${r.ticker}')"` : '';
+      return `<tr ${clickAttr} style="${isAsset ? 'cursor:pointer' : ''}">
+        <td>${nameCol}</td>
+        <td style="color:${gc}">${fmtPct(r.unrealizedPct)}</td>
+        <td style="color:${gc}">${r.unrealized >= 0 ? '+' : ''}${fmtValue(r.unrealized)}</td>
+        <td style="color:${xc}">${r.xirr !== null ? fmtXIRR(r.xirr) : '—'}</td>
+        <td style="color:${cc}">${fmtCAGR(r.cagr)}</td>
+        <td style="color:var(--text)">${fmtValue(r.value)}</td>
+        <td>${fmtValue(r.costDisp)}</td>
+      </tr>`;
+    }
+
+    // ── Fees & Taxes: build per-class data with proper EUR→display conversion ──
+    const feesByClass = {};
+    for (const tx of state.transactions) {
+      const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
+      if (!feesByClass[cls]) feesByClass[cls] = { fees: 0, taxes: 0, cost: 0, value: 0, realized: 0 };
+      feesByClass[cls].fees  += eurToDisplay(+(tx.fees  || 0), tx.date);
+      feesByClass[cls].taxes += eurToDisplay(+(tx.taxes || 0), tx.date);
+    }
+    for (const pos of Object.values(rows)) {
+      const cls = pos.cls;
+      if (!feesByClass[cls]) feesByClass[cls] = { fees: 0, taxes: 0, cost: 0, value: 0, realized: 0 };
+      feesByClass[cls].cost     += pos.costDisp;
+      feesByClass[cls].value    += pos.value;
+      feesByClass[cls].realized += pos.realized;
+    }
+    const totalFeesD  = Object.values(feesByClass).reduce((s, d) => s + d.fees, 0);
+    const totalTaxesD = Object.values(feesByClass).reduce((s, d) => s + d.taxes, 0);
+    const hasFeeData = totalFeesD > 0 || totalTaxesD > 0;
+
+    // ── Yearly Trading Costs breakdown ──
+    const yearlyData = {};
+    for (const tx of state.transactions) {
+      const year = tx.date.slice(0, 4);
+      if (!yearlyData[year]) yearlyData[year] = { volume: 0, fees: 0, taxes: 0, realized: 0, txCount: 0 };
+      const y = yearlyData[year];
+      y.volume += eurToDisplay(tx.qty * tx.price, tx.date);
+      y.fees   += eurToDisplay(+(tx.fees  || 0), tx.date);
+      y.taxes  += eurToDisplay(+(tx.taxes || 0), tx.date);
+      y.txCount++;
+      // Approximate realised P&L per year from sells only
+      if (tx.type === 'SELL') {
+        // We can't do exact FIFO per-year here without heavy computation,
+        // but the per-class realized is already computed above.
+        // For yearly view, we track sell proceeds minus cost approximation.
+      }
+    }
+    // Aggregate realised gains per year from sell transactions using FIFO info
+    // Simplified: use the total realized from summary spread by sell-year proportion
+    const sellsByYear = {};
+    let totalSellVolume = 0;
+    for (const tx of state.transactions) {
+      if (tx.type !== 'SELL') continue;
+      const year = tx.date.slice(0, 4);
+      const vol = eurToDisplay(tx.qty * tx.price, tx.date);
+      sellsByYear[year] = (sellsByYear[year] || 0) + vol;
+      totalSellVolume += vol;
+    }
+    for (const [year, sellVol] of Object.entries(sellsByYear)) {
+      if (yearlyData[year] && totalSellVolume > 0) {
+        yearlyData[year].realized = summary.realized * (sellVol / totalSellVolume);
+      }
+    }
+    const years = Object.keys(yearlyData).sort().reverse();
+    const hasYearlyData = years.length > 0 && (totalFeesD > 0 || totalTaxesD > 0);
+
+    target.innerHTML = `
+      <div style="margin-top:18px"></div>
+
+      <!-- Position Metrics with By Asset / By Class toggle -->
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-hdr">
+          <span class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            Position Metrics
+          </span>
+          <div style="display:flex;gap:3px">
+            <button class="cls-fb ${isAsset ? 'active' : ''}" onclick="App.switchAnView('asset')" style="font-size:9px;padding:3px 8px">By Asset</button>
+            <button class="cls-fb ${!isAsset ? 'active' : ''}" onclick="App.switchAnView('class')" style="font-size:9px;padding:3px 8px">By Class</button>
+          </div>
         </div>
-      </div>`;
-    }).join('');
+        <div class="tbl-wrap">
+          <table class="an-tbl">
+            <thead><tr>
+              ${th('ticker', isAsset ? 'Ticker' : 'Class')}
+              ${th('unrealizedPct', 'P&L %')}
+              ${th('unrealized', 'P&L')}
+              ${th('xirr', 'XIRR')}
+              ${th('cagr', 'CAGR')}
+              ${th('value', 'Value')}
+              ${th('costDisp', 'Cost')}
+            </tr></thead>
+            <tbody>
+              ${tableRows.map(r => renderRow(r)).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fees & Taxes by class -->
+      ${hasFeeData ? `
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-hdr">
+          <span class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Fees & Taxes
+          </span>
+          <span class="panel-badge">${state.settings.currency} · by asset class</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="an-tbl">
+            <thead><tr>
+              <th style="text-align:left">Class</th>
+              <th>Invested</th><th>Market Value</th><th>Realised P&L</th>
+              <th>Fees</th><th>Taxes</th><th>Net P&L</th>
+            </tr></thead>
+            <tbody>
+              ${Object.entries(feesByClass).map(([cls, d]) => {
+                const net = d.realized - d.fees - d.taxes;
+                return `<tr>
+                  <td>${classBadge(cls)}</td>
+                  <td>${fmtValue(d.cost)}</td>
+                  <td>${fmtValue(d.value)}</td>
+                  <td style="color:${d.realized>=0?'var(--green)':'var(--red)'}">${d.realized>=0?'+':''}${fmtValue(d.realized)}</td>
+                  <td style="color:var(--amber)">${d.fees>0?'−'+fmtValue(d.fees):'—'}</td>
+                  <td style="color:var(--red)">${d.taxes>0?'−'+fmtValue(d.taxes):'—'}</td>
+                  <td style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:700">${net>=0?'+':''}${fmtValue(net)}</td>
+                </tr>`;
+              }).join('')}
+              <tr style="border-top:.5px solid var(--b2)">
+                <td style="font-weight:800;color:var(--text)">Total</td>
+                <td>${fmtValue(summary.totalCost)}</td>
+                <td>${fmtValue(summary.totalValue)}</td>
+                <td style="color:${summary.realized>=0?'var(--green)':'var(--red)'}">${summary.realized>=0?'+':''}${fmtValue(summary.realized)}</td>
+                <td style="color:var(--amber)">${totalFeesD>0?'−'+fmtValue(totalFeesD):'—'}</td>
+                <td style="color:var(--red)">${totalTaxesD>0?'−'+fmtValue(totalTaxesD):'—'}</td>
+                <td style="color:${(summary.realized-totalFeesD-totalTaxesD)>=0?'var(--green)':'var(--red)'};font-weight:700">${(summary.realized-totalFeesD-totalTaxesD)>=0?'+':''}${fmtValue(summary.realized-totalFeesD-totalTaxesD)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
+
+      <!-- Yearly Trading Costs -->
+      ${hasYearlyData ? `
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-hdr">
+          <span class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Yearly Trading Costs
+          </span>
+          <span class="panel-badge">${state.settings.currency} · for tax planning</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="an-tbl">
+            <thead><tr>
+              <th style="text-align:left">Year</th>
+              <th>Trades</th>
+              <th>Volume Traded</th>
+              <th>Fees Paid</th>
+              <th>Fees %</th>
+              <th>Taxes Paid</th>
+              <th>Realised P&L</th>
+              <th>Tax Rate</th>
+            </tr></thead>
+            <tbody>
+              ${years.map(year => {
+                const y = yearlyData[year];
+                const feePct = y.volume > 0 ? (y.fees / y.volume * 100) : 0;
+                const taxRate = y.realized > 0 ? (y.taxes / y.realized * 100) : 0;
+                return `<tr>
+                  <td style="text-align:left;font-weight:800;color:var(--text)">${year}</td>
+                  <td style="color:var(--text)">${y.txCount}</td>
+                  <td>${fmtValue(y.volume)}</td>
+                  <td style="color:var(--amber)">${y.fees > 0 ? '−' + fmtValue(y.fees) : '—'}</td>
+                  <td style="color:var(--amber)">${y.fees > 0 ? fmtNum(feePct, 2) + ' %' : '—'}</td>
+                  <td style="color:var(--red)">${y.taxes > 0 ? '−' + fmtValue(y.taxes) : '—'}</td>
+                  <td style="color:${y.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${y.realized !== 0 ? (y.realized >= 0 ? '+' : '') + fmtValue(y.realized) : '—'}</td>
+                  <td style="color:${taxRate > 0 ? 'var(--red)' : 'var(--muted)'}">${y.taxes > 0 && y.realized > 0 ? fmtNum(taxRate, 1) + ' %' : '—'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
+    `;
   }
 
   /* ── SVG Donut Chart ─────────────────────────────────────────────── */
@@ -3424,7 +3921,46 @@ const App = (function () {
       </div>`).join('');
   }
 
-  /** Switch between "By Asset" and "By Class" allocation views */
+  /* ── Module Switcher ─────────────────────────────────────────────── */
+
+  /** Switch the active top-level module (sidebar icon navigation) */
+  function switchModule(modId) {
+    const modules = ['portfolio', 'habits', 'calc', 'compare'];
+    modules.forEach(m => {
+      const pane = el('mod-' + m);
+      if (pane) pane.classList.toggle('active', m === modId);
+    });
+    // Toggle active state on all sidebar icons
+    modules.forEach(id => {
+      const btn = el('sb-' + id);
+      if (btn) btn.classList.toggle('active', id === modId);
+    });
+  }
+
+  /* ── Analytics Tab ───────────────────────────────────────────────── */
+
+  /** Sort state for analytics table */
+  let _anSortKey = 'value';
+  let _anSortAsc = false;
+  let _anViewMode = 'asset'; // 'asset' = per-ticker rows, 'class' = aggregated by class
+
+  /** Handle click on an analytics column header — re-renders overview */
+  function analyticsSort(key) {
+    if (_anSortKey === key) {
+      _anSortAsc = !_anSortAsc;
+    } else {
+      _anSortKey = key;
+      _anSortAsc = (key === 'ticker');
+    }
+    render();
+  }
+
+  /** Toggle Position Metrics between per-asset and per-class view */
+  function switchAnView(mode) {
+    _anViewMode = mode;
+    render();
+  }
+
   function switchAllocTab(tab) {
     ['asset', 'class'].forEach(key => {
       el(`atab-${key}`).classList.toggle('active', key === tab);
@@ -3486,6 +4022,7 @@ const App = (function () {
               <div class="xirr-row">
                 <div class="xirr-kpi"><span class="lbl">CAGR</span><span class="${gainClass(cagrFlag)}">${fmtCAGR(p.cagr)}</span></div>
                 <div class="xirr-kpi"><span class="lbl">XIRR</span><span class="${gainClass(xirrFlag)}">${p.xirr !== null ? fmtXIRR(p.xirr) : '—'}</span></div>
+                <div class="xirr-kpi"><span class="lbl">ABS</span><span style="color:${gainColor}">${fmtPct(p.unrealizedPct)}</span></div>
               </div>
             </div>
           </div>
@@ -3493,8 +4030,9 @@ const App = (function () {
         <div class="pos-card-foot">
           <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
             <span style="font-family:var(--font-mono);font-size:10px;color:${gainColor};white-space:nowrap">${fmtPct(p.unrealizedPct)}</span>
-            <div class="pos-bar-wrap"><div class="pos-bar-fill" style="width:${Math.min(Math.abs(p.unrealizedPct) / 50 * 100, 100)}%;background:${gainColor}"></div></div>
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap">${fmtNum(allocationPct, 1)} %</span>
+            <span style="font-family:var(--font-mono);font-size:10px;color:${gainColor};white-space:nowrap">${p.unrealized>=0?'+':''}${fmtValue(p.unrealized)}</span>
+            <div class="pos-bar-wrap"><div class="pos-bar-fill" style="width:${Math.min(Math.abs(p.unrealizedPct) / 50 * 100, 100)}%;background:${tickerColor(p.ticker)};opacity:.82"></div></div>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text2);white-space:nowrap">${fmtNum(allocationPct, 1)} %</span>
           </div>
           <div class="pos-actions">
             <button class="pos-btn" onclick="App.openDrawer('${p.ticker}')">
@@ -3515,7 +4053,31 @@ const App = (function () {
 
   /* ── History Tab ─────────────────────────────────────────────────── */
 
+  function renderRecentlyDeleted() {
+    const deleted = (state.deletedTransactions || []).slice(0, 10);
+    const section = el('hist-deleted-section');
+    const body    = el('hist-deleted-body');
+    if (!section || !body) return;
+    if (!deleted.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    body.innerHTML = deleted.map(tx => {
+      const color = tickerColor(tx.ticker);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:.5px solid var(--b1)">
+        <span style="font-weight:800;color:${color};font-family:var(--font-ui);font-size:12px;width:52px;flex-shrink:0">${tx.ticker}</span>
+        <span class="type-badge ${tx.type==='BUY'?'buy':'sell'}" style="flex-shrink:0">${tx.type}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${fmtDate(tx.date)}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">×${fmtQty(tx.qty)}</span>
+        <span style="font-size:10px;color:var(--dim);flex:1">${tx._deletedAt ? new Date(tx._deletedAt).toLocaleDateString() : ''}</span>
+        <button class="pos-btn" style="font-size:10px;padding:3px 8px" onclick="App.restoreTransaction('${tx.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Restore
+        </button>
+      </div>`;
+    }).join('');
+  }
+
   function renderHistory() {
+    renderRecentlyDeleted();
     const query = (el('hist-search')?.value || '').toUpperCase().trim();
     const sortBy = el('hist-sort')?.value || 'date-desc';
     // Update price header to reflect selected currency
@@ -3549,8 +4111,8 @@ const App = (function () {
       const color = tickerColor(tx.ticker);
       const isBuy = tx.type === 'BUY';
       const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
-      const currentPriceD = usdToDisplay(getPrice(tx.ticker));
-      const buyPriceD = usdToDisplay(tx.price, tx.date);
+      const currentPriceD = eurToDisplay(getPrice(tx.ticker));
+      const buyPriceD = eurToDisplay(tx.price, tx.date);
       const totalD = tx.qty * buyPriceD;
 
       // P&L is only meaningful for buy transactions
@@ -3563,10 +4125,10 @@ const App = (function () {
 
       return `<tr>
         <td style="color:var(--dim)">${txs.length - i}</td>
-        <td style="color:var(--muted)">${fmtDate(tx.date)}</td>
-        <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
+        <td style="color:var(--text2)">${fmtDate(tx.date)}</td>
+        <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
         <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
-        <td style="text-align:left">${classBadge(cls)}</td>
+        <td>${classBadge(cls)}</td>
         <td style="color:var(--text)">${fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${fmtCompact(buyPriceD)}</td>
         <td style="color:var(--text)">${fmtValue(totalD)}</td>
@@ -3618,7 +4180,12 @@ const App = (function () {
       { label: 'Current Value',  value: fmtValue(pos.value),      sub: 'Cost: ' + fmtValue(pos.costDisp) },
       { label: 'Unrealised P&L', value: (pos.unrealized >= 0 ? '+' : '') + fmtValue(pos.unrealized), sub: fmtPct(pos.unrealizedPct), vc: gainColor },
       { label: 'Realised P&L',   value: (pos.realized >= 0 ? '+' : '') + fmtValue(pos.realized), sub: 'closed lots', vc: pos.realized >= 0 ? 'var(--green)' : 'var(--red)' },
-    ].map(k => `<div class="drw-kpi"><div class="drw-kpi-bar" style="background:${accentBar}"></div>
+    ].concat((() => {
+      const posFees  = pos.txs.reduce((s,t) => s + (+(t.fees  || 0)), 0);
+      const posTaxes = pos.txs.reduce((s,t) => s + (+(t.taxes || 0)), 0);
+      const hasFT = posFees > 0 || posTaxes > 0;
+      return hasFT ? [{ label: 'Fees · Taxes', value: posFees > 0 ? '−'+fmtValue(posFees) : '—', sub: posTaxes > 0 ? 'Tax: −'+fmtValue(posTaxes) : 'No taxes', vc: 'var(--amber)' }] : [];
+    })()).map(k => `<div class="drw-kpi"><div class="drw-kpi-bar" style="background:${accentBar}"></div>
       <div class="drw-kpi-lbl">${k.label}</div>
       <div class="drw-kpi-val" style="${k.vc ? 'color:' + k.vc : ''}">${k.value}</div>
       <div class="drw-kpi-sub">${k.sub}</div></div>`).join('');
@@ -3657,19 +4224,21 @@ const App = (function () {
     // Transaction history table
     el('drw-txs').innerHTML = [...pos.txs].sort((a, b) => b.date.localeCompare(a.date)).map((tx, i) => {
       const isBuy = tx.type === 'BUY';
-      const buyPriceD = usdToDisplay(tx.price, tx.date);
+      const buyPriceD = eurToDisplay(tx.price, tx.date);
       const pnl = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : null;
       const pnlPct = isBuy ? ((pos.curDisp - buyPriceD) / buyPriceD) * 100 : null;
 
       return `<tr>
         <td><span class="lot-num" style="background:${color}22;color:${color}">${i + 1}</span></td>
         <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td style="text-align:left;color:var(--muted)">${fmtDate(tx.date)}${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
+        <td style="text-align:left;color:var(--text2)">${fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${tx.notes}</div>` : ''}</td>
         <td>${fmtQty(tx.qty)}</td>
         <td>${fmtCompact(buyPriceD)}</td>
         <td>${fmtValue(tx.qty * buyPriceD)}</td>
+        <td style="color:var(--amber);font-size:10px">${(+(tx.fees||0)+(+(tx.taxes||0)))>0 ? '−'+fmtValue(+(tx.fees||0)+(+(tx.taxes||0))) : '—'}</td>
         <td style="color:${pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl === null ? '—' : (pnl >= 0 ? '+' : '') + fmtValue(pnl)}</td>
         <td style="color:${pnlPct === null ? 'var(--muted)' : pnlPct >= 0 ? 'var(--green)' : 'var(--red)'}">${pnlPct === null ? '—' : fmtPct(pnlPct)}</td>
+        <td><button class="del-btn" onclick="App.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete this transaction"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
       </tr>`;
     }).join('');
 
@@ -3680,7 +4249,7 @@ const App = (function () {
 
     if (hasFIFO) {
       el('drw-fifo-body').innerHTML = pos.openLots.map((lot, i) => {
-        const buyPriceD = usdToDisplay(lot.priceUSD, lot.date);
+        const buyPriceD = eurToDisplay(lot.priceEUR, lot.date);
         const lotValue = lot.qty * pos.curDisp;
         const gain = lotValue - lot.costDisp;
         const gainPct = (gain / lot.costDisp) * 100;
@@ -3690,7 +4259,7 @@ const App = (function () {
 
         return `<tr>
           <td><span class="lot-num" style="background:${LOT_COLORS[i % LOT_COLORS.length]}22;color:${LOT_COLORS[i % LOT_COLORS.length]}">${i + 1}</span></td>
-          <td style="text-align:left;color:var(--muted)">${fmtDate(lot.date)}</td>
+          <td style="text-align:left;color:var(--text2)">${fmtDate(lot.date)}</td>
           <td style="color:var(--text)">${fmtQty(lot.qty)}</td>
           <td>${fmtCompact(buyPriceD)}</td>
           <td>${fmtValue(lot.costDisp)}</td>
@@ -3777,7 +4346,7 @@ const App = (function () {
 
     // Pre-compute lot data
     const lotData = lots.map(lot => {
-      const buyPriceD = usdToDisplay(lot.priceUSD, lot.date);
+      const buyPriceD = eurToDisplay(lot.priceEUR || lot.priceUSD || 0, lot.date);
       const currentPriceD = position.curDisp;
       const years = yearsHeld(lot.date, now);
       const lotCostD = lot.qty * buyPriceD;
@@ -3917,10 +4486,13 @@ const App = (function () {
     el('f-qty').value = '';
     el('f-price').value = '';
     el('f-notes').value = '';
+    if (el('f-fees'))  el('f-fees').value  = '';
+    if (el('f-taxes')) el('f-taxes').value = '';
     // Set decimal separator in placeholders to match selected currency
     const _sep = decimalSep();
     el('f-qty').placeholder   = '0';
     el('f-price').placeholder = '0' + _sep + '00';
+    if (el('f-price-cur-lbl')) el('f-price-cur-lbl').textContent = state.settings.currency;
     el('f-total').textContent = '—';
     el('f-total').style.color = 'var(--muted)';
     el('f-hint').textContent = '';
@@ -3948,6 +4520,8 @@ const App = (function () {
     modalType = type;
     el('type-buy').className = 'type-btn' + (type === 'BUY' ? ' is-buy' : '');
     el('type-sell').className = 'type-btn' + (type === 'SELL' ? ' is-sell' : '');
+    if (el('f-fees-grp'))  el('f-fees-grp').style.display  = type === 'BUY'  ? '' : 'none';
+    if (el('f-taxes-grp')) el('f-taxes-grp').style.display = type === 'SELL' ? '' : 'none';
     validateForm();
   }
 
@@ -3955,7 +4529,7 @@ const App = (function () {
   function setTicker(ticker, focus = true) {
     el('f-ticker').value = ticker;
     el('f-cls').value = state.tickerMeta[ticker]?.cls || guessClass(ticker);
-    el('f-price').value = fmtInputNum(getMockPrice(ticker), 2);
+    el('f-price').value = fmtInputNum(eurToDisplay(getMockPrice(ticker)), 2);
     onTickerInput();
     validateForm();
     if (focus) el('f-ticker').focus();
@@ -3998,7 +4572,7 @@ const App = (function () {
 
     // Show estimated total if both qty and price are valid
     if (qty > 0 && price > 0) {
-      el('f-total').textContent = fmtValue(qty * usdToDisplay(price));
+      el('f-total').textContent = fmtValue(qty * eurToDisplay(price));
       el('f-total').style.color = 'var(--text)';
     } else {
       el('f-total').textContent = '—';
@@ -4025,8 +4599,10 @@ const App = (function () {
     const price = parseLocaleFloat(el('f-price').value);
     const date = el('f-date').value;
     const notes = el('f-notes').value.trim();
-    const cls = el('f-cls').value;
-    const hint = el('f-hint');
+    const cls  = el('f-cls').value;
+    const fees  = parseLocaleFloat(el('f-fees')?.value  || '0') || 0;
+    const taxes = parseLocaleFloat(el('f-taxes')?.value || '0') || 0;
+    const hint  = el('f-hint');
 
     // Validation
     if (!ticker)          { hint.textContent = 'Ticker required';      hint.className = 'fhint err'; return; }
@@ -4034,7 +4610,7 @@ const App = (function () {
     if (!price || price <= 0) { hint.textContent = 'Price must be > 0'; hint.className = 'fhint err'; return; }
     if (!date)            { hint.textContent = 'Date required';        hint.className = 'fhint err'; return; }
 
-    addTransaction({ ticker, type: modalType, qty, price, date, notes, cls });
+    addTransaction({ ticker, type: modalType, qty, price, date, notes, cls, fees, taxes });
     closeModal();
   }
 
@@ -4087,7 +4663,8 @@ const App = (function () {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
     const tabIds = { overview: 'tab-overview', positions: 'tab-positions', history: 'tab-history' };
-    el(tabIds[name]).classList.add('active');
+    const pane = el(tabIds[name]);
+    if (pane) pane.classList.add('active');
     if (buttonEl) buttonEl.classList.add('active');
   }
 
@@ -4184,7 +4761,6 @@ const App = (function () {
     _resolving: false,  // true while OpenFIGI request is in-flight
   };
 
-  /** Open the CSV import wizard */
   /** Open the CSV import wizard and reset all wizard state */
   function openCsvImport() {
     csvState = { step: 1, rawRows: [], isinMap: {}, previewRows: [], dupCount: 0, _resolving: false };
@@ -4193,7 +4769,6 @@ const App = (function () {
   }
 
   /** Close the CSV import wizard */
-  /** Close the CSV import wizard without importing */
   function closeCsvImport() {
     el('csv-ov').classList.remove('open');
   }
@@ -4615,7 +5190,7 @@ const App = (function () {
       <div class="prev-summary">
         <strong>${importable.length}</strong> transactions ready to import
         ${csvState.dupCount > 0 ? `· <span class="warn">${csvState.dupCount} duplicate${csvState.dupCount>1?'s':''} will be skipped</span>` : ''}
-        · prices converted from <strong>EUR → USD</strong> using ECB historical rates
+        · prices stored in <strong>EUR</strong> (original currency preserved)
       </div>
       <div class="prev-wrap">
         <table class="prev-tbl">
@@ -4841,12 +5416,7 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   document.addEventListener('keydown', e => {
-    // While locked, route digit/backspace keys to PIN entry and block all else
-    if (_isLocked) {
-      if (e.key >= '0' && e.key <= '9') { pinKeyPress(e.key); return; }
-      if (e.key === 'Backspace')         { pinKeyPress('back'); return; }
-      return;
-    }
+
     if (e.key === 'Escape') {
       closeModal();
       closeDrawer();
@@ -5063,237 +5633,20 @@ const App = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     LOCK SCREEN — 6-digit PIN gate
-     ─────────────────────────────────────────────────────────────────
-     Shown on every page load. App renders behind it for instant unlock.
-
-     Access flow:
-       First visit / after cache clear:
-         No credentials → Credentials popup → PIN setup → App
-       Every subsequent visit:
-         PIN entry → App
-       Reset:
-         Credentials popup → PIN setup → App
-
-     PIN hash: SHA-256 via Web Crypto API (UI-level protection only).
-     The PIN hash and credentials are stored in localStorage.
+     CREDENTIALS CHECK
+     Shows the credentials popup if Gist token/ID are missing.
      ═══════════════════════════════════════════════════════════════════ */
 
-  /** localStorage key for the hashed PIN */
-  const PIN_STORAGE_KEY = 'portfolio_pin';
-
-  let _pinBuffer   = '';       // digits typed so far in current session
-  let _pinMode     = '';       // 'entry' | 'setup' | 'confirm'
-  let _pinFirst    = '';       // first entry captured during setup confirm step
-  let _credCallback = null;    // callback fired after credentials are saved
-  let _isLocked    = true;     // false once correct PIN entered this session
-
-  /**
-   * Hash a PIN string with a fixed app salt using SHA-256.
-   * Ensures the raw PIN is never stored.
-   * @param {string} pin
-   * @returns {Promise<string>} Hex digest
-   */
-  async function _hashPIN(pin) {
-    const data = new TextEncoder().encode('portfolio_terminal_v1:' + pin);
-    const buf  = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(buf))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  /** Return the stored PIN hash, or empty string if none is set */
-  function _storedPINHash() {
-    return localStorage.getItem(PIN_STORAGE_KEY) || '';
-  }
-
-  /**
-   * Entry point called from init().
-   * Decides whether to show the credentials popup, PIN setup, or PIN entry.
-   */
+  /** Check for missing credentials on startup and show popup if needed */
   function initLockScreen() {
+    // PIN removed. Only show credentials popup if Gist token/ID missing.
     const hasToken  = !!(state.settings.gistToken || '').trim();
     const hasGistId = !!(state.settings.gistId    || '').trim();
-    const hasPIN    = !!_storedPINHash();
-
     if (!hasToken || !hasGistId) {
-      // Credentials are missing — must be entered before PIN
-      openCredentialsPopup(() => {
-        if (!_storedPINHash()) {
-          openLockScreen('setup');
-        } else {
-          // PIN already exists — credentials re-entered, just unlock
-          closeLockScreen();
-        }
-      });
-      return;
-    }
-
-    openLockScreen(hasPIN ? 'entry' : 'setup');
-  }
-
-  /**
-   * Show the lock screen in a given mode.
-   * @param {'entry'|'setup'|'confirm'} mode
-   */
-  function openLockScreen(mode) {
-    _pinMode   = mode;
-    _pinBuffer = '';
-    _pinFirst  = '';
-
-    const screen = el('lock-screen');
-    screen.style.display = '';
-    screen.classList.remove('hidden');
-
-    // Subtitle and reset button visibility vary by mode
-    const subtitles = {
-      entry:   'Enter your PIN',
-      setup:   'Create a 6-digit PIN',
-      confirm: 'Confirm your PIN',
-    };
-    el('lock-subtitle').textContent  = subtitles[mode] || '';
-    el('lock-reset-btn').style.display = mode === 'entry' ? '' : 'none';
-    el('pin-error').textContent = '';
-    _renderPINDots();
-  }
-
-  /** Fade out and remove the lock screen, revealing the app */
-  function closeLockScreen() {
-    _isLocked = false;
-    const screen = el('lock-screen');
-    screen.classList.add('hidden');
-    // Remove from layout after transition completes so it never blocks clicks
-    setTimeout(() => { screen.style.display = 'none'; }, 340);
-  }
-
-  /**
-   * Re-draw the 6 PIN dots based on the current buffer length.
-   * @param {'normal'|'error'} state
-   */
-  function _renderPINDots(dotState = 'normal') {
-    const dotsEl = el('pin-dots');
-    dotsEl.classList.remove('shake');
-    dotsEl.innerHTML = Array.from({ length: 6 }, (_, i) => {
-      let cls = 'pin-dot';
-      if (dotState === 'error')       cls += ' error';
-      else if (i < _pinBuffer.length) cls += ' filled';
-      return `<div class="${cls}"></div>`;
-    }).join('');
-  }
-
-  /**
-   * Handle a keypad button press — called from HTML onclick handlers
-   * and also from the keyboard listener.
-   * @param {string} value - '0'–'9' or 'back'
-   */
-  function pinKeyPress(value) {
-    if (!_isLocked) return;  // shouldn't be called when unlocked
-
-    if (value === 'back') {
-      _pinBuffer = _pinBuffer.slice(0, -1);
-      _renderPINDots();
-      el('pin-error').textContent = '';
-      return;
-    }
-
-    if (_pinBuffer.length >= 6) return;
-    _pinBuffer += value;
-    _renderPINDots();
-
-    // Auto-submit on 6th digit — brief delay so the last dot renders first
-    if (_pinBuffer.length === 6) {
-      setTimeout(_submitPIN, 130);
+      openCredentialsPopup(() => {});
     }
   }
 
-  /** Process the completed 6-digit buffer according to the current mode */
-  async function _submitPIN() {
-    const entered = _pinBuffer;
-
-    if (_pinMode === 'entry') {
-      const hash = await _hashPIN(entered);
-      if (hash === _storedPINHash()) {
-        // Correct PIN — unlock the app
-        closeLockScreen();
-        // If credentials were cleared while PIN still existed, prompt now
-        const hasToken  = !!(state.settings.gistToken || '').trim();
-        const hasGistId = !!(state.settings.gistId    || '').trim();
-        if (!hasToken || !hasGistId) {
-          openCredentialsPopup(() => {});
-        }
-      } else {
-        // Wrong PIN — shake and reset
-        _pinBuffer = '';
-        _renderPINDots('error');
-        el('pin-dots').classList.add('shake');
-        el('pin-error').textContent = 'Incorrect PIN — try again';
-        setTimeout(() => {
-          _renderPINDots();
-          el('pin-error').textContent = '';
-        }, 1300);
-      }
-
-    } else if (_pinMode === 'setup') {
-      // First entry — ask user to confirm
-      _pinFirst  = entered;
-      _pinBuffer = '';
-      _pinMode   = 'confirm';
-      el('lock-subtitle').textContent = 'Confirm your PIN';
-      _renderPINDots();
-
-    } else if (_pinMode === 'confirm') {
-      if (entered === _pinFirst) {
-        // Match — hash and store
-        const hash = await _hashPIN(entered);
-        localStorage.setItem(PIN_STORAGE_KEY, hash);
-        closeLockScreen();
-        toast('PIN set — you\'re all set', 'success');
-      } else {
-        // No match — restart setup from scratch
-        _pinBuffer = '';
-        _pinFirst  = '';
-        _pinMode   = 'setup';
-        _renderPINDots('error');
-        el('pin-dots').classList.add('shake');
-        el('lock-subtitle').textContent = 'Create a 6-digit PIN';
-        el('pin-error').textContent = 'PINs did not match — try again';
-        setTimeout(() => {
-          _renderPINDots();
-          el('pin-error').textContent = '';
-        }, 1400);
-      }
-    }
-  }
-
-  /**
-   * Reset: confirm, then clear PIN + credentials and restart the setup flow.
-   * Gist data on GitHub is not affected.
-   */
-  function lockReset() {
-    confirmAction(
-      'Reset access?',
-      'This clears your PIN and GitHub credentials from this browser. ' +
-      'Your portfolio data on GitHub is not affected.',
-      '🔑', 'Reset',
-      () => {
-        // Clear PIN hash
-        localStorage.removeItem(PIN_STORAGE_KEY);
-        // Clear credentials from state, DOM, and localStorage
-        state.settings.gistToken = '';
-        state.settings.gistId    = '';
-        if (el('cfg-gist-token')) el('cfg-gist-token').value = '';
-        if (el('cfg-gist-id'))    el('cfg-gist-id').value    = '';
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        // Restart the access flow
-        _isLocked = true;
-        openCredentialsPopup(() => openLockScreen('setup'));
-      }
-    );
-  }
-
-  /**
-   * Open the credentials popup.
-   * @param {Function} callback - Called after credentials are saved
-   */
   function openCredentialsPopup(callback) {
     _credCallback = callback;
     el('lock-token').value   = '';
@@ -5395,7 +5748,7 @@ const App = (function () {
 
     updateStorageStatus();
 
-    // Show lock screen — PIN entry, setup, or credentials popup as needed
+    // Show credentials popup if Gist token/ID are missing
     initLockScreen();
   }
 
@@ -5412,8 +5765,14 @@ const App = (function () {
     // Navigation
     /** Switch main tab. @param {string} name @param {HTMLElement} btn */
     showTab,
+    /** Switch top-level module via sidebar. @param {string} modId */
+    switchModule,
+    /** Sort analytics table by column key. @param {string} key */
+    analyticsSort,
     /** Toggle allocation donut view. @param {'asset'|'class'} tab */
     switchAllocTab,
+    /** Toggle Position Metrics between asset and class view. @param {'asset'|'class'} mode */
+    switchAnView,
 
     // Positions tab
     /** Filter position cards by class. @param {string} cls */
@@ -5491,11 +5850,10 @@ const App = (function () {
     /** Prompt to delete a single transaction. @param {string} id @param {string} ticker @param {number} qty */
     confirmDelTx,
 
-    // Lock screen — PIN gate
-    /** Handle a keypad button press. @param {string} value - '0'–'9' or 'back' */
-    pinKeyPress,
-    /** Reset PIN and credentials, restart the access setup flow. */
-    lockReset,
+    // Data recovery
+    /** Restore a previously deleted transaction. @param {string} id */
+    restoreTransaction,
+    // Gist credentials popup
     /** Save credentials from the credentials popup and proceed. */
     saveCredentials,
   };
