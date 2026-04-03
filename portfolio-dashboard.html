@@ -1,33 +1,42 @@
 <!DOCTYPE html>
 <!--
   ╔══════════════════════════════════════════════════════════════════════╗
-  ║  PORTFOLIO TERMINAL                                                  ║
-  ║  Single-file personal investment tracker                             ║
+  ║  BIT PLEB · PORTFOLIO TERMINAL                                       ║
+  ║  Single-file personal investment tracker with zero dependencies      ║
   ║                                                                      ║
-  ║  Architecture:  Vanilla HTML + CSS + JavaScript (zero dependencies)  ║
-  ║  Storage:       localStorage (key: "portfolio_v3")                   ║
-  ║  Prices:        CoinGecko (crypto) · Yahoo Finance (stocks/ETFs)     ║
-  ║                 Alpha Vantage optional (add key in Settings)         ║
-  ║  FX Rates:      ECB via frankfurter.app (EUR→USD, EUR→INR history)   ║
-  ║  ISIN Lookup:   OpenFIGI (free, no key) — used in CSV import wizard  ║
+  ║  ARCHITECTURE                                                        ║
+  ║  • Pure vanilla: HTML + CSS + JavaScript (no frameworks)            ║
+  ║  • Local storage: localStorage (key: "portfolio_v3")                 ║
+  ║  • Cloud sync: GitHub Gist (manual trigger)                          ║
   ║                                                                      ║
-  ║  Key data model:                                                     ║
-  ║    state.transactions  [{id, date, ticker, type, qty, price, notes}] ║
-  ║    state.priceCache    {[ticker]: {price, ts, src}}                  ║
-  ║    state.tickerMeta    {[ticker]: {cls}}                             ║
-  ║    state.settings      {currency, apiKey, cacheTTL, theme,           ║
-  ║                         gistToken, gistId}                        ║
+  ║  PRICE SOURCES (all free, no API keys required)                      ║
+  ║  • Crypto: CoinGecko API (batched requests)                          ║
+  ║  • Stocks/ETFs: Yahoo Finance (unofficial chart API)                 ║
+  ║  • Optional: Alpha Vantage (user provides free API key)              ║
+  ║  • Fallback: Deterministic simulated prices (clearly labeled)        ║
   ║                                                                      ║
-  ║  All prices stored internally in EUR.                                ║
-  ║  Display conversion: EUR → USD or INR via historical ECB rates.      ║
-  ║  P&L uses FIFO lot matching with per-date FX rates on both sides.    ║
+  ║  FX RATES (European Central Bank via frankfurter.app)                ║
+  ║  • Historical daily EUR→USD, EUR→INR from 2021 onwards               ║
+  ║  • Used for accurate cost basis conversion on transaction dates      ║
+  ║                                                                      ║
+  ║  DATA MODEL                                                          ║
+  ║  • state.transactions: [{id, date, ticker, type, qty, price, notes}] ║
+  ║  • state.priceCache: {[ticker]: {price, ts, src}}                    ║
+  ║  • state.tickerMeta: {[ticker]: {cls}}                               ║
+  ║  • state.settings: {currency, apiKey, cacheTTL, theme, gistToken...} ║
+  ║                                                                      ║
+  ║  CORE PRINCIPLES                                                     ║
+  ║  • All prices stored internally in EUR (base currency)               ║
+  ║  • Display conversion: EUR → USD/INR via historical ECB rates        ║
+  ║  • P&L calculation: FIFO lot matching with per-date FX rates         ║
+  ║  • No data leaves your device except voluntary Gist sync             ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portfolio Terminal</title>
+<title>BIT PLEB · Portfolio</title>
 
 <!-- ════════════════════════════════════════════════════════════════════
      FONTS
@@ -57,9 +66,9 @@
 
   /* Text hierarchy */
   --text:  #e4ecff;
-  --text2: #8fa0c0;   /* secondary values: dates, quantities */
-  --muted: #4f6285;
-  --dim:   #273a52;
+  --text2: #a0b3d4;   /* secondary values: dates, quantities - lightened from #8fa0c0 */
+  --muted: #6b7fa2;   /* lightened from #4f6285 for better readability */
+  --dim:   #3d5170;   /* lightened from #273a52 */
 
   /* Accent colours */
   --blue:   #5b9cff;
@@ -1289,7 +1298,7 @@ html, body { height: 100%; overflow: hidden; }
 }
 .topbar .hdr-logo { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; }
 .topbar .hdr-logo svg { width: 13px; height: 13px; }
-.topbar .hdr-title { font-size: 15px; font-weight: 900; letter-spacing: -0.03em; }
+.topbar .hdr-title { font-size: 15px; font-weight: 900; letter-spacing: 0.08em; }
 .topbar-left  { display: flex; align-items: center; gap: 9px; }
 .topbar-right { display: flex; align-items: center; gap: 5px; margin-left: auto; flex-wrap: nowrap; }
 
@@ -1304,7 +1313,7 @@ html, body { height: 100%; overflow: hidden; }
    SIDEBAR — 52px icon rail, fixed module switcher
    ═══════════════════════════════════════════════════════════════════════ */
 .sidebar {
-  width: 52px; flex-shrink: 0;
+  width: 110px; flex-shrink: 0;
   background: var(--surf); border-right: 0.5px solid var(--b1);
   display: flex; flex-direction: column; align-items: center;
   padding: 10px 0 12px; gap: 3px; overflow: visible;
@@ -1312,22 +1321,32 @@ html, body { height: 100%; overflow: hidden; }
 }
 .sb-icon {
   position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; flex-shrink: 0; width: 100%;
+}
+.sb-icon-btn {
   width: 36px; height: 36px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--muted);
-  transition: background 0.14s, color 0.14s; flex-shrink: 0;
+  color: var(--muted);
+  transition: background 0.14s, color 0.14s;
 }
 .sb-icon svg { width: 16px; height: 16px; flex-shrink: 0; }
-.sb-icon:hover               { background: var(--surf2); color: var(--text); }
-.sb-icon.active              { background: rgba(91,156,255,0.12); color: var(--blue); }
-.sb-icon.active:hover        { background: rgba(91,156,255,0.12); }
-.sb-icon.sb-soon             { opacity: 0.50; pointer-events: none; }
+.sb-icon-btn:hover               { background: var(--surf2); color: var(--text); }
+.sb-icon.active .sb-icon-btn     { background: rgba(91,156,255,0.12); color: var(--blue); }
+.sb-icon.active .sb-icon-btn:hover { background: rgba(91,156,255,0.12); }
+.sb-icon.sb-soon                 { opacity: 0.50; pointer-events: none; }
+.sb-icon-lbl {
+  font-size: 9px; color: var(--text2); text-align: center;
+  letter-spacing: 0.02em; line-height: 1.2; max-width: 90px;
+}
+.sb-icon.active .sb-icon-lbl { color: var(--blue); font-weight: 500; }
+.sb-icon.sb-soon .sb-icon-lbl { color: var(--dim); }
 .sb-sep-line  { width: 26px; height: 0.5px; background: var(--b1); margin: 5px 0; flex-shrink: 0; }
 .sb-spacer    { flex: 1; }
 
 /* Tooltip — slides in to the right on hover */
 .sb-icon .sb-tip {
-  position: fixed; left: 60px;
+  position: fixed; left: 118px;
   background: var(--surf3); border: 0.5px solid var(--b2);
   color: var(--text); font-family: var(--font-ui);
   font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
@@ -1531,7 +1550,7 @@ html, body { height: 100%; overflow: hidden; }
         <path d="M8 21h8M12 17v4M6 8h.01M9 8h6M6 11h10"/>
       </svg>
     </div>
-    <div class="hdr-title">Portfolio Terminal</div>
+    <div class="hdr-title">BIT PLEB</div>
   </div>
   <div class="topbar-right">
     <button class="hdr-btn icon-only" id="h-theme-btn" onclick="App.toggleTheme()" title="Toggle theme">
@@ -1548,27 +1567,42 @@ html, body { height: 100%; overflow: hidden; }
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sb-icon active" id="sb-portfolio" onclick="App.switchModule('portfolio')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-      <span class="sb-tip">Portfolio</span>
+      <div class="sb-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      </div>
+      <div class="sb-icon-lbl">Portfolio</div>
+      <span class="sb-tip">Portfolio Terminal</span>
     </div>
     <div class="sb-sep-line"></div>
     <div class="sb-icon sb-soon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <div class="sb-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <div class="sb-icon-lbl">Habit<br>Tracker</div>
       <span class="sb-tip">Habit Tracker <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
     </div>
     <div class="sb-icon sb-soon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+      <div class="sb-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+      </div>
+      <div class="sb-icon-lbl">Finance<br>Calc</div>
       <span class="sb-tip">Finance Calculator <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
     </div>
     <div class="sb-icon sb-soon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <div class="sb-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </div>
+      <div class="sb-icon-lbl">Return<br>Compare</div>
       <span class="sb-tip">Return Comparator <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
     </div>
     <div class="sb-spacer"></div>
     <div class="sb-icon" onclick="App.gistSave(false)" title="Save to Gist">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-      <div class="sb-gist-dot gist-unsaved-dot" style="display:none"></div>
-      <span class="sb-tip">Gist Sync</span>
+      <div class="sb-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        <div class="sb-gist-dot gist-unsaved-dot" style="display:none"></div>
+      </div>
+      <div class="sb-icon-lbl">Gist Sync</div>
+      <span class="sb-tip">Save to GitHub Gist</span>
     </div>
   </aside><!-- /.sidebar -->
 
@@ -1587,11 +1621,10 @@ html, body { height: 100%; overflow: hidden; }
             <span class="price-src-badge sim" id="h-src-badge">Simulated</span>
           </div>
           <div class="mod-header-right">
-            <div class="fx-pill load" id="h-fx" title="ECB exchange rates via frankfurter.app" style="font-size:10px">
+            <div class="fx-pill load" id="h-fx" title="ECB exchange rates · Last updated" style="font-size:10px;display:flex;align-items:center;gap:6px">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span id="h-fx-text">FX…</span>
+              <span id="h-fx-ts-combined">FX: Loading… · —</span>
             </div>
-            <span class="ts-pill" id="h-ts" style="font-size:10px">—</span>
             <div class="cur-sel">
               <span class="cur-sel-lbl">Currency</span>
               <select id="h-currency" onchange="App.onCurrencyChange()">
@@ -1602,7 +1635,7 @@ html, body { height: 100%; overflow: hidden; }
             </div>
             <button class="hdr-btn" id="h-gist-save" onclick="App.gistSave(false)" title="Save to GitHub Gist">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-              Gist
+              Save to Gist
               <span class="gist-unsaved-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
             </button>
             <button class="hdr-btn primary" id="h-refresh" onclick="App.doRefresh()">
@@ -1617,8 +1650,8 @@ html, body { height: 100%; overflow: hidden; }
 
         <nav class="tab-nav">
           <button class="tab-btn active" onclick="App.showTab('overview',this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            Analytics
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Overview
           </button>
           <button class="tab-btn" onclick="App.showTab('positions',this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -1724,7 +1757,7 @@ html, body { height: 100%; overflow: hidden; }
         <thead><tr>
           <th>#</th><th>Date</th><th>Type</th>
           <th>Ticker</th><th>Class</th><th>Qty</th><th id="hist-price-hdr">Price (EUR)</th>
-          <th>Total</th><th>Unrealised P&L</th><th></th>
+          <th>Total</th><th>P&L</th><th></th>
         </tr></thead>
         <tbody id="hist-body"></tbody>
       </table>
@@ -2230,6 +2263,27 @@ const App = (function () {
   /** Minimum quantity threshold — treats values below this as zero to avoid floating-point dust */
   const QTY_EPSILON = 0.00001;
 
+  /* ─── Configuration Constants ────────────────────────────────────────
+     Timing, caching, and API limits that control app behavior.
+     Adjust these to tune performance vs freshness tradeoffs. */
+  
+  /** Price cache TTL in milliseconds (default: 4 hours = 14400000ms) */
+  const DEFAULT_CACHE_TTL_MS = 14400000;
+  
+  /** Network fetch timeout in milliseconds */
+  const FETCH_TIMEOUT_MS = {
+    quick: 4000,    // CoinGecko, Yahoo Finance quick checks
+    standard: 5000, // ECB latest FX rate
+    slow: 10000,    // Alpha Vantage (optional API)
+    bulk: 25000,    // ECB historical data (2021→today)
+  };
+  
+  /** Maximum number of deleted transactions kept for recovery */
+  const MAX_DELETED_HISTORY = 10;
+  
+  /** Minimum holding period (in years) required to calculate CAGR */
+  const MIN_CAGR_YEARS = 0.5;
+
   /** Colour palette for individual positions in charts/donuts */
   const PALETTE = [
     '#5b9cff', '#00dba8', '#a07cf8', '#ffaa20', '#ff6b9d',
@@ -2289,16 +2343,17 @@ const App = (function () {
   /** Main persisted state object */
   let state = {
     transactions: [],          // Array of {id, date, ticker, type, qty, price(EUR), fees(EUR), taxes(EUR), notes}
-    deletedTransactions: [],  // Last 20 deleted, for recovery
-    priceCache: {},      // {[ticker]: {price, ts, src}}
-    tickerMeta: {},      // {[ticker]: {cls}}
+    deletedTransactions: [],   // Last 10 deleted (MAX_DELETED_HISTORY), for recovery
+    priceCache: {},            // {[ticker]: {price, ts, src}}
+    tickerMeta: {},            // {[ticker]: {cls}}
+    lastRefreshTS: null,       // Timestamp of last price refresh
     settings: {
-      currency: 'EUR',   // Display currency: EUR | USD | INR
-      apiKey: '',         // Alpha Vantage API key (optional)
-      cacheTTL: 14400000, // Price cache time-to-live in ms (default: 4 hours)
-      theme: 'dark',      // 'dark' | 'light' — persisted preference
-      gistToken: '',      // GitHub PAT with gist scope
-      gistId: '',         // GitHub Gist ID (auto-filled after first save)
+      currency: 'EUR',         // Display currency: EUR | USD | INR
+      apiKey: '',              // Alpha Vantage API key (optional)
+      cacheTTL: DEFAULT_CACHE_TTL_MS,  // Price cache TTL in ms (4 hours)
+      theme: 'dark',           // 'dark' | 'light' — persisted preference
+      gistToken: '',           // GitHub PAT with gist scope
+      gistId: '',              // GitHub Gist ID (auto-filled after first save)
     },
   };
 
@@ -2398,7 +2453,10 @@ const App = (function () {
 
   async function fetchFxLatest() {
     try {
-      const resp = await fetchWithTimeout('https://api.frankfurter.app/latest?from=EUR&to=USD,INR', 5000);
+      const resp = await fetchWithTimeout(
+        'https://api.frankfurter.app/latest?from=EUR&to=USD,INR', 
+        FETCH_TIMEOUT_MS.standard
+      );
       if (!resp.ok) return;
       const data = await resp.json();
       if (data.rates?.USD && data.rates.USD > 0) fxLatest.USD = data.rates.USD;
@@ -2406,6 +2464,8 @@ const App = (function () {
       updateFXUI();
     } catch (e) {
       console.warn('[FX Latest] Failed:', e.message);
+      // Note: This is expected when opening file locally (file:// protocol)
+      // FX rates will work correctly when deployed to GitHub Pages (https://)
     }
   }
 
@@ -2417,7 +2477,7 @@ const App = (function () {
     const today = new Date().toISOString().slice(0, 10);
     const url = `https://api.frankfurter.app/2021-01-01..${today}?from=EUR&to=USD,INR`;
     try {
-      const response = await fetchWithTimeout(url, 25000);
+      const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS.bulk);
       if (!response.ok) throw new Error('HTTP ' + response.status);
 
       const data = await response.json();
@@ -2444,6 +2504,7 @@ const App = (function () {
       return true;
     } catch (e) {
       console.warn('[FX] Fetch failed:', e.message);
+      console.info('Note: Network requests fail when opening locally (file://). Deploy to GitHub Pages for full functionality.');
       updateFXUI();
       return false;
     }
@@ -2522,15 +2583,25 @@ const App = (function () {
     const allOK = fxLoaded.USD && fxLoaded.INR;
     const partialOK = fxLoaded.USD || fxLoaded.INR;
 
-    // Header FX pill
+    // Header FX pill — combined with timestamp
     const fxPill = el('h-fx');
-    if (fxPill) {
+    const combinedText = el('h-fx-ts-combined');
+    if (fxPill && combinedText) {
       fxPill.className = 'fx-pill ' + (allOK ? 'ok' : partialOK ? 'load' : 'err');
-      el('h-fx-text').textContent = 'FX: ' + (
+      fxPill.style.cssText = 'font-size:10px;display:flex;align-items:center;gap:6px';
+      
+      const fxText = 'FX: ' + (
         allOK
           ? `1€ = $${fmtNum(fxLatest.USD, 4)} · ₹${fmtNum(fxLatest.INR, 1)}`
           : partialOK ? 'Partial' : 'Approx.'
       );
+      
+      // Get timestamp from existing state or show placeholder
+      const tsText = state.lastRefreshTS 
+        ? new Date(state.lastRefreshTS).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        : '—';
+      
+      combinedText.textContent = `${fxText}  •  Updated ${tsText}`;
     }
 
     // Settings panel FX chips
@@ -2602,7 +2673,7 @@ const App = (function () {
   async function fetchYahoo(ticker) {
     try {
       const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
-      const resp = await fetchWithTimeout(url, 4000);
+      const resp = await fetchWithTimeout(url, FETCH_TIMEOUT_MS.quick);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
@@ -2626,7 +2697,9 @@ const App = (function () {
     try {
       const ids = Object.values(idMap).join(',');
       const resp = await fetchWithTimeout(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, 4000);
+        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, 
+        FETCH_TIMEOUT_MS.quick
+      );
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
 
@@ -2637,17 +2710,23 @@ const App = (function () {
       return result;
     } catch (e) {
       console.warn('[CoinGecko]', e.message);
+      console.info('Note: Crypto prices require network access. Works when deployed to GitHub Pages.');
       return {};
     }
   }
 
   /**
    * Fetch a live price from Alpha Vantage (optional, requires user's free API key).
+   * @param {string} ticker - Stock symbol
+   * @param {string} apiKey - Alpha Vantage API key
+   * @returns {Promise<number|null>} Price in USD, or null on failure
    */
   async function fetchAlphaVantage(ticker, apiKey) {
     try {
       const resp = await fetchWithTimeout(
-        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`, 10000);
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`, 
+        FETCH_TIMEOUT_MS.slow
+      );
       const data = await resp.json();
       const price = parseFloat(data['Global Quote']?.['05. price']);
       return (price > 0) ? price : null;
@@ -2733,9 +2812,8 @@ const App = (function () {
       setHeaderStatus('live', 'All simulated — check internet connection');
     }
 
-    el('h-ts').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
+    state.lastRefreshTS = Date.now();
+    updateFXUI(); // Update combined FX+timestamp box
     updateSourceBadge();
     saveState();
     refreshBtn?.classList.remove('spin-me');
@@ -2767,10 +2845,21 @@ const App = (function () {
      ═══════════════════════════════════════════════════════════════════ */
 
   /**
-   * Solve for XIRR given cashflows and their dates.
+   * Calculate Extended Internal Rate of Return (XIRR) using Newton-Raphson method.
+   * 
+   * XIRR finds the discount rate that makes NPV of irregular cashflows = 0.
+   * - Negative cashflows = money out (purchases)
+   * - Positive cashflows = money in (sales, current value)
+   * 
+   * Algorithm:
+   * 1. Convert dates to fractional years from base date
+   * 2. Try multiple seed rates to avoid local minima
+   * 3. Iteratively refine rate using: rate_new = rate - NPV/NPV'
+   * 4. Stop when rate converges within EPSILON tolerance
+   * 
    * @param {number[]} cashflows - Negative = outflow (buy), positive = inflow (sell/current value)
-   * @param {Date[]} dates       - Corresponding dates for each cashflow
-   * @returns {number|null}      - Annual return as percentage, or null if no convergence
+   * @param {Date[]} dates - Corresponding dates for each cashflow
+   * @returns {number|null} - Annualized return as percentage, or null if no convergence
    */
   function calcXIRR(cashflows, dates) {
     if (cashflows.length < 2) return null;
@@ -2779,9 +2868,10 @@ const App = (function () {
     const baseTime = dates[0].getTime();
     const yearsFromBase = dates.map(d => (d.getTime() - baseTime) / (365.25 * 24 * 3600 * 1000));
 
-    const EPSILON = 1e-8;
-    const MAX_ITERATIONS = 300;
-    const SEED_RATES = [0.1, 0.0, -0.05, 0.5, 1.0, -0.3, 2.0];
+    // Convergence parameters
+    const EPSILON = 1e-8;           // Tolerance for convergence
+    const MAX_ITERATIONS = 300;     // Maximum Newton-Raphson iterations
+    const SEED_RATES = [0.1, 0.0, -0.05, 0.5, 1.0, -0.3, 2.0];  // Try multiple starting points
 
     // Try multiple starting points to avoid local minima
     for (const seed of SEED_RATES) {
@@ -2919,14 +3009,38 @@ const App = (function () {
    * @param {number} years - Holding period in years
    * @returns {number|null} CAGR as percentage
    */
+  /**
+   * Calculate Compound Annual Growth Rate (CAGR).
+   * Formula: (final/initial)^(1/years) - 1
+   * 
+   * @param {number} cost - Initial investment value
+   * @param {number} value - Final value
+   * @param {number} years - Time period in years
+   * @returns {number|null} CAGR as percentage, or null if period < 0.5 years
+   */
   function calcCagr(cost, value, years) {
-    if (years < 0.5 || cost <= 0 || value <= 0) return null;
+    if (years < MIN_CAGR_YEARS || cost <= 0 || value <= 0) return null;
     return (Math.pow(value / cost, 1 / years) - 1) * 100;
   }
 
   /**
    * Compute all positions from the transaction ledger using FIFO lot matching.
-   * @returns {Object} Map of ticker → position data
+   * 
+   * FIFO Algorithm:
+   * - BUY transactions create new lots (with fees added to cost basis)
+   * - SELL transactions consume oldest lots first (realized P&L calculated)
+   * - Remaining lots are open positions (unrealized P&L calculated)
+   * 
+   * Returns position data including:
+   * - shares: Total open shares
+   * - costDisp: Total cost basis in display currency
+   * - value: Current market value
+   * - unrealized: Unrealized P&L (open lots)
+   * - realized: Realized P&L (closed lots from sells)
+   * - cagr: Compound annual growth rate
+   * - xirr: Extended internal rate of return
+   * 
+   * @returns {Object<string, Position>} Map of ticker → position data
    */
   function computePositions() {
     // Group transactions by ticker, sorted chronologically
@@ -3403,7 +3517,10 @@ const App = (function () {
     if (tx) {
       if (!Array.isArray(state.deletedTransactions)) state.deletedTransactions = [];
       state.deletedTransactions.unshift({ ...tx, _deletedAt: new Date().toISOString() });
-      if (state.deletedTransactions.length > 10) state.deletedTransactions = state.deletedTransactions.slice(0, 10);
+      // Keep only the most recent deletions for recovery
+      if (state.deletedTransactions.length > MAX_DELETED_HISTORY) {
+        state.deletedTransactions = state.deletedTransactions.slice(0, MAX_DELETED_HISTORY);
+      }
     }
     state.transactions = state.transactions.filter(t => t.id !== id);
     saveState();
@@ -4054,7 +4171,7 @@ const App = (function () {
   /* ── History Tab ─────────────────────────────────────────────────── */
 
   function renderRecentlyDeleted() {
-    const deleted = (state.deletedTransactions || []).slice(0, 10);
+    const deleted = (state.deletedTransactions || []).slice(0, MAX_DELETED_HISTORY);
     const section = el('hist-deleted-section');
     const body    = el('hist-deleted-body');
     if (!section || !body) return;
@@ -4115,12 +4232,42 @@ const App = (function () {
       const buyPriceD = eurToDisplay(tx.price, tx.date);
       const totalD = tx.qty * buyPriceD;
 
-      // P&L is only meaningful for buy transactions
+      // P&L calculation: unrealised for BUY, realised for SELL
       let plHTML = '—';
       if (isBuy) {
+        // BUY: show unrealised P&L (current price vs buy price)
         const pl = (currentPriceD - buyPriceD) * tx.qty;
         const plPct = ((currentPriceD - buyPriceD) / buyPriceD) * 100;
         plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${fmtValue(pl)} <span style="font-size:10px">(${fmtPct(plPct)})</span></span>`;
+      } else {
+        // SELL: show realised P&L (sell price vs average cost basis of sold shares)
+        // For simplicity, compute average cost basis from all prior BUY transactions for this ticker
+        const priorBuys = state.transactions.filter(t => 
+          t.ticker === tx.ticker && 
+          t.type === 'BUY' && 
+          t.date < tx.date
+        );
+        
+        if (priorBuys.length > 0) {
+          // Calculate weighted average cost basis in EUR
+          let totalCost = 0;
+          let totalShares = 0;
+          priorBuys.forEach(b => {
+            totalCost += b.price * b.qty;
+            totalShares += b.qty;
+          });
+          const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
+          
+          // Convert to display currency for comparison
+          const avgCostBasisD = eurToDisplay(avgCostBasis, tx.date);
+          const sellPriceD = buyPriceD; // buyPriceD is actually the sell price for SELL txs
+          
+          const pl = (sellPriceD - avgCostBasisD) * tx.qty;
+          const plPct = avgCostBasisD > 0 ? ((sellPriceD - avgCostBasisD) / avgCostBasisD) * 100 : 0;
+          plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${fmtValue(pl)} <span style="font-size:10px">(${fmtPct(plPct)})</span></span>`;
+        } else {
+          plHTML = '<span style="color:var(--dim)">No cost basis</span>';
+        }
       }
 
       return `<tr>
@@ -4821,7 +4968,8 @@ const App = (function () {
           </svg>
         </div>
         <div>${hasRows ? '✓ File loaded — drop another to replace' : 'Drop your depot <strong style="color:var(--blue)">.csv</strong> here'}</div>
-        <div class="csv-drop-sub">${hasRows ? '' : 'or click to browse — expects: date, isin, shares, price, type, currency'}</div>
+        <div class="csv-drop-sub">${hasRows ? '' : 'or click to browse'}</div>
+        ${!hasRows ? `<div class="csv-drop-sub" style="margin-top:8px;padding:8px 12px;background:rgba(91,156,255,0.08);border:0.5px solid rgba(91,156,255,0.2);border-radius:6px;color:var(--text2);font-size:11px;line-height:1.5"><strong style="color:var(--blue)">Required columns:</strong> date, isin, shares, price, type, currency<br><strong style="color:var(--blue)">Format:</strong> Date (DD/MM/YYYY), Type (buy/sell), Price & Shares (numbers)</div>` : ''}
       </div>
       ${hasRows ? `
       <div class="csv-summary-card">
