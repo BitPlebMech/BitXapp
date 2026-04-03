@@ -2007,6 +2007,24 @@ html, body { height: 100%; overflow: hidden; }
         Historical rates are exact; the current rate is fetched fresh on each load.
       </div>
       <div class="fx-chips" id="sp-fx-chips"><div class="fx-chip"><span>Loading…</span></div></div>
+      
+      <!-- FX API Diagnostics -->
+      <div class="info-box" id="fx-diagnostics" style="margin-top:12px;background:var(--bg2);border-left:3px solid var(--amber);display:none">
+        <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          FX API Diagnostics
+        </div>
+        <div id="fx-diag-content" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></div>
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <button class="abtn outline" onclick="App.testFxAPI()" style="font-size:10px;padding:4px 8px">
+            Test API Now
+          </button>
+          <button class="abtn outline" onclick="App.copyFxDebugInfo()" style="font-size:10px;padding:4px 8px">
+            Copy Debug Info
+          </button>
+        </div>
+        <div id="fx-test-result" style="margin-top:8px;font-size:10px;font-family:var(--mono);display:none"></div>
+      </div>
     </div>
 
     <!-- Data management section -->
@@ -2347,6 +2365,8 @@ const App = (function () {
     priceCache: {},            // {[ticker]: {price, ts, src}}
     tickerMeta: {},            // {[ticker]: {cls}}
     lastRefreshTS: null,       // Timestamp of last price refresh
+    fxDaily: { USD: {}, INR: {} },  // Historical ECB rates (persisted for offline use)
+    fxLastFetch: null,         // Timestamp of last successful FX fetch
     settings: {
       currency: 'EUR',         // Display currency: EUR | USD | INR
       apiKey: '',              // Alpha Vantage API key (optional)
@@ -2357,15 +2377,21 @@ const App = (function () {
     },
   };
 
-  /** Historical FX rates from ECB (keyed by ISO date string) */
-  let fxDaily = { USD: {}, INR: {} };
-
   /** Latest known FX rates (fallback when APIs are unavailable)
    *  Updated April 2025 - these provide ~1% accuracy when live APIs fail */
   let fxLatest = { EUR: 1, USD: 1.09, INR: 92.0 };
 
   /** Whether we successfully loaded historical FX data */
   let fxLoaded = { USD: false, INR: false };
+  
+  /** Track API diagnostics for debugging */
+  let fxDiagnostics = {
+    lastAttempt: null,
+    lastSuccess: null,
+    lastError: null,
+    httpStatus: null,
+    errorType: null
+  };
 
   /** UI filter state */
   let histFilter = 'all';   // History tab: 'all' | 'buy' | 'sell'
@@ -2403,6 +2429,10 @@ const App = (function () {
         // are not lost when loading a save that predates them.
         const mergedSettings = { ...state.settings, ...(saved.settings || {}) };
         state = { ...state, ...saved, settings: mergedSettings };
+        
+        // Backward compatibility: Ensure new FX fields exist
+        if (!state.fxDaily) state.fxDaily = { USD: {}, INR: {} };
+        if (!state.fxLastFetch) state.fxLastFetch = null;
       }
     } catch (e) {
       console.warn('[Storage] Failed to load:', e.message);
@@ -2457,6 +2487,8 @@ const App = (function () {
    * Tries in order: Frankfurter → ExchangeRate-API → uses built-in fallback rates
    */
   async function fetchFxLatest() {
+    console.info('[FX] Fetching current rates...');
+    
     // Try primary source: Frankfurter (ECB data)
     try {
       const resp = await fetchWithTimeout(
@@ -2473,12 +2505,12 @@ const App = (function () {
           fxLatest.INR = data.rates.INR;
           fxLoaded.INR = true;
         }
-        console.info('[FX] ✓ Loaded from Frankfurter (ECB)');
+        console.info('[FX] ✓ Current rates from Frankfurter (ECB):', `$${fxLatest.USD}`, `₹${fxLatest.INR}`);
         updateFXUI();
         return;
       }
     } catch (e) {
-      console.info('[FX] Frankfurter unavailable, trying fallback...');
+      console.info('[FX] Frankfurter unavailable, trying fallback API...');
     }
 
     // Try fallback source: ExchangeRate-API (free, no key required)
@@ -2497,59 +2529,113 @@ const App = (function () {
           fxLatest.INR = data.rates.INR;
           fxLoaded.INR = true;
         }
-        console.info('[FX] ✓ Loaded from ExchangeRate-API (fallback)');
+        console.info('[FX] ✓ Current rates from ExchangeRate-API (fallback):', `$${fxLatest.USD}`, `₹${fxLatest.INR}`);
         updateFXUI();
         return;
       }
     } catch (e) {
-      console.info('[FX] All APIs unavailable, using built-in rates');
+      console.warn('[FX] All current rate APIs unavailable');
     }
 
     // All APIs failed - use built-in approximate rates
-    // These are updated periodically and provide reasonable accuracy
-    console.info('[FX] Using built-in rates: 1 EUR = $' + fxLatest.USD + ' / ₹' + fxLatest.INR);
+    console.warn('[FX] ⚠️ Using built-in rates: 1 EUR = $' + fxLatest.USD + ' / ₹' + fxLatest.INR);
+    console.warn('[FX] ⚠️ These are approximate - deploy to https:// for live rates');
     updateFXUI();
   }
 
   /**
    * Fetch all historical FX rates from the ECB API.
    * Falls back to using latest rate for all historical conversions if unavailable.
+   * Data is persisted to localStorage for offline use.
    * @returns {Promise<boolean>} true if fetch succeeded
    */
   async function fetchFX() {
     const today = new Date().toISOString().slice(0, 10);
     const url = `https://api.frankfurter.app/2021-01-01..${today}?from=EUR&to=USD,INR`;
+    
+    fxDiagnostics.lastAttempt = new Date().toISOString();
+    console.info('[FX] Attempting historical fetch:', url);
+    
     try {
       const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS.bulk);
-      if (!response.ok) throw new Error('HTTP ' + response.status);
+      
+      fxDiagnostics.httpStatus = response.status;
+      
+      if (!response.ok) {
+        fxDiagnostics.errorType = 'HTTP_ERROR';
+        fxDiagnostics.lastError = `HTTP ${response.status} ${response.statusText}`;
+        console.error('[FX] ✗ HTTP Error:', response.status, response.statusText);
+        console.error('[FX] ⚠️ WARNING: Historical FX data unavailable');
+        console.error('[FX] Impact: CAGR/XIRR will use approximate rates');
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
       let usdCount = 0, inrCount = 0;
 
       for (const [date, rates] of Object.entries(data.rates || {})) {
-        if (rates.USD) { fxDaily.USD[date] = rates.USD; usdCount++; }
-        if (rates.INR) { fxDaily.INR[date] = rates.INR; inrCount++; }
+        if (rates.USD) { state.fxDaily.USD[date] = rates.USD; usdCount++; }
+        if (rates.INR) { state.fxDaily.INR[date] = rates.INR; inrCount++; }
       }
 
       // Only mark as loaded if we got a meaningful amount of data
       if (usdCount > 50) {
         fxLoaded.USD = true;
-        const latestDate = Object.keys(fxDaily.USD).sort().at(-1);
-        fxLatest.USD = fxDaily.USD[latestDate];
-        console.info(`[FX] ✓ Loaded ${usdCount} historical USD rates`);
+        const latestDate = Object.keys(state.fxDaily.USD).sort().at(-1);
+        fxLatest.USD = state.fxDaily.USD[latestDate];
+        console.info(`[FX] ✓ Loaded ${usdCount} historical USD rates (${Object.keys(state.fxDaily.USD)[0]} to ${latestDate})`);
       }
       if (inrCount > 50) {
         fxLoaded.INR = true;
-        const latestDate = Object.keys(fxDaily.INR).sort().at(-1);
-        fxLatest.INR = fxDaily.INR[latestDate];
-        console.info(`[FX] ✓ Loaded ${inrCount} historical INR rates`);
+        const latestDate = Object.keys(state.fxDaily.INR).sort().at(-1);
+        fxLatest.INR = state.fxDaily.INR[latestDate];
+        console.info(`[FX] ✓ Loaded ${inrCount} historical INR rates (${Object.keys(state.fxDaily.INR)[0]} to ${latestDate})`);
       }
 
+      // Success - persist and update diagnostics
+      state.fxLastFetch = Date.now();
+      fxDiagnostics.lastSuccess = new Date().toISOString();
+      fxDiagnostics.lastError = null;
+      fxDiagnostics.errorType = null;
+      saveState();
       updateFXUI();
       return true;
+      
     } catch (e) {
-      console.info('[FX] Historical rates unavailable - using current rate for all dates');
-      console.info('Note: P&L calculations will be approximate without historical rates');
+      // Detailed error logging
+      if (e.name === 'AbortError' || e.message.includes('timeout')) {
+        fxDiagnostics.errorType = 'TIMEOUT';
+        fxDiagnostics.lastError = `Request timeout after ${FETCH_TIMEOUT_MS.bulk}ms`;
+        console.error('[FX] ✗ Timeout: API did not respond within', FETCH_TIMEOUT_MS.bulk + 'ms');
+      } else if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        fxDiagnostics.errorType = 'NETWORK_ERROR';
+        fxDiagnostics.lastError = 'Network error - check internet connection or CORS policy';
+        console.error('[FX] ✗ Network Error: Cannot reach api.frankfurter.app');
+        console.error('[FX] Possible causes:');
+        console.error('  - No internet connection');
+        console.error('  - CORS blocked (if opening file:// locally)');
+        console.error('  - Firewall/proxy blocking request');
+        console.error('  - API server is down');
+      } else {
+        fxDiagnostics.errorType = 'UNKNOWN';
+        fxDiagnostics.lastError = e.message;
+        console.error('[FX] ✗ Unexpected error:', e.message);
+      }
+      
+      // Check if we have cached data to use
+      const cachedDays = Object.keys(state.fxDaily.USD).length;
+      if (cachedDays > 0) {
+        const cacheAge = state.fxLastFetch ? Math.round((Date.now() - state.fxLastFetch) / 3600000) : '?';
+        console.warn(`[FX] Using cached data: ${cachedDays} days (age: ${cacheAge}h)`);
+        console.warn('[FX] ⚠️ CAGR/XIRR calculations will use stale rates');
+      } else {
+        console.error('[FX] ⚠️ CRITICAL: No cached historical data available');
+        console.error('[FX] ⚠️ All transactions will use current FX rate');
+        console.error('[FX] ⚠️ CAGR/XIRR will be INACCURATE - currency movements ignored');
+        // Show toast warning to user
+        toast('⚠️ FX API failed - using approximate rates. CAGR/XIRR may be inaccurate.', 'error');
+      }
+      
       updateFXUI();
       return false;
     }
@@ -2557,7 +2643,7 @@ const App = (function () {
 
   /**
    * Look up a historical FX rate for a specific date.
-   * Falls back to nearest date within 5 days, then to latest rate.
+   * Uses cached data from localStorage or falls back to current rate if unavailable.
    * @param {string} toCurrency - 'USD' or 'INR'
    * @param {string} dateStr    - ISO date string 'YYYY-MM-DD'
    * @returns {number} The EUR→toCurrency rate
@@ -2565,27 +2651,33 @@ const App = (function () {
   function getFxRate(toCurrency, dateStr) {
     if (toCurrency === 'EUR') return 1;
 
-    const history = fxDaily[toCurrency];
-    if (!history) return fxLatest[toCurrency];
+    const history = state.fxDaily[toCurrency];
+    
+    // Use cached historical data if available
+    if (history && Object.keys(history).length > 0) {
+      // Exact match
+      if (history[dateStr]) return history[dateStr];
 
-    // Exact match
-    if (history[dateStr]) return history[dateStr];
+      // Find nearest date within 5-day window (weekends/holidays)
+      const targetTime = new Date(dateStr + 'T12:00:00').getTime();
+      let bestRate = null;
+      let bestDistance = Infinity;
+      const maxDistance = 5 * 86400000; // 5 days in ms
 
-    // Find nearest date within 5-day window (weekends/holidays)
-    const targetTime = new Date(dateStr + 'T12:00:00').getTime();
-    let bestRate = null;
-    let bestDistance = Infinity;
-    const maxDistance = 5 * 86400000; // 5 days in ms
-
-    for (const [date, rate] of Object.entries(history)) {
-      const distance = Math.abs(new Date(date + 'T12:00:00').getTime() - targetTime);
-      if (distance < bestDistance && distance <= maxDistance) {
-        bestDistance = distance;
-        bestRate = rate;
+      for (const [date, rate] of Object.entries(history)) {
+        const distance = Math.abs(new Date(date + 'T12:00:00').getTime() - targetTime);
+        if (distance < bestDistance && distance <= maxDistance) {
+          bestDistance = distance;
+          bestRate = rate;
+        }
       }
+      
+      if (bestRate) return bestRate;
     }
 
-    return bestRate ?? fxLatest[toCurrency];
+    // No cached data available - fall back to current rate
+    // This is approximate and will affect CAGR/XIRR accuracy
+    return fxLatest[toCurrency];
   }
 
   /**
@@ -2622,11 +2714,13 @@ const App = (function () {
     return rate > 0 ? usdPrice / rate : usdPrice;
   }
 
-  /** Update all FX-related UI elements (header pill + settings chips) */
+  /** Update all FX-related UI elements (header pill + settings chips + diagnostics) */
 
   function updateFXUI() {
     const allOK = fxLoaded.USD && fxLoaded.INR;
     const partialOK = fxLoaded.USD || fxLoaded.INR;
+    const historicalCount = Object.keys(state.fxDaily.USD).length;
+    const hasHistoricalData = historicalCount > 50;
 
     // Header FX pill — combined with timestamp
     const fxPill = el('h-fx');
@@ -2637,25 +2731,24 @@ const App = (function () {
       
       let fxText;
       if (allOK) {
-        // Live rates successfully loaded
         fxText = `FX: 1€ = $${fmtNum(fxLatest.USD, 4)} · ₹${fmtNum(fxLatest.INR, 1)}`;
       } else if (partialOK) {
         fxText = 'FX: Partial';
       } else {
-        // Using built-in approximate rates
-        fxText = `FX: ~$${fmtNum(fxLatest.USD, 2)} · ~₹${fmtNum(fxLatest.INR, 0)} (built-in)`;
+        fxText = `FX: ~$${fmtNum(fxLatest.USD, 2)} · ~₹${fmtNum(fxLatest.INR, 0)} (approx)`;
       }
       
-      // Get timestamp from existing state or show placeholder
       const tsText = state.lastRefreshTS 
         ? new Date(state.lastRefreshTS).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
         : '—';
       
       combinedText.textContent = `${fxText}  •  Updated ${tsText}`;
       
-      // Add tooltip to explain "built-in" status when APIs are unavailable
-      if (!allOK && !partialOK) {
-        fxPill.title = 'FX APIs unavailable. Using built-in approximate rates (~1% accuracy). P&L calculations will be estimates.';
+      // Tooltip
+      if (!allOK) {
+        fxPill.title = hasHistoricalData 
+          ? `Using cached historical FX data (${historicalCount} days). Check Settings for diagnostics.`
+          : '⚠️ WARNING: No historical FX data. CAGR/XIRR will be inaccurate. Check Settings for diagnostics.';
       } else {
         fxPill.title = 'ECB exchange rates via frankfurter.app · Updated: ' + tsText;
       }
@@ -2664,21 +2757,59 @@ const App = (function () {
     // Settings panel FX chips
     const chips = el('sp-fx-chips');
     if (chips) {
-      const lastDate = Object.keys(fxDaily.USD).sort().at(-1) || '—';
-      const historicalCount = Object.keys(fxDaily.USD).length;
-      const statusColor = allOK ? 'var(--green)' : 'var(--amber)';
+      const lastDate = Object.keys(state.fxDaily.USD).sort().at(-1) || '—';
+      const statusColor = allOK ? 'var(--green)' : (hasHistoricalData ? 'var(--amber)' : 'var(--red)');
       const statusText = allOK 
-        ? `${historicalCount} USD + ${Object.keys(fxDaily.INR).length} INR daily rates · last: ${lastDate}`
-        : `Using built-in rates (APIs unavailable) · Historical data: ${historicalCount > 0 ? historicalCount + ' days cached' : 'none'}`;
+        ? `${historicalCount} USD + ${Object.keys(state.fxDaily.INR).length} INR daily rates · last: ${lastDate}`
+        : hasHistoricalData
+        ? `⚠️ Using cached data: ${historicalCount} days (APIs unavailable)`
+        : `❌ CRITICAL: No historical data - CAGR/XIRR will be inaccurate`;
       
       chips.innerHTML = `
-        <div class="fx-chip"><span><span class="src">EUR → USD ${allOK ? '(ECB live)' : '(built-in)'}</span></span><strong>1 EUR = ${fmtNum(fxLatest.USD, 4)} USD</strong></div>
-        <div class="fx-chip"><span><span class="src">EUR → INR ${allOK ? '(ECB live)' : '(built-in)'}</span></span><strong>1 EUR = ₹${fmtNum(fxLatest.INR, 2)}</strong></div>
+        <div class="fx-chip"><span><span class="src">EUR → USD ${allOK ? '(ECB live)' : '(cached/approx)'}</span></span><strong>1 EUR = ${fmtNum(fxLatest.USD, 4)} USD</strong></div>
+        <div class="fx-chip"><span><span class="src">EUR → INR ${allOK ? '(ECB live)' : '(cached/approx)'}</span></span><strong>1 EUR = ₹${fmtNum(fxLatest.INR, 2)}</strong></div>
         <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>
         <div class="fx-chip" style="flex-direction:column;align-items:flex-start;gap:2px">
-          <span class="src">${allOK ? 'Historical coverage · ECB publishes on business days only' : 'Status · Using approximate built-in rates'}</span>
+          <span class="src">${allOK ? 'Historical coverage · ECB publishes on business days only' : 'Status'}</span>
           <span style="color:${statusColor};font-size:10px">${statusText}</span>
         </div>`;
+    }
+    
+    // Update diagnostics panel
+    const diagPanel = el('fx-diagnostics');
+    const diagContent = el('fx-diag-content');
+    if (diagPanel && diagContent) {
+      // Show panel if there are any issues
+      if (!allOK || fxDiagnostics.lastError) {
+        diagPanel.style.display = 'block';
+        
+        let html = '';
+        if (fxDiagnostics.lastAttempt) {
+          html += `<div>Last attempt: ${new Date(fxDiagnostics.lastAttempt).toLocaleString()}</div>`;
+        }
+        if (fxDiagnostics.lastSuccess) {
+          html += `<div style="color:var(--green)">Last success: ${new Date(fxDiagnostics.lastSuccess).toLocaleString()}</div>`;
+        }
+        if (fxDiagnostics.lastError) {
+          html += `<div style="color:var(--red);margin-top:4px"><strong>Error:</strong> ${fxDiagnostics.errorType}</div>`;
+          html += `<div style="color:var(--red)">${fxDiagnostics.lastError}</div>`;
+        }
+        if (fxDiagnostics.httpStatus) {
+          html += `<div style="margin-top:4px">HTTP Status: ${fxDiagnostics.httpStatus}</div>`;
+        }
+        
+        // Cache status
+        if (hasHistoricalData) {
+          const cacheAge = state.fxLastFetch ? Math.round((Date.now() - state.fxLastFetch) / 3600000) : '?';
+          html += `<div style="margin-top:4px;color:var(--amber)">Using cached data: ${historicalCount} days (age: ${cacheAge}h)</div>`;
+        } else {
+          html += `<div style="margin-top:4px;color:var(--red);font-weight:600">⚠️ NO CACHED DATA - Calculations will be approximate!</div>`;
+        }
+        
+        diagContent.innerHTML = html;
+      } else {
+        diagPanel.style.display = 'none';
+      }
     }
   }
 
@@ -5359,7 +5490,7 @@ const App = (function () {
       // EUR → USD conversion using historical FX rate where available
       let priceUSD = raw.price;
       if (raw.currency === 'EUR') {
-        const rate = fxDaily.USD[raw.dateISO] || fxLatest.USD;
+        const rate = state.fxDaily.USD[raw.dateISO] || fxLatest.USD;
         priceUSD = raw.price * rate;
       } else if (raw.currency !== 'USD') {
         // Non-EUR/USD currency — approximate via latest EUR→USD rate
@@ -5939,6 +6070,29 @@ const App = (function () {
     // Load sample data if this is a fresh install
     if (!state.transactions.length) applySampleData();
 
+    // Check if we have cached historical FX data from localStorage
+    const hasCachedFX = Object.keys(state.fxDaily.USD).length > 50;
+    const fxAge = state.fxLastFetch ? Date.now() - state.fxLastFetch : Infinity;
+    const FX_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (hasCachedFX) {
+      // Use cached historical FX data
+      fxLoaded.USD = Object.keys(state.fxDaily.USD).length > 50;
+      fxLoaded.INR = Object.keys(state.fxDaily.INR).length > 50;
+      
+      if (fxLoaded.USD) {
+        const latestDate = Object.keys(state.fxDaily.USD).sort().at(-1);
+        fxLatest.USD = state.fxDaily.USD[latestDate];
+      }
+      if (fxLoaded.INR) {
+        const latestDate = Object.keys(state.fxDaily.INR).sort().at(-1);
+        fxLatest.INR = state.fxDaily.INR[latestDate];
+      }
+      
+      console.info('[FX] Using cached historical data (' + Object.keys(state.fxDaily.USD).length + ' days)');
+      updateFXUI();
+    }
+
     // Seed mock prices for all tickers immediately so the UI shows instantly
     const allTickers = [...new Set(state.transactions.map(t => t.ticker))];
     for (const ticker of allTickers) {
@@ -5952,9 +6106,15 @@ const App = (function () {
     setHeaderStatus('live', 'Simulated prices · refreshing…');
     updateSourceBadge();
 
-    // All network fetches run in the background — UI is already showing mock data
+    // All network fetches run in the background — UI is already showing data
     fetchFxLatest().then(() => render());
-    fetchFX().then(ok => { if (ok) render(); });
+    
+    // Only refetch historical FX if stale or missing
+    if (!hasCachedFX || fxAge > FX_CACHE_TTL) {
+      console.info('[FX] Refreshing historical data (cache age: ' + Math.round(fxAge / 3600000) + 'h)');
+      fetchFX().then(ok => { if (ok) render(); });
+    }
+    
     refreshPrices();
 
     updateStorageStatus();
@@ -5964,6 +6124,138 @@ const App = (function () {
   }
 
   init();
+
+  /* ═══════════════════════════════════════════════════════════════════
+     FX DIAGNOSTICS
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Test FX API connectivity and display detailed results inline.
+   */
+  async function testFxAPI() {
+    const resultDiv = el('fx-test-result');
+    if (!resultDiv) return;
+    
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="color:var(--amber)">Testing API connectivity...</div>';
+    
+    let results = [];
+    
+    // Test 1: Frankfurter (current rates)
+    results.push('<div style="margin-top:8px"><strong>Test 1: Frankfurter (current rates)</strong></div>');
+    try {
+      const startTime = Date.now();
+      const resp = await fetchWithTimeout(
+        'https://api.frankfurter.app/latest?from=EUR&to=USD,INR',
+        FETCH_TIMEOUT_MS.standard
+      );
+      const elapsed = Date.now() - startTime;
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        results.push(`<div style="color:var(--green)">✓ Success (${elapsed}ms)</div>`);
+        results.push(`<div>Status: ${resp.status} ${resp.statusText}</div>`);
+        results.push(`<div>Rates: USD=${data.rates?.USD}, INR=${data.rates?.INR}</div>`);
+      } else {
+        results.push(`<div style="color:var(--red)">✗ HTTP ${resp.status} ${resp.statusText}</div>`);
+      }
+    } catch (e) {
+      results.push(`<div style="color:var(--red)">✗ ${e.message}</div>`);
+    }
+    
+    // Test 2: Frankfurter (historical)
+    results.push('<div style="margin-top:8px"><strong>Test 2: Frankfurter (historical)</strong></div>');
+    try {
+      const startTime = Date.now();
+      const resp = await fetchWithTimeout(
+        'https://api.frankfurter.app/2024-01-01..2024-01-31?from=EUR&to=USD',
+        FETCH_TIMEOUT_MS.bulk
+      );
+      const elapsed = Date.now() - startTime;
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        const count = Object.keys(data.rates || {}).length;
+        results.push(`<div style="color:var(--green)">✓ Success (${elapsed}ms)</div>`);
+        results.push(`<div>Status: ${resp.status} ${resp.statusText}</div>`);
+        results.push(`<div>Fetched ${count} days of historical rates</div>`);
+      } else {
+        results.push(`<div style="color:var(--red)">✗ HTTP ${resp.status} ${resp.statusText}</div>`);
+      }
+    } catch (e) {
+      results.push(`<div style="color:var(--red)">✗ ${e.message}</div>`);
+    }
+    
+    // Test 3: ExchangeRate-API (fallback)
+    results.push('<div style="margin-top:8px"><strong>Test 3: ExchangeRate-API (fallback)</strong></div>');
+    try {
+      const startTime = Date.now();
+      const resp = await fetchWithTimeout(
+        'https://open.er-api.com/v6/latest/EUR',
+        FETCH_TIMEOUT_MS.standard
+      );
+      const elapsed = Date.now() - startTime;
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        results.push(`<div style="color:var(--green)">✓ Success (${elapsed}ms)</div>`);
+        results.push(`<div>Status: ${resp.status}</div>`);
+        results.push(`<div>Rates: USD=${data.rates?.USD}, INR=${data.rates?.INR}</div>`);
+      } else {
+        results.push(`<div style="color:var(--red)">✗ HTTP ${resp.status}</div>`);
+      }
+    } catch (e) {
+      results.push(`<div style="color:var(--red)">✗ ${e.message}</div>`);
+    }
+    
+    results.push('<div style="margin-top:8px;color:var(--text2)">Test completed at ' + new Date().toLocaleTimeString() + '</div>');
+    resultDiv.innerHTML = results.join('');
+  }
+
+  /**
+   * Copy FX debug information to clipboard for issue reporting.
+   */
+  function copyFxDebugInfo() {
+    const info = [];
+    info.push('=== BIT PLEB Portfolio Terminal - FX Debug Info ===');
+    info.push('Generated: ' + new Date().toISOString());
+    info.push('');
+    info.push('--- API Diagnostics ---');
+    info.push('Last Attempt: ' + (fxDiagnostics.lastAttempt || 'Never'));
+    info.push('Last Success: ' + (fxDiagnostics.lastSuccess || 'Never'));
+    info.push('Error Type: ' + (fxDiagnostics.errorType || 'None'));
+    info.push('Error Message: ' + (fxDiagnostics.lastError || 'None'));
+    info.push('HTTP Status: ' + (fxDiagnostics.httpStatus || 'N/A'));
+    info.push('');
+    info.push('--- Cached Data ---');
+    info.push('USD Historical Rates: ' + Object.keys(state.fxDaily.USD).length + ' days');
+    info.push('INR Historical Rates: ' + Object.keys(state.fxDaily.INR).length + ' days');
+    const lastFetch = state.fxLastFetch ? new Date(state.fxLastFetch).toISOString() : 'Never';
+    info.push('Last Successful Fetch: ' + lastFetch);
+    const cacheAge = state.fxLastFetch ? Math.round((Date.now() - state.fxLastFetch) / 3600000) + 'h' : 'N/A';
+    info.push('Cache Age: ' + cacheAge);
+    info.push('');
+    info.push('--- Current State ---');
+    info.push('USD Loaded: ' + fxLoaded.USD);
+    info.push('INR Loaded: ' + fxLoaded.INR);
+    info.push('Current USD Rate: ' + fxLatest.USD);
+    info.push('Current INR Rate: ' + fxLatest.INR);
+    info.push('');
+    info.push('--- Browser Info ---');
+    info.push('User Agent: ' + navigator.userAgent);
+    info.push('Online: ' + navigator.onLine);
+    info.push('Protocol: ' + window.location.protocol);
+    info.push('');
+    info.push('Please share this info when reporting FX API issues.');
+    
+    const text = info.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      toast('Debug info copied to clipboard', 'info');
+    }).catch(() => {
+      // Fallback: show in alert
+      alert(text);
+    });
+  }
 
   /* ═══════════════════════════════════════════════════════════════════
      PUBLIC API
@@ -6067,6 +6359,12 @@ const App = (function () {
     // Gist credentials popup
     /** Save credentials from the credentials popup and proceed. */
     saveCredentials,
+    
+    // FX Diagnostics
+    /** Test FX API connectivity and display detailed results. */
+    testFxAPI,
+    /** Copy FX debug information to clipboard. */
+    copyFxDebugInfo,
   };
 })();
 </script>
