@@ -4357,12 +4357,6 @@ const App = (function () {
           </div>
         </div>
         <div class="pos-card-foot">
-          <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
-            <span style="font-family:var(--font-mono);font-size:10px;color:${gainColor};white-space:nowrap">${fmtPct(p.unrealizedPct)}</span>
-            <span style="font-family:var(--font-mono);font-size:10px;color:${gainColor};white-space:nowrap">${p.unrealized>=0?'+':''}${fmtValue(p.unrealized)}</span>
-            <div class="pos-bar-wrap"><div class="pos-bar-fill" style="width:${Math.min(Math.abs(p.unrealizedPct) / 50 * 100, 100)}%;background:${tickerColor(p.ticker)};opacity:.82"></div></div>
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text2);white-space:nowrap">${fmtNum(allocationPct, 1)} %</span>
-          </div>
           <div class="pos-actions">
             <button class="pos-btn" onclick="App.openDrawer('${p.ticker}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
