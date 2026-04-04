@@ -520,6 +520,7 @@ body::after {
   background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
   overflow: hidden; transition: transform 0.18s, border-color 0.18s;
   opacity: 0; animation: fadeUp 0.42s ease forwards;
+  display: flex; flex-direction: column;
 }
 .pos-card:hover { transform: translateY(-2px); border-color: var(--b2); }
 
@@ -554,8 +555,8 @@ body::after {
   margin-top: 2px; display: flex; align-items: center; gap: 4px;
 }
 
-.pos-card-bar  { height: 2px; }
-.pos-card-body { padding: 14px 15px 12px; border-bottom: 0.5px solid var(--b1); }
+.pos-card-bar  { height: 2px; flex-shrink: 0; }
+.pos-card-body { padding: 14px 15px 12px; border-bottom: 0.5px solid var(--b1); flex: 1; }
 
 .pos-card-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -2102,7 +2103,7 @@ html, body { height: 100%; overflow: hidden; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export JSON
       </button>
-      <button class="abtn outline" onclick="el('import-file').click()">
+      <button class="abtn outline" onclick="App.triggerImport()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import JSON
       </button>
@@ -4393,6 +4394,7 @@ const App = (function () {
       const color = tickerColor(p.ticker);
       const gainColor = p.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
       const isLiquidated = p.shares <= QTY_EPSILON;
+      const isSimulated = !isLiquidated && (p.src === 'sim' || p.src === 'mock-fb');
       const sourceLabel = p.src === 'av' ? '🟢 live·AV' : p.src === 'yahoo' ? '🟢 live·YF' : p.src === 'cg' ? '🟢 live·CG' : p.src === 'mock-fb' ? '⚠ fallback' : '⚡ sim';
       const cagrFlag = p.cagr === null ? 'n' : p.cagr >= 0 ? 'g' : 'r';
       const xirrFlag = p.xirr === null ? 'n' : p.xirr >= 0 ? 'g' : 'r';
@@ -4400,6 +4402,10 @@ const App = (function () {
 
       return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s;${cardStyle}">
         <div class="pos-card-bar" style="background:linear-gradient(90deg,${color}aa,${color}22)"></div>
+        ${isSimulated ? `<div style="background:rgba(255,180,0,0.08);border-bottom:0.5px solid rgba(255,180,0,0.25);padding:4px 14px;font-size:9.5px;font-weight:700;color:var(--amber);letter-spacing:0.06em;display:flex;align-items:center;gap:5px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          SIMULATED PRICE — API unavailable for ${p.ticker}
+        </div>` : ''}
         <div class="pos-card-body">
           <div class="pos-card-head">
             <div style="display:flex;align-items:center;gap:10px">
@@ -4447,6 +4453,9 @@ const App = (function () {
             ${!isLiquidated ? `<button class="pos-btn" onclick="App.openModal('${p.ticker}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>` : ''}
+            <button class="pos-btn" title="Rename ticker" onclick="App.renameTicker('${p.ticker}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
             <button class="pos-btn danger" onclick="App.confirmDeletePos('${p.ticker}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -6006,6 +6015,47 @@ const App = (function () {
     toast('Portfolio exported', 'success');
   }
 
+  /** Programmatically open the file picker for JSON import (works inside modals/sidebars) */
+  function triggerImport() {
+    const inp = el('import-file');
+    if (inp) { inp.value = ''; inp.click(); }
+  }
+
+  /**
+   * Rename a ticker symbol across all transactions, price cache, and tickerMeta.
+   * @param {string} oldTicker - Current ticker symbol
+   */
+  function renameTicker(oldTicker) {
+    const newTicker = prompt(`Rename ticker "${oldTicker}" to:`, oldTicker);
+    if (!newTicker || newTicker.trim() === '' || newTicker.trim().toUpperCase() === oldTicker.toUpperCase()) return;
+    const up = newTicker.trim().toUpperCase();
+
+    // Migrate transactions
+    state.transactions.forEach(t => { if (t.ticker === oldTicker) t.ticker = up; });
+
+    // Migrate price cache
+    if (state.priceCache[oldTicker]) {
+      state.priceCache[up] = state.priceCache[oldTicker];
+      delete state.priceCache[oldTicker];
+    }
+
+    // Migrate tickerMeta
+    if (state.tickerMeta[oldTicker]) {
+      state.tickerMeta[up] = state.tickerMeta[oldTicker];
+      delete state.tickerMeta[oldTicker];
+    }
+
+    // Migrate color cache (in-memory only)
+    if (tickerColorCache[oldTicker]) {
+      tickerColorCache[up] = tickerColorCache[oldTicker];
+      delete tickerColorCache[oldTicker];
+    }
+
+    saveState();
+    render();
+    toast(`Renamed ${oldTicker} → ${up}`, 'success');
+  }
+
   /**
    * Read a JSON backup file from a file-input event and replace current state.
    * Shows a confirmation dialog before overwriting to prevent accidental data loss.
@@ -6697,10 +6747,12 @@ const App = (function () {
 
     // Data management
     exportData,
+    triggerImport,
     /** Import portfolio from JSON file. @param {Event} e */
     importData,
     clearAllData,
     reloadSampleData,
+    renameTicker,
 
     // Header
     /** Force-refresh all prices bypassing cache TTL. */
