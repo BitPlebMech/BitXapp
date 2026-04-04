@@ -499,6 +499,23 @@ body::after {
   gap: 13px;
 }
 
+/* Liquidated section divider */
+.pos-section-divider {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0 2px;
+}
+.pos-section-line {
+  flex: 1; height: 0.5px; background: var(--b2);
+}
+.pos-section-label {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap;
+  padding: 3px 10px; border-radius: 20px;
+  border: 0.5px solid var(--b2); background: var(--surf);
+}
+
 .pos-card {
   background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
   overflow: hidden; transition: transform 0.18s, border-color 0.18s;
@@ -3842,7 +3859,7 @@ const App = (function () {
   /* ── Overview Tab ────────────────────────────────────────────────── */
 
   function renderOverview(positions, summary) {
-    const rows = Object.values(positions).sort((a, b) => b.value - a.value);
+    const rows = Object.values(positions).filter(r => r.shares > QTY_EPSILON).sort((a, b) => b.value - a.value);
     const best = rows.length ? [...rows].sort((a, b) => b.unrealizedPct - a.unrealizedPct)[0] : null;
 
     const xirrClass = summary.xirr === null ? 'c-muted' : summary.xirr >= 0 ? 'c-green' : 'c-red';
@@ -4005,6 +4022,7 @@ const App = (function () {
    */
   function renderInlineAnalytics(rows, summary) {
     const target = el('ov-analytics');
+    // rows already excludes liquidated (filtered in renderOverview)
     if (!target || !rows.length) {
       if (target) target.innerHTML = '';
       return;
@@ -4352,12 +4370,16 @@ const App = (function () {
 
   function renderPositions(positions) {
     const allRows = Object.values(positions);
-    // Show total position count, not the filtered count
-    el('pos-count').textContent = allRows.length;
+    // Show active (non-zero) position count
+    const activeAll = allRows.filter(r => r.shares > QTY_EPSILON);
+    el('pos-count').textContent = activeAll.length;
 
-    let rows = clsFilter === 'all' ? allRows : allRows.filter(r => r.cls === clsFilter);
+    // Apply class filter
+    const filteredRows = clsFilter === 'all' ? allRows : allRows.filter(r => r.cls === clsFilter);
+    const activeRows     = filteredRows.filter(r => r.shares > QTY_EPSILON);
+    const liquidatedRows = filteredRows.filter(r => r.shares <= QTY_EPSILON);
 
-    if (!rows.length) {
+    if (!filteredRows.length) {
       el('pos-grid').innerHTML = `<div class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         <h3>${clsFilter === 'all' ? 'No positions yet' : 'No ' + clsFilter + ' positions'}</h3>
@@ -4365,17 +4387,18 @@ const App = (function () {
       return;
     }
 
-    const totalPortfolioValue = rows.reduce((sum, r) => sum + r.value, 0);
+    const totalPortfolioValue = activeRows.reduce((sum, r) => sum + r.value, 0);
 
-    el('pos-grid').innerHTML = rows.sort((a, b) => b.value - a.value).map((p, i) => {
+    function buildCard(p, i) {
       const color = tickerColor(p.ticker);
       const gainColor = p.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
-      const allocationPct = totalPortfolioValue > 0 ? (p.value / totalPortfolioValue * 100) : 0;
+      const isLiquidated = p.shares <= QTY_EPSILON;
       const sourceLabel = p.src === 'av' ? '🟢 live·AV' : p.src === 'yahoo' ? '🟢 live·YF' : p.src === 'cg' ? '🟢 live·CG' : p.src === 'mock-fb' ? '⚠ fallback' : '⚡ sim';
       const cagrFlag = p.cagr === null ? 'n' : p.cagr >= 0 ? 'g' : 'r';
       const xirrFlag = p.xirr === null ? 'n' : p.xirr >= 0 ? 'g' : 'r';
+      const cardStyle = isLiquidated ? 'opacity:0.6;filter:saturate(0.4)' : '';
 
-      return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s">
+      return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s;${cardStyle}">
         <div class="pos-card-bar" style="background:linear-gradient(90deg,${color}aa,${color}22)"></div>
         <div class="pos-card-body">
           <div class="pos-card-head">
@@ -4387,16 +4410,24 @@ const App = (function () {
               </div>
             </div>
             <div>
-              <div class="pos-price">${fmtCompact(p.curDisp)}</div>
-              <div class="pos-price-ts">${sourceLabel} · ${timeAgo(p.lastTs)}</div>
+              ${isLiquidated
+                ? `<div class="pos-price" style="color:var(--muted);font-size:11px">Fully Exited</div>`
+                : `<div class="pos-price">${fmtCompact(p.curDisp)}</div>
+                   <div class="pos-price-ts">${sourceLabel} · ${timeAgo(p.lastTs)}</div>`}
             </div>
           </div>
           <div class="pos-metrics">
+            ${isLiquidated ? `
+            <div class="pm"><div class="pm-lbl">Shares</div><div class="pm-val" style="color:var(--muted)">0</div></div>
+            <div class="pm"><div class="pm-lbl">Avg Cost</div><div class="pm-val">${fmtCompact(p.avgCostDisp)}</div></div>
+            ` : `
             <div class="pm"><div class="pm-lbl">Shares</div><div class="pm-val">${fmtQty(p.shares)}</div></div>
             <div class="pm"><div class="pm-lbl">Avg Cost</div><div class="pm-val">${fmtCompact(p.avgCostDisp)}</div></div>
             <div class="pm"><div class="pm-lbl">Value</div><div class="pm-val highlight c-text">${fmtValue(p.value)}</div></div>
             <div class="pm"><div class="pm-lbl">Unrealised P&L</div><div class="pm-val highlight" style="color:${gainColor}">${p.unrealized >= 0 ? '+' : ''}${fmtValue(p.unrealized)}</div></div>
+            `}
             ${p.realized !== 0 ? `<div class="pm"><div class="pm-lbl">Realised P&L</div><div class="pm-val" style="color:${p.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${p.realized >= 0 ? '+' : ''}${fmtValue(p.realized)}</div></div>` : ''}
+            ${!isLiquidated ? `
             <div class="pm ${p.realized !== 0 ? '' : 'wide'}">
               <div class="pm-lbl">Returns</div>
               <div class="xirr-row">
@@ -4404,7 +4435,7 @@ const App = (function () {
                 <div class="xirr-kpi"><span class="lbl">XIRR</span><span class="${gainClass(xirrFlag)}">${p.xirr !== null ? fmtXIRR(p.xirr) : '—'}</span></div>
                 <div class="xirr-kpi"><span class="lbl">ABS</span><span style="color:${gainColor}">${fmtPct(p.unrealizedPct)}</span></div>
               </div>
-            </div>
+            </div>` : ''}
           </div>
         </div>
         <div class="pos-card-foot">
@@ -4413,16 +4444,40 @@ const App = (function () {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Details
             </button>
-            <button class="pos-btn" onclick="App.openModal('${p.ticker}')">
+            ${!isLiquidated ? `<button class="pos-btn" onclick="App.openModal('${p.ticker}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>
+            </button>` : ''}
             <button class="pos-btn danger" onclick="App.confirmDeletePos('${p.ticker}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
       </div>`;
-    }).join('');
+    }
+
+    let html = '';
+
+    if (activeRows.length) {
+      html += activeRows.sort((a, b) => b.value - a.value).map((p, i) => buildCard(p, i)).join('');
+    } else {
+      html += `<div class="empty-state" style="grid-column:1/-1">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <h3>No active positions</h3></div>`;
+    }
+
+    if (liquidatedRows.length) {
+      html += `<div class="pos-section-divider" style="grid-column:1/-1">
+        <div class="pos-section-line"></div>
+        <span class="pos-section-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Liquidated · ${liquidatedRows.length}
+        </span>
+        <div class="pos-section-line"></div>
+      </div>`;
+      html += liquidatedRows.sort((a, b) => a.ticker.localeCompare(b.ticker)).map((p, i) => buildCard(p, i)).join('');
+    }
+
+    el('pos-grid').innerHTML = html;
   }
 
   /* ── History Tab ─────────────────────────────────────────────────── */
