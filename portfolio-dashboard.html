@@ -2952,7 +2952,7 @@ const App = (function () {
    */
   async function fetchYahoo(ticker) {
     try {
-      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+      const url = withCorsProxy(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`);
       const resp = await fetchWithTimeout(url, FETCH_TIMEOUT_MS.quick);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
@@ -5099,7 +5099,7 @@ const App = (function () {
           return;
         }
         // Try Yahoo Finance quote for unknown tickers
-        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(raw)}?interval=1d&range=1d`;
+        const yUrl = withCorsProxy(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(raw)}?interval=1d&range=1d`);
         const resp = await fetchWithTimeout(yUrl, 6000, {});
         if (resp.ok) {
           const data = await resp.json();
