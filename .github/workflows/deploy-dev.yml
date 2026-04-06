@@ -1,29 +1,29 @@
-name: Deploy Main to Production
+name: Deploy Modular_Dev to /dev/
 
 on:
   push:
-    branches: [main]
+    branches: [Modular_Dev]
   workflow_dispatch:
 
 jobs:
-  deploy-production:
+  deploy-dev:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     
     steps:
-      - name: Checkout main branch
+      - name: Checkout Modular_Dev branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: Modular_Dev
       
-      - name: Deploy to GitHub Pages root
+      - name: Deploy to GitHub Pages /dev/
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          destination_dir: .
+          destination_dir: dev
           keep_files: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy main branch to production'
+          commit_message: 'Deploy Modular_Dev to /dev/ subdirectory'
