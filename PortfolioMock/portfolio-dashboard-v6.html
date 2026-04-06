@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <noscript><style>body{display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#070b12;color:#e2e8f8}</style></noscript>
+  <style>
+    /* ─────────────────────────────────────────────────────────────────
+       DESIGN TOKENS
+    ───────────────────────────────────────────────────────────────── */
+    :root {
+      /* surfaces */
+      --bg:    #070b12;
+      --surf:  #0c1220;
+      --surf2: #111827;
+      --surf3: #18223a;
+      /* borders */
+      --b1: #182038;
+      --b2: #1f2d4a;
+      /* text */
+      --text:  #e2e8f8;
+      --muted: #526080;
+      --dim:   #2a3855;
+      /* brand accents */
+      --blue:   #4a8fff;
+      --green:  #05d98a;
+      --red:    #ff4060;
+      --amber:  #ffb020;
+      --purple: #9b6dff;
+      --orange: #ff9240;
+      /* tinted backgrounds */
+      --blue-bg:  rgba(74,143,255,.09);
+      --green-bg: rgba(5,217,138,.09);
+      --red-bg:   rgba(255,64,96,.09);
+      /* typography */
+      --font-ui:   'Cabinet Grotesk', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       RESET & BASE
+    ───────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* 44px grid overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(74,143,255,.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74,143,255,.022) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Radial blue glow at top */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 75% 45% at 50% -5%, rgba(74,143,255,.065) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px 22px 80px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       ANIMATIONS
+    ───────────────────────────────────────────────────────────────── */
+    @keyframes fade-up  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes pulse    { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+
+    /* ─────────────────────────────────────────────────────────────────
+       HEADER
+    ───────────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 26px;
+      opacity: 0;
+      animation: fade-up .4s .02s ease forwards;
+    }
+
+    .header-logo          { display: flex; align-items: center; gap: 11px; }
+    .header-logo-mark {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, rgba(74,143,255,.15), rgba(155,109,255,.15));
+      border: 1px solid rgba(74,143,255,.25);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .header-logo-mark svg { width: 20px; height: 20px; color: var(--blue); }
+
+    .header-logo-title    { font-size: 19px; font-weight: 900; letter-spacing: -.03em; }
+    .header-logo-subtitle {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; color: var(--muted);
+      letter-spacing: .07em; text-transform: uppercase; margin-top: 2px;
+    }
+
+    /* Live status dot */
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      display: inline-block; flex-shrink: 0;
+      animation: pulse 2s ease infinite;
+    }
+    .status-dot.is-error   { background: var(--red);   animation: none; }
+    .status-dot.is-loading { background: var(--amber); }
+
+    .header-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    /* Currency selector */
+    .currency-selector {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surf);
+      border: .5px solid var(--b2);
+      border-radius: 8px;
+      padding: 3px 8px 3px 10px;
+    }
+    .currency-selector-label {
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em;
+      white-space: nowrap;
+    }
+    .currency-selector select {
+      background: transparent; border: none; color: var(--text);
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+      padding: 5px 18px 5px 4px;
+      cursor: pointer; outline: none;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23526080' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 2px center;
+    }
+    .currency-selector select option { background: #111827; }
+
+    /* FX status pill */
+    .fx-status-pill {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 10px; font-family: var(--font-mono);
+      padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+      border: .5px solid;
+    }
+    .fx-status-pill svg { width: 10px; height: 10px; }
+    .fx-status-pill.is-ok      { color: var(--green);  background: var(--green-bg); border-color: rgba(5,217,138,.2); }
+    .fx-status-pill.is-loading { color: var(--amber);  background: rgba(255,176,32,.07); border-color: rgba(255,176,32,.2); }
+    .fx-status-pill.is-error   { color: var(--red);    background: var(--red-bg);   border-color: rgba(255,64,96,.2); }
+
+    .timestamp-pill {
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+      background: var(--surf); border: .5px solid var(--b1);
+      border-radius: 6px; padding: 6px 11px; white-space: nowrap;
+    }
+
+    .refresh-btn {
+      font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      background: transparent; border: 1px solid var(--blue); color: var(--blue);
+      border-radius: 7px; padding: 7px 15px;
+      cursor: pointer; transition: background .18s, color .18s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .refresh-btn:hover { background: var(--blue); color: #fff; }
+    .refresh-btn.is-spinning svg { animation: spin .7s linear infinite; }
+
+    /* ─────────────────────────────────────────────────────────────────
+       KPI CARDS
+    ───────────────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 11px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width:  660px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-card {
+      background: var(--surf);
+      border: .5px solid var(--b1);
+      border-radius: 13px;
+      padding: 18px 18px 16px;
+      position: relative; overflow: hidden;
+      opacity: 0; animation: fade-up .45s ease both;
+      transition: transform .2s, border-color .2s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); border-color: var(--b2); }
+    .kpi-card:nth-child(1) { animation-delay: .07s; }
+    .kpi-card:nth-child(2) { animation-delay: .11s; }
+    .kpi-card:nth-child(3) { animation-delay: .15s; }
+    .kpi-card:nth-child(4) { animation-delay: .19s; }
+    .kpi-card:nth-child(5) { animation-delay: .23s; }
+
+    .kpi-accent-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .kpi-icon {
+      position: absolute; top: 16px; right: 16px;
+      opacity: .2; color: var(--text);
+    }
+    .kpi-icon svg { width: 16px; height: 16px; }
+    .kpi-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-family: var(--font-mono); font-size: 20px; font-weight: 500;
+      line-height: 1; margin-bottom: 4px; letter-spacing: -.02em;
+    }
+    .kpi-subtext { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+    /* ─────────────────────────────────────────────────────────────────
+       MAIN LAYOUT  (table + allocation side-by-side)
+    ───────────────────────────────────────────────────────────────── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 310px;
+      gap: 15px;
+      align-items: start;
+    }
+    @media (max-width: 960px) { .main-layout { grid-template-columns: 1fr; } }
+
+    /* ─────────────────────────────────────────────────────────────────
+       PANEL  (shared card container)
+    ───────────────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--surf);
+      border: .5px solid var(--b1);
+      border-radius: 13px;
+      overflow: hidden;
+      opacity: 0; animation: fade-up .45s ease forwards;
+    }
+    .panel--holdings  { animation-delay: .26s; }
+    .panel--alloc     { animation-delay: .30s; }
+
+    .panel-header {
+      padding: 13px 18px;
+      border-bottom: .5px solid var(--b1);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap; gap: 6px;
+    }
+    .panel-title { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .panel-badge {
+      font-size: 10px; color: var(--dim);
+      background: var(--surf2); border: .5px solid var(--b1);
+      border-radius: 5px; padding: 2px 8px; font-family: var(--font-mono);
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       HOLDINGS TABLE
+    ───────────────────────────────────────────────────────────────── */
+    .table-scroll { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--dim);
+      padding: 9px 13px; text-align: right;
+      border-bottom: .5px solid var(--b1);
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; }
+
+    tbody tr { transition: background .1s; cursor: pointer; }
+    tbody tr:hover  { background: var(--surf2); }
+    tbody tr.is-active { background: var(--blue-bg); border-left: 2px solid var(--blue); }
+
+    tbody td {
+      font-family: var(--font-mono); font-size: 12.5px; color: #8fa0c0;
+      padding: 11px 13px; text-align: right;
+      border-bottom: .5px solid var(--b1); white-space: nowrap;
+    }
+    tbody td:first-child { text-align: left; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* Ticker cell */
+    .ticker-name {
+      font-family: var(--font-ui); font-size: 15px; font-weight: 800; color: var(--text);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .ticker-color-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .ticker-fullname  { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--font-ui); }
+    .ticker-lots-hint {
+      font-size: 9px; color: var(--blue); opacity: 0;
+      transition: opacity .12s; font-weight: 700; letter-spacing: .04em;
+    }
+    tbody tr:hover .ticker-lots-hint { opacity: 1; }
+
+    /* Asset-class badges */
+    .class-badge {
+      display: inline-block;
+      font-size: 9px; font-family: var(--font-mono); font-weight: 500;
+      padding: 1px 5px; border-radius: 3px; letter-spacing: .04em;
+    }
+    .class-badge--stock  { background: rgba(74,143,255,.12); color: #4a8fff; }
+    .class-badge--etf    { background: rgba(155,109,255,.12); color: #9b6dff; }
+    .class-badge--crypto { background: rgba(247,147,26,.12);  color: #f7931a; }
+
+    /* Gain/CAGR pills */
+    .pill {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 500;
+      padding: 2px 7px; border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+    .pill--gain { background: var(--green-bg); color: var(--green); }
+    .pill--loss { background: var(--red-bg);   color: var(--red);   }
+
+    /* Total row (tfoot) */
+    tfoot td {
+      font-family: var(--font-mono); font-size: 12.5px;
+      padding: 11px 13px; text-align: right;
+      background: var(--surf2); border-top: .5px solid var(--b2);
+      color: var(--text); font-weight: 500;
+    }
+    tfoot td:first-child {
+      text-align: left;
+      font-family: var(--font-ui); font-weight: 700; font-size: 13px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       ALLOCATION PANEL  (donut + tabs)
+    ───────────────────────────────────────────────────────────────── */
+    .alloc-tabs {
+      display: flex; gap: 4px;
+      padding: 10px 14px 0;
+      border-bottom: .5px solid var(--b1);
+    }
+    .alloc-tab {
+      font-size: 10px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 6px 12px; border-radius: 6px 6px 0 0;
+      cursor: pointer; border: .5px solid transparent;
+      border-bottom: none; transition: all .15s;
+      margin-bottom: -1px;
+    }
+    .alloc-tab.is-active {
+      color: var(--text); background: var(--surf2);
+      border-color: var(--b1); border-bottom-color: var(--surf2);
+    }
+    .alloc-tab:not(.is-active):hover { color: var(--text); }
+
+    .alloc-view          { display: none; }
+    .alloc-view.is-active { display: block; }
+
+    .donut-wrap {
+      padding: 18px 18px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+
+    .donut-legend { width: 100%; }
+    .legend-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 2px; border-bottom: .5px solid var(--b1);
+      font-size: 12px; cursor: pointer; border-radius: 4px;
+      transition: background .1s;
+    }
+    .legend-row:last-child { border-bottom: none; }
+    .legend-row:hover { background: var(--surf2); }
+
+    .legend-row-left  { display: flex; align-items: center; gap: 8px; color: #7a90b0; }
+    .legend-color-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .legend-ticker    { font-weight: 700; color: var(--text); font-size: 12px; }
+    .legend-row-right {
+      font-family: var(--font-mono); font-size: 11px; color: #7a90b0;
+      display: flex; gap: 8px; align-items: center;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       FX RATE INFO ROW  (below main layout)
+    ───────────────────────────────────────────────────────────────── */
+    .fx-info-row {
+      margin-top: 10px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+      opacity: 0; animation: fade-up .45s .40s ease forwards;
+    }
+    .fx-info-chip {
+      background: var(--surf); border: .5px solid var(--b1);
+      border-radius: 7px; padding: 6px 12px;
+      font-size: 11px; font-family: var(--font-mono); color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .fx-info-chip strong { color: var(--text); }
+    .fx-info-chip .source-label {
+      font-size: 9px; color: var(--dim);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       STATUS BAR
+    ───────────────────────────────────────────────────────────────── */
+    .status-bar {
+      margin-top: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px;
+      padding: 8px 14px;
+      background: var(--surf); border: .5px solid var(--b1); border-radius: 8px;
+      font-size: 11px; color: var(--muted);
+      opacity: 0; animation: fade-up .45s .44s ease forwards;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       DRAWER OVERLAY
+    ───────────────────────────────────────────────────────────────── */
+    .drawer-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
+      opacity: 0; pointer-events: none; transition: opacity .24s;
+    }
+    .drawer-overlay.is-open { opacity: 1; pointer-events: all; }
+
+    /* ─────────────────────────────────────────────────────────────────
+       DRAWER PANEL
+    ───────────────────────────────────────────────────────────────── */
+    .drawer {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 101;
+      background: #0c1220;
+      border-top: .5px solid var(--b2);
+      border-radius: 22px 22px 0 0;
+      max-height: 90vh; overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform .32s cubic-bezier(.22,1,.36,1);
+      padding-bottom: 52px;
+      scrollbar-width: thin; scrollbar-color: var(--b2) transparent;
+    }
+    .drawer.is-open { transform: translateY(0); }
+
+    .drawer-drag-handle {
+      width: 36px; height: 4px;
+      background: var(--b2); border-radius: 2px;
+      margin: 14px auto 0; cursor: pointer;
+    }
+
+    .drawer-inner {
+      max-width: 1020px; margin: 0 auto; padding: 0 24px;
+    }
+
+    /* Drawer header */
+    .drawer-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 18px 0 14px;
+      border-bottom: .5px solid var(--b1);
+      margin-bottom: 18px;
+    }
+    .drawer-header-left   { display: flex; align-items: flex-start; gap: 13px; }
+    .drawer-asset-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800;
+      font-family: var(--font-mono); flex-shrink: 0;
+    }
+    .drawer-asset-name   { font-size: 22px; font-weight: 900; letter-spacing: -.03em; }
+    .drawer-asset-full   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .drawer-cagr-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+      background: var(--surf2); border: .5px solid var(--b1);
+      border-radius: 6px; padding: 4px 10px; margin-top: 6px;
+    }
+    .drawer-cagr-pill .pill-label {
+      font-size: 9px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .drawer-close-btn {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--surf2); border: .5px solid var(--b1);
+      color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; transition: all .14s; flex-shrink: 0;
+    }
+    .drawer-close-btn:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+    /* Drawer mini-KPI cards */
+    .drawer-kpis {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 9px; margin-bottom: 14px;
+    }
+    @media (max-width: 640px) { .drawer-kpis { grid-template-columns: repeat(2,1fr); } }
+
+    .drawer-kpi-card {
+      background: var(--surf2); border: .5px solid var(--b1);
+      border-radius: 10px; padding: 12px 14px;
+      position: relative; overflow: hidden;
+    }
+    .drawer-kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .drawer-kpi-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 5px; margin-top: 4px;
+    }
+    .drawer-kpi-value { font-family: var(--font-mono); font-size: 16px; font-weight: 500; color: var(--text); }
+    .drawer-kpi-sub   { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* Avg cost summary bar */
+    .avg-summary {
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      padding: 10px 13px;
+      background: var(--surf2); border: .5px solid var(--b1); border-radius: 8px;
+      margin-bottom: 15px; font-size: 12px;
+    }
+    .avg-summary-label { color: var(--muted); }
+    .avg-summary-value { font-family: var(--font-mono); color: var(--text); font-weight: 500; }
+    .avg-summary-sep   { color: var(--dim); }
+
+    /* Dumbbell chart section */
+    .chart-section        { margin-bottom: 18px; }
+    .chart-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px; flex-wrap: wrap; gap: 8px;
+    }
+    .chart-section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .chart-legend         { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .chart-legend-item    {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+    }
+    .chart-legend-dot     { width: 9px; height: 9px; border-radius: 50%; }
+    .chart-canvas-wrap {
+      background: var(--surf2); border: .5px solid var(--b1);
+      border-radius: 10px; padding: 14px 12px 8px; overflow-x: auto;
+    }
+
+    /* Lot distribution bar */
+    .lot-dist-section  { margin-bottom: 18px; }
+    .lot-dist-label    {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 9px;
+    }
+    .lot-dist-track    {
+      height: 8px; background: var(--surf3);
+      border-radius: 4px; overflow: hidden; display: flex; gap: 2px;
+    }
+    .lot-dist-segment  { height: 100%; border-radius: 2px; }
+    .lot-dist-legend   { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .lot-dist-item     {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+    }
+    .lot-dist-item-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    /* Lots detail table */
+    .lots-table-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+    }
+    .lots-table { width: 100%; border-collapse: collapse; }
+    .lots-table thead th {
+      font-size: 10px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--dim);
+      padding: 8px 11px; text-align: right;
+      border-bottom: .5px solid var(--b1); white-space: nowrap;
+    }
+    .lots-table thead th:first-child { text-align: left; }
+    .lots-table tbody td {
+      font-family: var(--font-mono); font-size: 11.5px; color: #7a90b0;
+      padding: 10px 11px; text-align: right; border-bottom: .5px solid var(--b1);
+    }
+    .lots-table tbody td:first-child { text-align: left; color: var(--muted); }
+    .lots-table tbody tr:last-child td { border-bottom: none; }
+    .lots-table tbody tr:hover td     { background: var(--surf3); }
+
+    .lot-number-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      font-size: 10px; font-weight: 500;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       SCROLLBAR
+    ───────────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar       { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<noscript>
+  <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:18px">
+    JavaScript is required to run Portfolio Terminal.
+  </div>
+</noscript>
+
+<div class="page-wrap">
+
+  <!-- ═══════════════════════ HEADER ═══════════════════════════════ -->
+  <header class="header">
+    <div class="header-logo">
+      <div class="header-logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4M6 8h.01M9 8h6M6 11h10"/>
+        </svg>
+      </div>
+      <div>
+        <div class="header-logo-title">Portfolio Terminal</div>
+        <div class="header-logo-subtitle">
+          <span class="status-dot" id="js-status-dot"></span>
+          <span id="js-status-text">Initialising…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="currency-selector">
+        <span class="currency-selector-label">Currency</span>
+        <select id="js-currency-select" onchange="onCurrencyChange()">
+          <option value="EUR">€ EUR</option>
+          <option value="USD">$ USD</option>
+          <option value="INR">₹ INR</option>
+        </select>
+      </div>
+
+      <div class="fx-status-pill is-loading" id="js-fx-status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Loading FX…
+      </div>
+
+      <div class="timestamp-pill" id="js-timestamp">—</div>
+      <div class="timestamp-pill" id="js-countdown" style="color:var(--dim)">Next in 60s</div>
+
+      <button class="refresh-btn" id="js-refresh-btn" onclick="doRefresh()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+          <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════ KPI CARDS ════════════════════════════ -->
+  <div class="kpi-grid">
+
+    <div class="kpi-card">
+      <div class="kpi-accent-bar" style="background:linear-gradient(90deg,var(--blue),var(--purple))"></div>
+      <div class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+      </div>
+      <div class="kpi-label">Total Value</div>
+      <div class="kpi-value" id="js-kpi-value">—</div>
+      <div class="kpi-subtext" id="js-kpi-cost">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-accent-bar" id="js-kpi-gl-bar" style="background:var(--green)"></div>
+      <div class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+        </svg>
+      </div>
+      <div class="kpi-label">Total Gain / Loss</div>
+      <div class="kpi-value" id="js-kpi-gl">—</div>
+      <div class="kpi-subtext" id="js-kpi-glp">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-accent-bar" style="background:linear-gradient(90deg,var(--amber),var(--orange))"></div>
+      <div class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+        </svg>
+      </div>
+      <div class="kpi-label">Portfolio CAGR</div>
+      <div class="kpi-value" id="js-kpi-cagr">—</div>
+      <div class="kpi-subtext" id="js-kpi-cagr-sub">annualised</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-accent-bar" style="background:linear-gradient(90deg,var(--purple),var(--blue))"></div>
+      <div class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </div>
+      <div class="kpi-label">Best Performer</div>
+      <div class="kpi-value" id="js-kpi-best">—</div>
+      <div class="kpi-subtext" id="js-kpi-best-sub">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-accent-bar" style="background:linear-gradient(90deg,var(--orange),var(--amber))"></div>
+      <div class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <div class="kpi-label">Total Lots</div>
+      <div class="kpi-value" id="js-kpi-lots">—</div>
+      <div class="kpi-subtext">across all assets</div>
+    </div>
+
+  </div><!-- /.kpi-grid -->
+
+  <!-- ═══════════════════════ MAIN LAYOUT ══════════════════════════ -->
+  <div class="main-layout">
+
+    <!-- Holdings table -->
+    <div class="panel panel--holdings">
+      <div class="panel-header">
+        <div class="panel-title">
+          Holdings · <span id="js-holdings-currency" style="color:var(--blue)">EUR</span>
+        </div>
+        <div class="panel-badge" id="js-holdings-badge">Click a row for detail</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Class</th>
+              <th>Units</th>
+              <th>Avg Cost</th>
+              <th>Current Price</th>
+              <th>Value</th>
+              <th>Gain</th>
+              <th>Gain %</th>
+              <th>CAGR</th>
+            </tr>
+          </thead>
+          <tbody id="js-holdings-body"></tbody>
+          <tfoot id="js-holdings-foot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Allocation donuts -->
+    <div class="panel panel--alloc">
+      <div class="alloc-tabs">
+        <div class="alloc-tab is-active" id="js-tab-asset" onclick="switchAllocTab('asset')">By Asset</div>
+        <div class="alloc-tab"           id="js-tab-class" onclick="switchAllocTab('class')">By Class</div>
+      </div>
+
+      <div class="alloc-view is-active" id="js-view-asset">
+        <div class="donut-wrap">
+          <canvas id="js-donut-asset" width="200" height="200"></canvas>
+          <div class="donut-legend" id="js-legend-asset"></div>
+        </div>
+      </div>
+
+      <div class="alloc-view" id="js-view-class">
+        <div class="donut-wrap">
+          <canvas id="js-donut-class" width="200" height="200"></canvas>
+          <div class="donut-legend" id="js-legend-class"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.main-layout -->
+
+  <!-- ═══════════════════ FX INFO ROW ══════════════════════════════ -->
+  <div class="fx-info-row">
+    <div class="fx-info-chip">
+      <span class="source-label">ECB · frankfurter.app</span>
+      <strong id="js-fx-chip-usd">1 EUR = … USD</strong>
+    </div>
+    <div class="fx-info-chip">
+      <strong id="js-fx-chip-inr">1 EUR = … INR</strong>
+    </div>
+    <div class="fx-info-chip" id="js-fx-hist-chip" style="display:none">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span id="js-fx-hist-text">Historical rates loaded</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ STATUS BAR ═══════════════════════════════ -->
+  <div class="status-bar">
+    <span id="js-status-main">Loading…</span>
+    <span id="js-status-detail" style="font-family:var(--font-mono);font-size:10px;color:var(--dim)">—</span>
+  </div>
+
+</div><!-- /.page-wrap -->
+
+<!-- ═══════════════════ DRAWER OVERLAY ═══════════════════════════ -->
+<div class="drawer-overlay" id="js-drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- ═══════════════════ DRAWER ════════════════════════════════════ -->
+<div class="drawer" id="js-drawer">
+  <div class="drawer-drag-handle" onclick="closeDrawer()"></div>
+  <div class="drawer-inner">
+
+    <!-- Drawer header -->
+    <div class="drawer-header">
+      <div class="drawer-header-left">
+        <div class="drawer-asset-icon" id="js-drawer-icon"></div>
+        <div>
+          <div class="drawer-asset-name" id="js-drawer-name"></div>
+          <div class="drawer-asset-full" id="js-drawer-full"></div>
+          <div class="drawer-cagr-pill">
+            <span class="pill-label">Asset CAGR</span>
+            <strong id="js-drawer-cagr">—</strong>
+          </div>
+        </div>
+      </div>
+      <button class="drawer-close-btn" onclick="closeDrawer()">✕</button>
+    </div>
+
+    <!-- Mini KPI cards -->
+    <div class="drawer-kpis" id="js-drawer-kpis"></div>
+
+    <!-- Avg cost summary -->
+    <div class="avg-summary" id="js-drawer-avg"></div>
+
+    <!-- Dumbbell chart -->
+    <div class="chart-section">
+      <div class="chart-section-header">
+        <div class="chart-section-title">Buy Price vs. Current Price — per Lot</div>
+        <div class="chart-legend">
+          <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#5c6e90"></div>Buy price</div>
+          <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--orange)"></div>Current</div>
+          <div class="chart-legend-item">
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#4a8fff" stroke-width="1.2" stroke-dasharray="3,3"/></svg>
+            Avg
+          </div>
+          <div class="chart-legend-item">
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="#ff9240" stroke-width="1.2" stroke-dasharray="3,3"/></svg>
+            Now
+          </div>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="js-dumbbell-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Lot distribution bar -->
+    <div class="lot-dist-section">
+      <div class="lot-dist-label">Unit distribution across lots</div>
+      <div class="lot-dist-track"  id="js-lot-dist-track"></div>
+      <div class="lot-dist-legend" id="js-lot-dist-legend"></div>
+    </div>
+
+    <!-- Individual lots table -->
+    <div class="lots-table-label">Individual Lots</div>
+    <table class="lots-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Date</th><th>Units</th><th>Buy Price</th>
+          <th>Cost Basis</th><th>Cur. Value</th><th>Gain</th><th>Gain %</th><th>CAGR</th>
+        </tr>
+      </thead>
+      <tbody id="js-lots-body"></tbody>
+    </table>
+
+  </div><!-- /.drawer-inner -->
+</div><!-- /.drawer -->
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════
+   PORTFOLIO DATA
+   All buy prices stored internally in EUR.
+   Conversion to USD / INR uses historical ECB rates fetched on load.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const PORTFOLIO = [
+  {
+    ticker: 'AAPL', name: 'Apple Inc.', color: '#4a8fff',
+    cls: 'Stock', isCrypto: false,
+    lots: [
+      { date: '2022-03-14', units: 5,    eurPrice: 148.30 },
+      { date: '2022-09-01', units: 7,    eurPrice: 131.40 },
+      { date: '2023-01-20', units: 4,    eurPrice: 126.20 },
+      { date: '2023-11-03', units: 4,    eurPrice: 164.20 },
+    ],
+  },
+  {
+    ticker: 'MSFT', name: 'Microsoft Corp.', color: '#05d98a',
+    cls: 'Stock', isCrypto: false,
+    lots: [
+      { date: '2022-06-10', units: 3, eurPrice: 244.10 },
+      { date: '2023-03-22', units: 4, eurPrice: 256.90 },
+      { date: '2024-01-08', units: 3, eurPrice: 347.50 },
+    ],
+  },
+  {
+    ticker: 'VOO', name: 'Vanguard S&P 500', color: '#9b6dff',
+    cls: 'ETF', isCrypto: false,
+    lots: [
+      { date: '2022-01-05', units: 2, eurPrice: 398.40 },
+      { date: '2023-07-14', units: 3, eurPrice: 367.50 },
+    ],
+  },
+  {
+    ticker: 'NVDA', name: 'NVIDIA Corp.', color: '#ffb020',
+    cls: 'Stock', isCrypto: false,
+    lots: [
+      { date: '2022-10-17', units: 2, eurPrice: 104.50 },
+      { date: '2023-02-28', units: 3, eurPrice: 214.80 },
+      { date: '2023-08-09', units: 2, eurPrice: 381.10 },
+      { date: '2024-02-20', units: 1, eurPrice: 627.00 },
+    ],
+  },
+  {
+    ticker: 'BTC', name: 'Bitcoin', color: '#f7931a',
+    cls: 'Crypto', isCrypto: true,
+    lots: [
+      { date: '2022-01-15', units: 0.08, eurPrice: 38200 },
+      { date: '2022-06-20', units: 0.15, eurPrice: 19400 },
+      { date: '2022-11-18', units: 0.20, eurPrice: 15600 },
+      { date: '2023-03-10', units: 0.12, eurPrice: 22800 },
+      { date: '2023-10-28', units: 0.10, eurPrice: 33400 },
+    ],
+  },
+];
+
+/* Colour per lot index (shared across all assets) */
+const LOT_COLORS = ['#4a8fff','#05d98a','#9b6dff','#ffb020','#ff6b9d','#00c9e0','#ff4060'];
+
+/* Per-class fill colours for the "By Class" donut */
+const CLASS_COLORS = { Stock: '#4a8fff', ETF: '#9b6dff', Crypto: '#f7931a' };
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE PRICE STATE
+   Baseline fallback prices in EUR (updated by Yahoo Finance fetch)
+   ═══════════════════════════════════════════════════════════════════ */
+const FALLBACK_PRICES_EUR = { AAPL: 198.40, MSFT: 391.30, VOO: 481.60, NVDA: 817.20, BTC: 62400 };
+let liveEurPrices = { ...FALLBACK_PRICES_EUR };
+
+/* ═══════════════════════════════════════════════════════════════════
+   FX STATE
+   fxDailyRates: { USD: { "2022-03-14": 1.0934, … }, INR: { … } }
+   latestFxRates: most recent available rate per currency
+   ═══════════════════════════════════════════════════════════════════ */
+const fxDailyRates  = { USD: {}, INR: {} };
+const fxRatesLoaded = { USD: false, INR: false };
+const latestFxRates = { EUR: 1.0, USD: 1.08, INR: 90.5 }; // updated after fetch
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI STATE
+   ═══════════════════════════════════════════════════════════════════ */
+let selectedCurrency = 'EUR';
+let activeDrawerTicker = null; // tracks which ticker the drawer is showing
+
+/* ═══════════════════════════════════════════════════════════════════
+   FX HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Returns the EUR → currency rate for a given date.
+ * Falls back to the nearest trading day (within ±4 days) then to latestFxRates.
+ */
+function getFxRate(currency, dateStr) {
+  if (currency === 'EUR') return 1.0;
+
+  const hist = fxDailyRates[currency];
+  if (!hist) return latestFxRates[currency];
+
+  // Exact date match
+  if (hist[dateStr]) return hist[dateStr];
+
+  // Nearest trading day within ±4 calendar days
+  const targetMs = new Date(dateStr + 'T00:00:00').getTime();
+  let bestRate = null, bestDiff = Infinity;
+  for (const [d, rate] of Object.entries(hist)) {
+    const diff = Math.abs(new Date(d + 'T00:00:00').getTime() - targetMs);
+    if (diff < bestDiff && diff <= 4 * 86400000) {
+      bestDiff = diff;
+      bestRate = rate;
+    }
+  }
+  return bestRate ?? latestFxRates[currency];
+}
+
+/** Converts a EUR amount using the historical rate on the given date. */
+function convertHistorical(eurAmount, dateStr) {
+  return eurAmount * getFxRate(selectedCurrency, dateStr);
+}
+
+/** Converts a EUR amount using today's latest rate. */
+function convertLatest(eurAmount) {
+  return eurAmount * latestFxRates[selectedCurrency];
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FORMATTERS
+   ═══════════════════════════════════════════════════════════════════ */
+const CURRENCY_SYMBOL = { EUR: '€', USD: '$', INR: '₹' };
+
+/** Format a value in the selected display currency. */
+function formatValue(n, decimals = 2) {
+  const sym = CURRENCY_SYMBOL[selectedCurrency] + '\u202F'; // narrow no-break space
+  if (selectedCurrency === 'INR') {
+    return sym + Math.round(n).toLocaleString('en-IN');
+  }
+  return sym + n.toLocaleString('en-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+/** formatValue with 0 decimal places. */
+const fmtVal = n => formatValue(n, 0);
+
+/** Smart compact format — uses K/M/L/Cr suffix to keep prices readable. */
+function fmtCompact(v) {
+  const s = CURRENCY_SYMBOL[selectedCurrency];
+  if (selectedCurrency === 'INR') {
+    if (v >= 10000000) return s + (v / 10000000).toFixed(2) + 'Cr';
+    if (v >= 100000)   return s + (v / 100000).toFixed(2) + 'L';
+    if (v >= 1000)     return s + (v / 1000).toFixed(1) + 'K';
+    return s + Math.round(v);
+  }
+  if (v >= 1000000) return s + (v / 1000000).toFixed(2) + 'M';
+  if (v >= 1000)    return s + (v / 1000).toFixed(1) + 'K';
+  return formatValue(v, 2);
+}
+
+/** Format a percentage with sign. */
+const fmtPct = n => (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+
+/** Format a date string "YYYY-MM-DD" → "14 Mar 2022". */
+const fmtDate = s =>
+  new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+/** Short date for canvas labels: "Mar '22". */
+const fmtDateShort = s =>
+  new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+
+/** Format a CAGR value. Returns "< 1yr" if null (held < 6 months). */
+const fmtCAGR = v => v === null ? '< 1yr' : (v >= 0 ? '+' : '') + v.toFixed(1) + '% p.a.';
+
+/* ═══════════════════════════════════════════════════════════════════
+   CALCULATIONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Years held from dateStr to now (365.25-day year). */
+function yearsHeld(dateStr, now) {
+  return (now - new Date(dateStr + 'T00:00:00')) / (1000 * 60 * 60 * 24 * 365.25);
+}
+
+/**
+ * CAGR = (endValue / startValue) ^ (1 / years) - 1
+ * Returns null when the holding period is < 6 months (not yet meaningful).
+ */
+function calcCagr(cost, value, years) {
+  if (years < 0.5 || cost <= 0 || value <= 0) return null;
+  return (Math.pow(value / cost, 1 / years) - 1) * 100;
+}
+
+/**
+ * Builds one display-ready row per asset in selectedCurrency.
+ * All cost figures use historical FX rates; current value uses latest rate.
+ */
+function buildAssetRows(now) {
+  return PORTFOLIO.map(asset => {
+    const currentPrice = convertLatest(liveEurPrices[asset.ticker]);
+
+    let totalUnits = 0, totalCost = 0, weightedYears = 0;
+    for (const lot of asset.lots) {
+      const lotCost = lot.units * convertHistorical(lot.eurPrice, lot.date);
+      totalUnits    += lot.units;
+      totalCost     += lotCost;
+      weightedYears += lotCost * yearsHeld(lot.date, now);
+    }
+
+    const avgCost = totalCost / totalUnits;
+    const value   = totalUnits * currentPrice;
+    const gain    = value - totalCost;
+    const gainPct = (gain / totalCost) * 100;
+    const avgYears = weightedYears / totalCost;
+    const cagr    = calcCagr(totalCost, value, avgYears);
+
+    return { ...asset, currentPrice, totalUnits, totalCost, avgCost, value, gain, gainPct, cagr };
+  });
+}
+
+/**
+ * Computes portfolio-level CAGR using cost-weighted average purchase date.
+ * Reuses already-computed row data to avoid double work.
+ */
+function calcPortfolioCAGR(rows, totalValue, now) {
+  let weightedCost = 0, weightedYears = 0;
+  for (const row of rows) {
+    for (const lot of row.lots) {
+      const c = lot.units * convertHistorical(lot.eurPrice, lot.date);
+      weightedCost  += c;
+      weightedYears += c * yearsHeld(lot.date, now);
+    }
+  }
+  return calcCagr(weightedCost, totalValue, weightedYears / weightedCost);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER — MAIN DASHBOARD
+   ═══════════════════════════════════════════════════════════════════ */
+
+function render() {
+  const now  = new Date();
+  const rows = buildAssetRows(now);
+
+  const totalValue = rows.reduce((s, r) => s + r.value, 0);
+  const totalCost  = rows.reduce((s, r) => s + r.totalCost, 0);
+  const totalGain  = totalValue - totalCost;
+  const totalGainPct = (totalGain / totalCost) * 100;
+  const bestRow    = [...rows].sort((a, b) => b.gainPct - a.gainPct)[0];
+  const totalLots  = PORTFOLIO.reduce((s, p) => s + p.lots.length, 0);
+  const portCAGR   = calcPortfolioCAGR(rows, totalValue, now);
+
+  // ── KPI cards ──
+  $('js-kpi-value').textContent = fmtVal(totalValue);
+  $('js-kpi-cost').textContent  = 'Cost: ' + fmtVal(totalCost);
+
+  setTextAndColor('js-kpi-gl',  (totalGain >= 0 ? '+' : '') + fmtVal(Math.abs(totalGain)), totalGain);
+  setTextAndColor('js-kpi-glp', fmtPct(totalGainPct), totalGain);
+  $('js-kpi-gl-bar').style.background = totalGain >= 0 ? 'var(--green)' : 'var(--red)';
+
+  setTextAndColor('js-kpi-cagr', fmtCAGR(portCAGR), portCAGR);
+  $('js-kpi-cagr-sub').textContent = selectedCurrency + '-adjusted CAGR';
+
+  $('js-kpi-best').textContent     = bestRow.ticker;
+  setTextAndColor('js-kpi-best-sub', fmtPct(bestRow.gainPct), bestRow.gainPct);
+  $('js-kpi-lots').textContent = totalLots;
+
+  // ── Panel header ──
+  $('js-holdings-currency').textContent = selectedCurrency;
+  $('js-holdings-badge').textContent    = selectedCurrency + ' · click for detail';
+
+  // ── Class badge map ──
+  const CLASS_BADGE_HTML = {
+    Stock:  '<span class="class-badge class-badge--stock">Stock</span>',
+    ETF:    '<span class="class-badge class-badge--etf">ETF</span>',
+    Crypto: '<span class="class-badge class-badge--crypto">Crypto</span>',
+  };
+
+  // ── Holdings table rows ──
+  $('js-holdings-body').innerHTML = rows.map(row => {
+    const cagrCell = row.cagr === null
+      ? '<span style="color:var(--dim);font-size:10px">—</span>'
+      : pill(fmtCAGR(row.cagr), row.cagr >= 0);
+
+    const gainCell = (row.gain >= 0 ? '+' : '') + fmtVal(row.gain);
+
+    return `
+      <tr onclick="openDrawer('${row.ticker}')">
+        <td>
+          <div class="ticker-name">
+            <div class="ticker-color-dot" style="background:${row.color}"></div>
+            ${row.ticker}
+          </div>
+          <div class="ticker-fullname">${row.name}</div>
+          <div class="ticker-lots-hint">→ ${row.lots.length} lots</div>
+        </td>
+        <td>${CLASS_BADGE_HTML[row.cls] ?? row.cls}</td>
+        <td>${row.isCrypto ? row.totalUnits.toFixed(4) + ' BTC' : row.totalUnits + ' sh.'}</td>
+        <td>${fmtCompact(row.avgCost)}</td>
+        <td style="color:var(--text)">${fmtCompact(row.currentPrice)}</td>
+        <td style="color:var(--text)">${fmtVal(row.value)}</td>
+        <td style="color:${row.gain >= 0 ? 'var(--green)' : 'var(--red)'}">${gainCell}</td>
+        <td>${pill(fmtPct(row.gainPct), row.gainPct >= 0)}</td>
+        <td>${cagrCell}</td>
+      </tr>`;
+  }).join('');
+
+  // ── Total row ──
+  $('js-holdings-foot').innerHTML = `
+    <tr>
+      <td colspan="5">Total Portfolio</td>
+      <td>${fmtVal(totalValue)}</td>
+      <td style="color:${totalGain >= 0 ? 'var(--green)' : 'var(--red)'}">
+        ${totalGain >= 0 ? '+' : ''}${fmtVal(totalGain)}
+      </td>
+      <td>${pill(fmtPct(totalGainPct), totalGainPct >= 0)}</td>
+      <td>${pill(fmtCAGR(portCAGR), portCAGR !== null && portCAGR >= 0)}</td>
+    </tr>`;
+
+  // ── Charts ──
+  renderDonutAsset(rows, totalValue);
+  renderDonutClass(rows, totalValue);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER — DONUT CHARTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+function renderDonut(canvasId, legendId, slices, totalValue, centerLine1, centerLine2) {
+  const canvas = document.getElementById(canvasId);
+  const ctx    = canvas.getContext('2d');
+  const cx = 100, cy = 100, outerR = 86, innerR = 52, gap = 0.022;
+
+  ctx.clearRect(0, 0, 200, 200);
+
+  let angle = -Math.PI / 2;
+  for (const s of slices) {
+    const sweep = (s.value / totalValue) * Math.PI * 2 - gap;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, outerR, angle + gap / 2, angle + sweep + gap / 2);
+    ctx.closePath();
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    angle += (s.value / totalValue) * Math.PI * 2; // advance by full slice so gaps stay consistent
+  }
+
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  ctx.fillStyle = '#0c1220';
+  ctx.fill();
+
+  // Centre labels
+  ctx.fillStyle = '#e2e8f8'; ctx.font = '500 11px DM Mono,monospace';
+  ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+  ctx.fillText(centerLine1, cx, cy - 8);
+  ctx.fillStyle = '#526080'; ctx.font = '500 10px DM Mono,monospace';
+  ctx.fillText(centerLine2, cx, cy + 9);
+
+  // Legend rows
+  document.getElementById(legendId).innerHTML = slices.map(s => `
+    <div class="legend-row" ${s.ticker ? `onclick="openDrawer('${s.ticker}')"` : 'style="cursor:default"'}>
+      <div class="legend-row-left">
+        <div class="legend-color-dot" style="background:${s.color}"></div>
+        <span class="legend-ticker">${s.label}</span>
+      </div>
+      <div class="legend-row-right">
+        <span style="color:var(--text)">${((s.value / totalValue) * 100).toFixed(1)}%</span>
+        <span>${fmtVal(s.value)}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderDonutAsset(rows, totalValue) {
+  renderDonut(
+    'js-donut-asset', 'js-legend-asset',
+    rows.map(r => ({ label: r.ticker, ticker: r.ticker, value: r.value, color: r.color })),
+    totalValue,
+    rows.length + ' Assets',
+    fmtVal(totalValue)
+  );
+}
+
+function renderDonutClass(rows, totalValue) {
+  const classes = {};
+  for (const r of rows) {
+    if (!classes[r.cls]) classes[r.cls] = { value: 0, color: CLASS_COLORS[r.cls] };
+    classes[r.cls].value += r.value;
+  }
+  renderDonut(
+    'js-donut-class', 'js-legend-class',
+    Object.entries(classes).map(([k, v]) => ({ label: k, ticker: '', value: v.value, color: v.color })),
+    totalValue,
+    '3 Classes',
+    fmtVal(totalValue)
+  );
+}
+
+function switchAllocTab(tab) {
+  ['asset', 'class'].forEach(t => {
+    document.getElementById('js-tab-'  + t).classList.toggle('is-active', t === tab);
+    document.getElementById('js-view-' + t).classList.toggle('is-active', t === tab);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAWER
+   ═══════════════════════════════════════════════════════════════════ */
+
+function openDrawer(ticker) {
+  activeDrawerTicker = ticker;
+
+  const asset      = PORTFOLIO.find(p => p.ticker === ticker);
+  const now        = new Date();
+  const curPrice   = convertLatest(liveEurPrices[ticker]);
+
+  // Compute totals in selected currency
+  let totalUnits = 0, totalCost = 0, weightedYears = 0;
+  for (const lot of asset.lots) {
+    const c   = lot.units * convertHistorical(lot.eurPrice, lot.date);
+    totalUnits    += lot.units;
+    totalCost     += c;
+    weightedYears += c * yearsHeld(lot.date, now);
+  }
+  const avgCost  = totalCost / totalUnits;
+  const value    = totalUnits * curPrice;
+  const gain     = value - totalCost;
+  const gainPct  = (gain / totalCost) * 100;
+  const assetCAGR = calcCagr(totalCost, value, weightedYears / totalCost);
+  const cagrColor = assetCAGR === null ? 'var(--muted)' : assetCAGR >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // ── Header ──
+  const iconEl = $('js-drawer-icon');
+  iconEl.textContent = ticker === 'BTC' ? '₿' : ticker.slice(0, 2);
+  iconEl.style.cssText = `
+    background: ${asset.color}20; color: ${asset.color};
+    width:46px; height:46px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:800; font-family:var(--font-mono); flex-shrink:0;`;
+
+  $('js-drawer-name').textContent = ticker;
+  $('js-drawer-full').textContent = asset.name + ' · ' + asset.cls;
+  setTextAndColor('js-drawer-cagr', fmtCAGR(assetCAGR), assetCAGR);
+
+  // ── Mini KPIs ──
+  const accentBar = `linear-gradient(90deg, ${asset.color}cc, ${asset.color}44)`;
+  $('js-drawer-kpis').innerHTML = `
+    <div class="drawer-kpi-card">
+      <div class="drawer-kpi-accent" style="background:${accentBar}"></div>
+      <div class="drawer-kpi-label">Current Price</div>
+      <div class="drawer-kpi-value">${fmtCompact(curPrice)}</div>
+      <div class="drawer-kpi-sub">${selectedCurrency} · ${asset.cls}</div>
+    </div>
+    <div class="drawer-kpi-card">
+      <div class="drawer-kpi-accent" style="background:${accentBar}"></div>
+      <div class="drawer-kpi-label">Total Units</div>
+      <div class="drawer-kpi-value">${asset.isCrypto ? totalUnits.toFixed(4) + ' BTC' : totalUnits + ' sh.'}</div>
+      <div class="drawer-kpi-sub">${asset.lots.length} lots</div>
+    </div>
+    <div class="drawer-kpi-card">
+      <div class="drawer-kpi-accent" style="background:${accentBar}"></div>
+      <div class="drawer-kpi-label">Current Value</div>
+      <div class="drawer-kpi-value">${fmtVal(value)}</div>
+      <div class="drawer-kpi-sub">Cost: ${fmtVal(totalCost)}</div>
+    </div>
+    <div class="drawer-kpi-card">
+      <div class="drawer-kpi-accent" style="background:${accentBar}"></div>
+      <div class="drawer-kpi-label">Total Gain / Loss</div>
+      <div class="drawer-kpi-value" style="color:${gain >= 0 ? 'var(--green)' : 'var(--red)'}">
+        ${gain >= 0 ? '+' : ''}${fmtVal(gain)}
+      </div>
+      <div class="drawer-kpi-sub" style="color:${gain >= 0 ? 'var(--green)' : 'var(--red)'}">
+        ${fmtPct(gainPct)}
+      </div>
+    </div>`;
+
+  // ── Avg cost summary ──
+  const vsDiff    = curPrice - avgCost;
+  const vsDiffPct = (vsDiff / avgCost) * 100;
+  const fxNote    = selectedCurrency === 'EUR' ? 'EUR (native)'
+    : fxRatesLoaded[selectedCurrency]
+      ? selectedCurrency + ' ✓ historical'
+      : selectedCurrency + ' ⚠ approx.';
+
+  $('js-drawer-avg').innerHTML = `
+    <span class="avg-summary-label">Avg. Cost</span>
+    <span class="avg-summary-value">${fmtCompact(avgCost)}</span>
+    <span class="avg-summary-sep">·</span>
+    <span class="avg-summary-label">First Buy</span>
+    <span class="avg-summary-value">${fmtDate(asset.lots[0].date)}</span>
+    <span class="avg-summary-sep">·</span>
+    <span class="avg-summary-label">vs. Current</span>
+    <span class="avg-summary-value" style="color:${vsDiff >= 0 ? 'var(--green)' : 'var(--red)'}">
+      ${vsDiff >= 0 ? '+' : ''}${fmtCompact(vsDiff)} (${fmtPct(vsDiffPct)})
+    </span>
+    <span class="avg-summary-sep">·</span>
+    <span class="avg-summary-label">FX</span>
+    <span class="avg-summary-value" style="color:var(--blue)">${fxNote}</span>`;
+
+  // ── Lot distribution bar ──
+  $('js-lot-dist-track').innerHTML = asset.lots.map((lot, i) => {
+    const pct = (lot.units / totalUnits) * 100;
+    return `<div class="lot-dist-segment" style="width:${pct}%;background:${LOT_COLORS[i]}"></div>`;
+  }).join('');
+
+  $('js-lot-dist-legend').innerHTML = asset.lots.map((lot, i) => `
+    <div class="lot-dist-item">
+      <div class="lot-dist-item-dot" style="background:${LOT_COLORS[i]}"></div>
+      L${i + 1}: ${asset.isCrypto ? lot.units.toFixed(3) + ' BTC' : lot.units + ' sh'}
+    </div>`).join('');
+
+  // ── Lots detail table ──
+  $('js-lots-body').innerHTML = asset.lots.map((lot, i) => {
+    const buyPrice = convertHistorical(lot.eurPrice, lot.date);
+    const lotCost  = lot.units * buyPrice;
+    const lotValue = lot.units * curPrice;
+    const lotGain  = lotValue - lotCost;
+    const lotGainPct = (lotGain / lotCost) * 100;
+    const yrs      = yearsHeld(lot.date, now);
+    const lotCAGR  = calcCagr(lotCost, lotValue, yrs);
+
+    // Show the FX rate used for transparency when not in EUR
+    const rateNote = selectedCurrency !== 'EUR'
+      ? `<span style="color:var(--dim);font-size:9px;margin-left:4px">
+           @${getFxRate(selectedCurrency, lot.date).toFixed(3)}
+         </span>`
+      : '';
+
+    const cagrCell = yrs < 1
+      ? '<span style="color:var(--dim);font-size:10px">< 1yr</span>'
+      : pill(fmtCAGR(lotCAGR), lotCAGR >= 0);
+
+    return `
+      <tr>
+        <td><span class="lot-number-badge" style="background:${LOT_COLORS[i]}22;color:${LOT_COLORS[i]}">${i + 1}</span></td>
+        <td>${fmtDate(lot.date)}</td>
+        <td style="color:var(--text)">${asset.isCrypto ? lot.units.toFixed(4) + ' BTC' : lot.units + ' sh.'}</td>
+        <td>${fmtCompact(buyPrice)}${rateNote}</td>
+        <td>${fmtVal(lotCost)}</td>
+        <td style="color:var(--text)">${fmtVal(lotValue)}</td>
+        <td style="color:${lotGain >= 0 ? 'var(--green)' : 'var(--red)'}">
+          ${lotGain >= 0 ? '+' : ''}${fmtVal(lotGain)}
+        </td>
+        <td>${pill(fmtPct(lotGainPct), lotGainPct >= 0)}</td>
+        <td>${cagrCell}</td>
+      </tr>`;
+  }).join('');
+
+  // Highlight active row in holdings table
+  document.querySelectorAll('#js-holdings-body tr').forEach(r => r.classList.remove('is-active'));
+  const rowIndex = PORTFOLIO.findIndex(p => p.ticker === ticker);
+  document.querySelectorAll('#js-holdings-body tr')[rowIndex]?.classList.add('is-active');
+
+  // Open drawer
+  $('js-drawer-overlay').classList.add('is-open');
+  $('js-drawer').classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+
+  // Draw dumbbell after layout is painted
+  requestAnimationFrame(() => requestAnimationFrame(() => drawDumbbell(asset, curPrice, now)));
+}
+
+function closeDrawer() {
+  activeDrawerTicker = null;
+  $('js-drawer-overlay').classList.remove('is-open');
+  $('js-drawer').classList.remove('is-open');
+  document.body.style.overflow = '';
+  document.querySelectorAll('#js-holdings-body tr').forEach(r => r.classList.remove('is-active'));
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ═══════════════════════════════════════════════════════════════════
+   DUMBBELL CHART  (Canvas)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Draws a rounded rectangle path (used for info boxes). */
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y,     x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x,     y + h, x,     y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawDumbbell(asset, curPriceDisplay, now) {
+  const canvas = document.getElementById('js-dumbbell-canvas');
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const lots = asset.lots;
+
+  // Pre-compute per-lot data
+  const lotData = lots.map(lot => {
+    const buyPrice = convertHistorical(lot.eurPrice, lot.date);
+    const yrs      = yearsHeld(lot.date, now);
+    const lotCost  = lot.units * buyPrice;
+    const lotValue = lot.units * curPriceDisplay;
+    const cagr     = calcCagr(lotCost, lotValue, yrs);
+    const gainPct  = ((curPriceDisplay - buyPrice) / buyPrice) * 100;
+    return { lot, buyPrice, yrs, cagr, gainPct, isUp: curPriceDisplay >= buyPrice };
+  });
+
+  // Canvas sizing
+  const dpr    = window.devicePixelRatio || 1;
+  const cssW   = Math.max(canvas.parentElement.clientWidth - 24, 360);
+  const INFO_BOX_W = 118, INFO_BOX_H = 50, INFO_BOX_GAP = 10;
+  const ROW_H  = 92, PAD_TOP = 34, PAD_BOT = 32;
+  const PAD_L  = 78, PAD_R   = INFO_BOX_W + INFO_BOX_GAP + 18;
+  const cssH   = PAD_TOP + lots.length * ROW_H + PAD_BOT;
+
+  canvas.width  = cssW * dpr; canvas.height = cssH * dpr;
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const chartW = cssW - PAD_L - PAD_R;
+  const allPrices = lotData.map(d => d.buyPrice).concat([curPriceDisplay]);
+  const minPrice  = Math.min(...allPrices) * 0.88;
+  const maxPrice  = Math.max(...allPrices) * 1.12;
+  const priceToX  = p => PAD_L + ((p - minPrice) / (maxPrice - minPrice)) * chartW;
+
+  // ── Grid lines + x-axis labels ──
+  for (let i = 0; i <= 4; i++) {
+    const p = minPrice + (i / 4) * (maxPrice - minPrice);
+    const x = priceToX(p);
+    ctx.strokeStyle = 'rgba(255,255,255,.028)'; ctx.lineWidth = .8; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x, PAD_TOP - 14); ctx.lineTo(x, cssH - PAD_BOT + 4); ctx.stroke();
+    ctx.fillStyle = '#2a3855'; ctx.font = '9px DM Mono,monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(fmtCompact(p), x, cssH - PAD_BOT + 6);
+  }
+
+  // ── Weighted avg cost — blue dashed vertical line ──
+  let wU = 0, wC = 0;
+  lotData.forEach(d => { wU += d.lot.units; wC += d.lot.units * d.buyPrice; });
+  const avgCostDisplay = wC / wU;
+  const avgX = priceToX(avgCostDisplay);
+
+  ctx.strokeStyle = 'rgba(74,143,255,.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(avgX, PAD_TOP - 20); ctx.lineTo(avgX, cssH - PAD_BOT); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(74,143,255,.7)'; ctx.font = '500 9px DM Mono,monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Avg', avgX, PAD_TOP - 20);
+
+  // ── Current price — orange dashed vertical line ──
+  const curX = priceToX(curPriceDisplay);
+  ctx.strokeStyle = 'rgba(255,146,64,.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(curX, PAD_TOP - 20); ctx.lineTo(curX, cssH - PAD_BOT); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,146,64,.75)'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Now', curX, PAD_TOP - 20);
+
+  const maxUnits = Math.max(...lots.map(l => l.units));
+
+  // ── Per-lot rows ──
+  lotData.forEach(({ lot, buyPrice, yrs, cagr, gainPct, isUp }, i) => {
+    const rowCY  = PAD_TOP + i * ROW_H + ROW_H / 2;
+    const buyX   = priceToX(buyPrice);
+    const gainColor = isUp ? '#05d98a' : '#ff4060';
+
+    // Alternating row tint
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,.013)' : 'transparent';
+    ctx.fillRect(0, rowCY - ROW_H / 2, cssW, ROW_H);
+
+    // Lot label + date (left margin)
+    ctx.fillStyle = '#5c6e90'; ctx.font = '500 10px DM Mono,monospace';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('L' + (i + 1), PAD_L - 10, rowCY - 10);
+    ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace';
+    ctx.fillText(fmtDateShort(lot.date), PAD_L - 10, rowCY + 5);
+
+    // Connecting line (gradient green → green or red → red)
+    const grad = ctx.createLinearGradient(buyX, 0, curX, 0);
+    grad.addColorStop(0, isUp ? 'rgba(5,217,138,.12)' : 'rgba(255,64,96,.12)');
+    grad.addColorStop(1, isUp ? 'rgba(5,217,138,.55)' : 'rgba(255,64,96,.55)');
+    ctx.strokeStyle = grad; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(buyX, rowCY); ctx.lineTo(curX, rowCY); ctx.stroke();
+
+    // Dot radius scales with position size (sqrt for visual balance)
+    const unitRatio = asset.isCrypto
+      ? Math.sqrt(lot.units * 100) / Math.sqrt(maxUnits * 100)
+      : Math.sqrt(lot.units)       / Math.sqrt(maxUnits);
+    const dotR = Math.min(Math.max(5 + unitRatio * 7, 5), 12);
+
+    // ── Grey dot: buy price ──
+    ctx.fillStyle = '#5c6e90';
+    ctx.beginPath(); ctx.arc(buyX, rowCY, dotR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#8fa0c0'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(buyX, rowCY, dotR, 0, Math.PI * 2); ctx.stroke();
+
+    // Buy price label above dot
+    ctx.fillStyle = '#8fa0c0'; ctx.font = '500 10px DM Mono,monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(fmtCompact(buyPrice), buyX, rowCY - dotR - 4);
+
+    // Units label below dot
+    ctx.fillStyle = '#2e3f58'; ctx.font = '400 9px DM Mono,monospace'; ctx.textBaseline = 'top';
+    ctx.fillText(asset.isCrypto ? lot.units.toFixed(3) + ' BTC' : lot.units + ' sh', buyX, rowCY + dotR + 4);
+
+    // ── Orange dot: current price ──
+    ctx.fillStyle = '#ff9240';
+    ctx.beginPath(); ctx.arc(curX, rowCY, dotR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.6)' : 'rgba(255,64,96,.6)';
+    ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(curX, rowCY, dotR + 3, 0, Math.PI * 2); ctx.stroke();
+
+    // ── Info box to the right of orange dot ──
+    const boxX = curX + dotR + INFO_BOX_GAP + 4;
+    const boxY = rowCY - INFO_BOX_H / 2;
+
+    // Connector line from dot to box
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.25)' : 'rgba(255,64,96,.25)';
+    ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(curX + dotR + 3, rowCY); ctx.lineTo(boxX, rowCY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Box background + border
+    ctx.fillStyle = 'rgba(17,24,39,.94)';
+    roundedRect(ctx, boxX, boxY, INFO_BOX_W, INFO_BOX_H, 5); ctx.fill();
+    ctx.strokeStyle = isUp ? 'rgba(5,217,138,.35)' : 'rgba(255,64,96,.35)'; ctx.lineWidth = 0.8;
+    roundedRect(ctx, boxX, boxY, INFO_BOX_W, INFO_BOX_H, 5); ctx.stroke();
+
+    // Line 1 — Gain %
+    ctx.fillStyle = gainColor; ctx.font = '700 11.5px Cabinet Grotesk,sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText((gainPct >= 0 ? '+' : '') + gainPct.toFixed(2) + '%', boxX + 8, boxY + 7);
+
+    // Line 2 — CAGR
+    ctx.fillStyle = '#8fa0c0'; ctx.font = '400 9.5px DM Mono,monospace';
+    ctx.fillText(yrs < 1 ? 'Held < 1yr' : 'CAGR: ' + fmtCAGR(cagr), boxX + 8, boxY + 23);
+
+    // Line 3 — Metadata
+    ctx.fillStyle = '#3a4f6e'; ctx.font = '400 8.5px DM Mono,monospace';
+    ctx.fillText(yrs.toFixed(1) + 'y · L' + (i + 1) + ' · ' + selectedCurrency, boxX + 8, boxY + 36);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATA FETCHING
+
+   Stock prices  → Yahoo Finance via CORS proxy (EUR-denominated)
+   FX history    → api.frankfurter.app (ECB rates, free, no API key,
+                   CORS-enabled — one request returns all daily
+                   EUR/USD + EUR/INR rates from 2022-01-01 to today)
+   ═══════════════════════════════════════════════════════════════════ */
+
+const YF_CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+/**
+ * fetch() wrapper with a manual timeout.
+ * Avoids AbortSignal.timeout() which cannot be cloned across iframe boundaries.
+ */
+function fetchWithTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal })
+    .then(response  => { clearTimeout(timerId); return response; })
+    .catch(error    => { clearTimeout(timerId); throw error; });
+}
+
+/** Fetches the current EUR-denominated price for one ticker from Yahoo Finance. */
+async function fetchYFPrice(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}-EUR?interval=1d&range=1d`;
+  for (const makeProxy of YF_CORS_PROXIES) {
+    try {
+      const response = await fetchWithTimeout(makeProxy(url), 8000);
+      if (!response.ok) continue;
+      const data  = await response.json();
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && price > 0) return +price.toFixed(4);
+    } catch (_) { /* try next proxy */ }
+  }
+  return null; // all proxies failed
+}
+
+/**
+ * Fetches full daily EUR/USD and EUR/INR history from frankfurter.app.
+ * Single request returns ~1,100 data points covering all lot purchase dates.
+ * Response shape: { rates: { "2022-01-03": { "USD": 1.1302, "INR": 84.52 }, … } }
+ */
+async function fetchFXHistory() {
+  const today = new Date().toISOString().slice(0, 10);
+  const url   = `https://api.frankfurter.app/2022-01-01..${today}?from=EUR&to=USD,INR`;
+
+  try {
+    const response = await fetchWithTimeout(url, 25000);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+
+    let countUSD = 0, countINR = 0;
+    for (const [date, rates] of Object.entries(data.rates ?? {})) {
+      if (rates.USD) { fxDailyRates.USD[date] = rates.USD; countUSD++; }
+      if (rates.INR) { fxDailyRates.INR[date] = rates.INR; countINR++; }
+    }
+
+    // Mark as loaded only if we got meaningful data (>50 points)
+    if (countUSD > 50) fxRatesLoaded.USD = true;
+    if (countINR > 50) fxRatesLoaded.INR = true;
+
+    // Sync latest rates (most recent date in the history)
+    if (fxRatesLoaded.USD) {
+      const latest = Object.keys(fxDailyRates.USD).sort().at(-1);
+      latestFxRates.USD = fxDailyRates.USD[latest];
+    }
+    if (fxRatesLoaded.INR) {
+      const latest = Object.keys(fxDailyRates.INR).sort().at(-1);
+      latestFxRates.INR = fxDailyRates.INR[latest];
+    }
+
+    return fxRatesLoaded.USD && fxRatesLoaded.INR;
+
+  } catch (err) {
+    console.warn('[FX] frankfurter.app fetch failed:', err.message);
+    return false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   REFRESH CYCLE
+   ═══════════════════════════════════════════════════════════════════ */
+let countdownValue = 60;
+let countdownTimer = null;
+let refreshTimer   = null;
+
+async function doRefresh() {
+  const btn = $('js-refresh-btn');
+  btn.classList.add('is-spinning');
+  setStatusDot('loading', 'Fetching live data…');
+
+  // Fetch stock prices and FX history in parallel
+  const [yfResults] = await Promise.all([
+    Promise.all(PORTFOLIO.map(p => fetchYFPrice(p.ticker))),
+    fetchFXHistory(),
+  ]);
+
+  // Apply live prices (keep fallback for any that failed)
+  let liveCount = 0;
+  PORTFOLIO.forEach((asset, i) => {
+    if (yfResults[i]) { liveEurPrices[asset.ticker] = yfResults[i]; liveCount++; }
+  });
+
+  btn.classList.remove('is-spinning');
+
+  // Update timestamps and status
+  $('js-timestamp').textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+  const priceStatus = liveCount > 0 ? 'Live EUR prices' : 'Baseline prices';
+  const fxStatus    = (fxRatesLoaded.USD && fxRatesLoaded.INR)
+    ? 'ECB historical FX (frankfurter.app)'
+    : 'FX approximate (ECB unavailable)';
+
+  $('js-status-main').textContent   = priceStatus + ' · ' + fxStatus;
+  $('js-status-detail').textContent =
+    Object.keys(fxDailyRates.USD).length + ' USD + ' +
+    Object.keys(fxDailyRates.INR).length + ' INR daily rates';
+
+  setStatusDot(liveCount > 0 ? 'live' : 'error', liveCount > 0 ? 'Live prices' : 'Fallback prices');
+  updateFXStatusUI();
+  render();
+
+  // Re-render open drawer with new prices/currency
+  if (activeDrawerTicker) openDrawer(activeDrawerTicker);
+
+  startCountdown();
+}
+
+function startCountdown() {
+  clearInterval(countdownTimer);
+  clearTimeout(refreshTimer);
+  countdownValue = 60;
+  updateCountdownDisplay();
+  countdownTimer = setInterval(() => {
+    countdownValue--;
+    updateCountdownDisplay();
+    if (countdownValue <= 0) clearInterval(countdownTimer);
+  }, 1000);
+  refreshTimer = setTimeout(doRefresh, 60000);
+}
+
+function updateCountdownDisplay() {
+  $('js-countdown').textContent = 'Next in ' + countdownValue + 's';
+}
+
+function setStatusDot(state, text) {
+  const dot = $('js-status-dot');
+  dot.className = 'status-dot'
+    + (state === 'error'   ? ' is-error'   : '')
+    + (state === 'loading' ? ' is-loading' : '');
+  $('js-status-text').textContent = text;
+}
+
+function updateFXStatusUI() {
+  const el  = $('js-fx-status');
+  const usdOK = fxRatesLoaded.USD;
+  const inrOK = fxRatesLoaded.INR;
+  const allOK = usdOK && inrOK;
+
+  const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const CLOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+
+  if (allOK) {
+    el.className = 'fx-status-pill is-ok';
+    el.innerHTML = CHECK_SVG + ' FX: Historical';
+  } else if (usdOK || inrOK) {
+    el.className = 'fx-status-pill is-loading';
+    el.innerHTML = CLOCK_SVG + ' FX: Partial';
+  } else {
+    el.className = 'fx-status-pill is-error';
+    el.innerHTML = CROSS_SVG + ' FX: Approx.';
+  }
+
+  // Update FX info chips
+  $('js-fx-chip-usd').textContent = '1 EUR = ' + latestFxRates.USD.toFixed(4) + ' USD';
+  $('js-fx-chip-inr').textContent = '1 EUR = ₹' + latestFxRates.INR.toFixed(2) + ' INR';
+
+  const histChip = $('js-fx-hist-chip');
+  histChip.style.display = allOK ? 'flex' : 'none';
+  if (allOK) {
+    $('js-fx-hist-text').textContent =
+      Object.keys(fxDailyRates.USD).length + ' daily ECB rates loaded';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CURRENCY CHANGE HANDLER
+   ═══════════════════════════════════════════════════════════════════ */
+function onCurrencyChange() {
+  selectedCurrency = document.getElementById('js-currency-select').value;
+  render();
+  // If the drawer is open, re-render it with the new currency
+  if (activeDrawerTicker) openDrawer(activeDrawerTicker);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITY HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Shorthand for document.getElementById. */
+const $ = id => document.getElementById(id);
+
+/** Sets text content and colour (green/red) of an element. */
+function setTextAndColor(id, text, value) {
+  const el = $(id);
+  el.textContent = text;
+  el.style.color = (value === null || value >= 0) ? 'var(--green)' : 'var(--red)';
+}
+
+/** Returns a gain/loss pill HTML string. */
+function pill(text, isPositive) {
+  const cls = isPositive ? 'pill--gain' : 'pill--loss';
+  return `<span class="pill ${cls}">${text}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INITIALISATION
+   ═══════════════════════════════════════════════════════════════════ */
+render();                                          // immediate render with fallback prices
+setStatusDot('loading', 'Loading…');
+$('js-timestamp').textContent    = 'Baseline prices';
+$('js-status-main').textContent  = 'Fetching live prices and ECB FX history…';
+$('js-status-detail').textContent = '—';
+doRefresh();                                       // kick off live data fetch
+</script>
+</body>
+</html>
