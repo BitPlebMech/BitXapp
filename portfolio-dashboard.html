@@ -622,6 +622,21 @@ body::after {
 .pos-btn.danger:hover { border-color: var(--red);  color: var(--red); }
 .pos-btn svg          { width: 10px; height: 10px; }
 
+.export-btn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--surf2); border: 0.5px solid var(--b2); color: var(--text2);
+  border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  transition: all 0.14s; display: flex; align-items: center;
+  flex: 1;
+}
+.export-btn:hover { 
+  background: var(--surf3); 
+  border-color: var(--blue); 
+  color: var(--blue); 
+}
+.export-btn svg { flex-shrink: 0; }
+
 /* Empty state shown when no positions match filters */
 .empty-state     { text-align: center; padding: 60px 20px; color: var(--muted); grid-column: 1 / -1; }
 .empty-state svg { margin-bottom: 12px; opacity: 0.25; }
@@ -1775,6 +1790,10 @@ html, body { height: 100%; overflow: hidden; }
       </div>
     </div>
     <div style="display:flex;gap:7px">
+      <button class="hdr-btn" onclick="App.exportPortfolioCSV()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
       <button class="hdr-btn" onclick="App.openCsvImport()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import CSV
@@ -2195,6 +2214,18 @@ html, body { height: 100%; overflow: hidden; }
     </div>
     <div class="drw-kpis"    id="drw-kpis"></div>
     <div class="drw-summary" id="drw-summary"></div>
+    
+    <!-- Export buttons -->
+    <div style="display:flex;gap:10px;margin:16px 0 20px 0;padding:0 20px">
+      <button class="export-btn" onclick="App.exportPositionCSV()" title="Export this position's transactions as CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:6px">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export Position CSV
+      </button>
+    </div>
 
     <!-- Dumbbell chart: buy price vs current price per lot -->
     <div class="chart-sec">
@@ -3258,8 +3289,8 @@ const App = (function () {
     const dates = [];
     for (const tx of txs) {
       const date = new Date(tx.date + 'T12:00:00');
-      const displayPrice = eurToDisplay(tx.price, tx.date);
-      const amount = tx.qty * displayPrice;
+      const displayPrice = eurToDisplay(+tx.price, tx.date);
+      const amount = (+tx.qty) * displayPrice;
       cashflows.push(tx.type === 'BUY' ? -amount : amount);
       dates.push(date);
     }
@@ -4110,7 +4141,7 @@ const App = (function () {
       const year = tx.date.slice(0, 4);
       if (!yearlyData[year]) yearlyData[year] = { volume: 0, fees: 0, taxes: 0, realized: 0, txCount: 0 };
       const y = yearlyData[year];
-      y.volume += eurToDisplay(tx.qty * tx.price, tx.date);
+      y.volume += eurToDisplay((+tx.qty) * (+tx.price), tx.date);
       y.fees   += eurToDisplay(+(tx.fees  || 0), tx.date);
       y.taxes  += eurToDisplay(+(tx.taxes || 0), tx.date);
       y.txCount++;
@@ -4128,7 +4159,7 @@ const App = (function () {
     for (const tx of state.transactions) {
       if (tx.type !== 'SELL') continue;
       const year = tx.date.slice(0, 4);
-      const vol = eurToDisplay(tx.qty * tx.price, tx.date);
+      const vol = eurToDisplay((+tx.qty) * (+tx.price), tx.date);
       sellsByYear[year] = (sellsByYear[year] || 0) + vol;
       totalSellVolume += vol;
     }
@@ -4550,14 +4581,14 @@ const App = (function () {
       const isBuy = tx.type === 'BUY';
       const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
       const currentPriceD = eurToDisplay(getPrice(tx.ticker));
-      const buyPriceD = eurToDisplay(tx.price, tx.date);
-      const totalD = tx.qty * buyPriceD;
+      const buyPriceD = eurToDisplay(+tx.price, tx.date);
+      const totalD = (+tx.qty) * buyPriceD;
 
       // P&L calculation: unrealised for BUY, realised for SELL
       let plHTML = '—';
       if (isBuy) {
         // BUY: show unrealised P&L (current price vs buy price)
-        const pl = (currentPriceD - buyPriceD) * tx.qty;
+        const pl = (currentPriceD - buyPriceD) * (+tx.qty);
         const plPct = ((currentPriceD - buyPriceD) / buyPriceD) * 100;
         plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${fmtValue(pl)} <span style="font-size:10px">(${fmtPct(plPct)})</span></span>`;
       } else {
@@ -4574,8 +4605,8 @@ const App = (function () {
           let totalCost = 0;
           let totalShares = 0;
           priorBuys.forEach(b => {
-            totalCost += b.price * b.qty;
-            totalShares += b.qty;
+            totalCost += (+b.price) * (+b.qty);
+            totalShares += (+b.qty);
           });
           const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
           
@@ -4583,7 +4614,7 @@ const App = (function () {
           const avgCostBasisD = eurToDisplay(avgCostBasis, tx.date);
           const sellPriceD = buyPriceD; // buyPriceD is actually the sell price for SELL txs
           
-          const pl = (sellPriceD - avgCostBasisD) * tx.qty;
+          const pl = (sellPriceD - avgCostBasisD) * (+tx.qty);
           const plPct = avgCostBasisD > 0 ? ((sellPriceD - avgCostBasisD) / avgCostBasisD) * 100 : 0;
           plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${fmtValue(pl)} <span style="font-size:10px">(${fmtPct(plPct)})</span></span>`;
         } else {
@@ -4692,8 +4723,8 @@ const App = (function () {
     // Transaction history table
     el('drw-txs').innerHTML = [...pos.txs].sort((a, b) => b.date.localeCompare(a.date)).map((tx, i) => {
       const isBuy = tx.type === 'BUY';
-      const buyPriceD = eurToDisplay(tx.price, tx.date);
-      const pnl = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : null;
+      const buyPriceD = eurToDisplay(+tx.price, tx.date);
+      const pnl = isBuy ? (pos.curDisp - buyPriceD) * (+tx.qty) : null;
       const pnlPct = isBuy ? ((pos.curDisp - buyPriceD) / buyPriceD) * 100 : null;
 
       return `<tr>
@@ -4702,7 +4733,7 @@ const App = (function () {
         <td style="text-align:left;color:var(--text2)">${fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${tx.notes}</div>` : ''}</td>
         <td>${fmtQty(tx.qty)}</td>
         <td>${fmtCompact(buyPriceD)}</td>
-        <td>${fmtValue(tx.qty * buyPriceD)}</td>
+        <td>${fmtValue((+tx.qty) * buyPriceD)}</td>
         <td style="color:var(--amber);font-size:10px">${(+(tx.fees||0)+(+(tx.taxes||0)))>0 ? '−'+fmtValue(+(tx.fees||0)+(+(tx.taxes||0))) : '—'}</td>
         <td style="color:${pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl === null ? '—' : (pnl >= 0 ? '+' : '') + fmtValue(pnl)}</td>
         <td style="color:${pnlPct === null ? 'var(--muted)' : pnlPct >= 0 ? 'var(--green)' : 'var(--red)'}">${pnlPct === null ? '—' : fmtPct(pnlPct)}</td>
@@ -5979,10 +6010,10 @@ const App = (function () {
         date:   r.dateISO,
         ticker: r.ticker,
         type:   r.type,
-        qty:    r.shares,
-        price:  r.priceEUR,   // stored in EUR (base currency)
-        fees:   r.fee  || 0,
-        taxes:  r.tax  || 0,
+        qty:    +r.shares,      // ensure number type
+        price:  +r.priceEUR,    // ensure number type
+        fees:   +(r.fee  || 0), // ensure number type
+        taxes:  +(r.tax  || 0), // ensure number type
         notes:  r.notes || '',
       });
     });
@@ -6674,6 +6705,148 @@ const App = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
+     CSV EXPORT
+     Generate and download CSV files for transactions
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Export transactions for a specific position as CSV.
+   * Called from position detail drawer.
+   */
+  function exportPositionCSV() {
+    if (!activeDrawer) return;
+    
+    const positions = computePositions();
+    const pos = positions[activeDrawer];
+    if (!pos) return;
+    
+    const ticker = pos.ticker;
+    const txs = pos.txs;
+    
+    if (txs.length === 0) {
+      toast('No transactions to export for ' + ticker, 'warn');
+      return;
+    }
+    
+    // CSV header
+    const header = 'Date,Ticker,Company Name,Type,Quantity,Price EUR,Price ' + state.settings.currency + 
+                   ',Fees,Taxes,Notes,Asset Class';
+    
+    // CSV rows
+    const rows = txs.map(tx => {
+      const priceDisp = eurToDisplay(+tx.price, tx.date);
+      const companyName = pos.companyName || TICKER_NAMES[ticker] || '';
+      const cls = pos.cls;
+      
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = val => {
+        const str = String(val || '');
+        return str.includes(',') || str.includes('"') || str.includes('\n') 
+          ? '"' + str.replace(/"/g, '""') + '"' 
+          : str;
+      };
+      
+      return [
+        tx.date,
+        ticker,
+        escapeCsv(companyName),
+        tx.type,
+        (+tx.qty).toFixed(8),
+        (+tx.price).toFixed(4),
+        priceDisp.toFixed(4),
+        (+(tx.fees || 0)).toFixed(2),
+        (+(tx.taxes || 0)).toFixed(2),
+        escapeCsv(tx.notes || ''),
+        cls
+      ].join(',');
+    });
+    
+    const csv = [header].concat(rows).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${ticker}_transactions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast(`Exported ${txs.length} transaction${txs.length !== 1 ? 's' : ''} for ${ticker}`, 'success');
+  }
+
+  /**
+   * Export all portfolio transactions as CSV.
+   * Called from Portfolio tab.
+   */
+  function exportPortfolioCSV() {
+    const txs = state.transactions;
+    
+    if (txs.length === 0) {
+      toast('No transactions to export', 'warn');
+      return;
+    }
+    
+    // CSV header
+    const header = 'Date,Ticker,Company Name,Type,Quantity,Price EUR,Price ' + state.settings.currency + 
+                   ',Fees,Taxes,Notes,Asset Class';
+    
+    // Sort by date descending
+    const sorted = [...txs].sort((a, b) => b.date.localeCompare(a.date));
+    
+    // CSV rows
+    const rows = sorted.map(tx => {
+      const priceDisp = eurToDisplay(+tx.price, tx.date);
+      const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
+      const companyName = state.tickerMeta[tx.ticker]?.companyName || TICKER_NAMES[tx.ticker] || '';
+      
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = val => {
+        const str = String(val || '');
+        return str.includes(',') || str.includes('"') || str.includes('\n') 
+          ? '"' + str.replace(/"/g, '""') + '"' 
+          : str;
+      };
+      
+      return [
+        tx.date,
+        tx.ticker,
+        escapeCsv(companyName),
+        tx.type,
+        (+tx.qty).toFixed(8),
+        (+tx.price).toFixed(4),
+        priceDisp.toFixed(4),
+        (+(tx.fees || 0)).toFixed(2),
+        (+(tx.taxes || 0)).toFixed(2),
+        escapeCsv(tx.notes || ''),
+        cls
+      ].join(',');
+    });
+    
+    const csv = [header].concat(rows).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `portfolio_transactions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast(`Exported ${txs.length} transaction${txs.length !== 1 ? 's' : ''} from portfolio`, 'success');
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════════
      PUBLIC API
      ─────────────────────────────────────────────────────────────────
      Only the functions listed here are accessible from HTML onclick
@@ -6787,6 +6960,12 @@ const App = (function () {
     testFxAPI,
     /** Copy FX debug information to clipboard. */
     copyFxDebugInfo,
+    
+    // CSV Export
+    /** Export current position's transactions as CSV. */
+    exportPositionCSV,
+    /** Export all portfolio transactions as CSV. */
+    exportPortfolioCSV,
   };
 })();
 </script>
