@@ -3355,8 +3355,14 @@ const App = (function () {
    */
   function computePositions() {
     // Group transactions by ticker, sorted chronologically
+    // CRITICAL: If same date, BUY must come before SELL to avoid overselling
     const byTicker = {};
-    const sorted = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...state.transactions].sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      // Same date: BUY (0) before SELL (1)
+      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+    });
     for (const tx of sorted) {
       if (!byTicker[tx.ticker]) byTicker[tx.ticker] = [];
       byTicker[tx.ticker].push(tx);
