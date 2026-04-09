@@ -2132,9 +2132,9 @@ const App = (function () {
             <div class="pm"><div class="pm-lbl">Value</div><div class="pm-val highlight c-text">${fmtValue(p.value)}</div></div>
             <div class="pm"><div class="pm-lbl">Unrealised P&L</div><div class="pm-val highlight" style="color:${gainColor}">${p.unrealized >= 0 ? '+' : ''}${fmtValue(p.unrealized)}</div></div>
             `}
-            ${p.realized !== 0 ? `<div class="pm"><div class="pm-lbl">Realised P&L</div><div class="pm-val" style="color:${p.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${p.realized >= 0 ? '+' : ''}${fmtValue(p.realized)}</div></div>` : ''}
+            <div class="pm"><div class="pm-lbl">Realised P&L</div><div class="pm-val" style="color:${p.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${p.realized >= 0 ? '+' : ''}${fmtValue(p.realized)}</div></div>
             ${!isLiquidated ? `
-            <div class="pm ${p.realized !== 0 ? '' : 'wide'}">
+            <div class="pm wide">
               <div class="pm-lbl">Returns</div>
               <div class="xirr-row">
                 <div class="xirr-kpi"><span class="lbl">CAGR</span><span class="${gainClass(cagrFlag)}">${fmtCAGR(p.cagr)}</span></div>
