@@ -1595,3 +1595,141 @@ html, body { height: 100%; overflow: hidden; }
 .ov-bar-leg-dot {
   width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN — Mobile & Portrait Orientation
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Tablets and small laptops (below 900px) */
+@media (max-width: 900px) {
+  .topbar {
+    height: 80px;
+    padding: 0 12px 0 24px;
+  }
+  
+  .topbar .hdr-logo {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .topbar .hdr-logo img {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .topbar .hdr-title {
+    font-size: 26px;
+  }
+  
+  .sidebar {
+    width: 90px;
+  }
+}
+
+/* Mobile landscape and small tablets (below 768px) */
+@media (max-width: 768px) {
+  .topbar {
+    height: 70px;
+    padding: 0 10px 0 16px;
+  }
+  
+  .topbar .hdr-logo {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .topbar .hdr-logo img {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .topbar .hdr-title {
+    font-size: 22px;
+  }
+  
+  .sidebar {
+    width: 70px;
+  }
+  
+  .sb-icon-lbl {
+    font-size: 9px;
+  }
+}
+
+/* Mobile portrait and small screens (below 480px) */
+@media (max-width: 480px) {
+  .topbar {
+    height: 60px;
+    padding: 0 8px 0 12px;
+    gap: 6px;
+  }
+  
+  .topbar .hdr-logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .topbar .hdr-logo img {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .topbar .hdr-title {
+    font-size: 18px;
+  }
+  
+  .topbar-left {
+    gap: 6px;
+  }
+  
+  .topbar-right {
+    gap: 4px;
+  }
+  
+  .sidebar {
+    width: 60px;
+    padding: 8px 0 10px;
+  }
+  
+  .sb-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .sb-icon-lbl {
+    font-size: 8px;
+  }
+  
+  /* Adjust header buttons for mobile */
+  .hdr-btn {
+    padding: 8px;
+    min-width: 32px;
+    height: 32px;
+  }
+}
+
+/* Very small screens (below 360px) */
+@media (max-width: 360px) {
+  .topbar {
+    height: 56px;
+    padding: 0 6px 0 8px;
+  }
+  
+  .topbar .hdr-logo {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .topbar .hdr-logo img {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .topbar .hdr-title {
+    font-size: 16px;
+  }
+  
+  .sidebar {
+    width: 52px;
+  }
+}
