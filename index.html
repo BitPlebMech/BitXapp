@@ -4,12 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPleb Dashboard</title>
-    <!-- Redirect to the actual dashboard -->
-    <script>
-        window.location.replace('./BitPleb-dashboard.html');
-    </script>
 </head>
 <body>
-    <p>Redirecting to dashboard...</p>
+    <script>
+        // Fetch and inject the dashboard content WITHOUT changing URL
+        fetch('./BitPleb-dashboard.html')
+            .then(response => response.text())
+            .then(html => {
+                document.documentElement.innerHTML = html;
+                // Keep the clean URL in address bar
+                history.replaceState(null, '', './');
+            })
+            .catch(error => {
+                console.error('Failed to load dashboard:', error);
+                document.body.innerHTML = '<p>Error loading dashboard. Please refresh.</p>';
+            });
+    </script>
 </body>
 </html>
