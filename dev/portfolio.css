@@ -1733,3 +1733,170 @@ html, body { height: 100%; overflow: hidden; }
     width: 52px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODULE HEADER RESPONSIVE ADJUSTMENTS
+   Prevent overflow of currency selector and controls on mobile
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Tablets and small laptops (below 900px) */
+@media (max-width: 900px) {
+  .mod-header {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  
+  .mod-header-right {
+    gap: 6px;
+  }
+}
+
+/* Mobile landscape and tablets (below 768px) */
+@media (max-width: 768px) {
+  .mod-header {
+    padding: 0 10px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 48px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  
+  .mod-header-left {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .mod-header-right {
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  
+  .fx-pill {
+    font-size: 9px;
+    padding: 4px 7px;
+  }
+  
+  .cur-sel {
+    padding: 2px 6px 2px 8px;
+  }
+  
+  .cur-sel-lbl {
+    font-size: 9px;
+  }
+  
+  .cur-sel select {
+    font-size: 11px;
+    padding: 4px 18px 4px 3px;
+  }
+  
+  .hdr-btn.primary {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .hdr-btn.primary svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* Mobile portrait (below 600px) */
+@media (max-width: 600px) {
+  .mod-header {
+    gap: 6px;
+  }
+  
+  .mod-header-title {
+    font-size: 11px;
+    padding-right: 8px;
+  }
+  
+  .mod-status-txt {
+    font-size: 9px;
+  }
+  
+  .price-src-badge {
+    font-size: 8px;
+    padding: 2px 5px;
+  }
+  
+  /* Hide FX pill on very small screens to save space */
+  .fx-pill {
+    display: none;
+  }
+  
+  .cur-sel {
+    padding: 2px 5px 2px 6px;
+  }
+  
+  .cur-sel-lbl {
+    display: none; /* Hide "Currency" label on mobile */
+  }
+  
+  .cur-sel select {
+    font-size: 10px;
+    padding: 3px 16px 3px 2px;
+  }
+  
+  .hdr-btn.primary {
+    padding: 5px 8px;
+    font-size: 10px;
+    gap: 4px;
+  }
+  
+  .hdr-btn.primary svg {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+/* Mobile portrait small (below 480px) */
+@media (max-width: 480px) {
+  .mod-header {
+    padding: 0 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  
+  .mod-header-left {
+    min-width: 150px;
+    gap: 6px;
+  }
+  
+  .mod-header-title {
+    font-size: 10px;
+  }
+  
+  /* Make Gist Save button icon-only on very small screens */
+  .hdr-btn.primary span:not(svg) {
+    display: none;
+  }
+  
+  .hdr-btn.primary {
+    padding: 6px;
+    min-width: 32px;
+  }
+  
+  .hdr-btn.primary svg {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+  }
+}
+
+/* Very small screens (below 360px) */
+@media (max-width: 360px) {
+  .mod-header {
+    padding: 0 6px;
+  }
+  
+  .mod-header-left {
+    min-width: 120px;
+  }
+  
+  .status-dot {
+    width: 5px;
+    height: 5px;
+  }
+}
