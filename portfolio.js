@@ -1018,8 +1018,14 @@ const App = (function () {
    */
   function computePositions() {
     // Group transactions by ticker, sorted chronologically
+    // CRITICAL: If same date, BUY must come before SELL to avoid overselling
     const byTicker = {};
-    const sorted = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...state.transactions].sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      // Same date: BUY (0) before SELL (1)
+      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+    });
     for (const tx of sorted) {
       if (!byTicker[tx.ticker]) byTicker[tx.ticker] = [];
       byTicker[tx.ticker].push(tx);
@@ -3709,6 +3715,142 @@ const App = (function () {
     toast('Portfolio exported', 'success');
   }
 
+  /**
+   * Export single position's transactions as CSV.
+   * Called from position detail drawer.
+   */
+  function exportPositionCSV() {
+    if (!activeDrawer) return;
+    
+    const positions = computePositions();
+    const pos = positions[activeDrawer];
+    if (!pos) return;
+    
+    const ticker = pos.ticker;
+    const txs = pos.txs;
+    
+    if (txs.length === 0) {
+      toast('No transactions to export for ' + ticker, 'warn');
+      return;
+    }
+    
+    // CSV header
+    const header = 'Date,Ticker,Company Name,Type,Quantity,Price EUR,Price ' + state.settings.currency + 
+                   ',Fees,Taxes,Notes,Asset Class';
+    
+    // CSV rows
+    const rows = txs.map(tx => {
+      const priceDisp = eurToDisplay(+tx.price, tx.date);
+      const companyName = pos.companyName || TICKER_NAMES[ticker] || '';
+      const cls = pos.cls;
+      
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = val => {
+        const str = String(val || '');
+        return str.includes(',') || str.includes('"') || str.includes('\n') 
+          ? '"' + str.replace(/"/g, '""') + '"' 
+          : str;
+      };
+      
+      return [
+        tx.date,
+        ticker,
+        escapeCsv(companyName),
+        tx.type,
+        (+tx.qty).toFixed(8),
+        (+tx.price).toFixed(4),
+        priceDisp.toFixed(4),
+        (+(tx.fees || 0)).toFixed(2),
+        (+(tx.taxes || 0)).toFixed(2),
+        escapeCsv(tx.notes || ''),
+        cls
+      ].join(',');
+    });
+    
+    const csv = [header].concat(rows).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${ticker}_transactions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast(`Exported ${txs.length} transaction${txs.length !== 1 ? 's' : ''} for ${ticker}`, 'success');
+  }
+
+  /**
+   * Export all portfolio transactions as CSV.
+   * Called from Portfolio tab.
+   */
+  function exportPortfolioCSV() {
+    const txs = state.transactions;
+    
+    if (txs.length === 0) {
+      toast('No transactions to export', 'warn');
+      return;
+    }
+    
+    // CSV header
+    const header = 'Date,Ticker,Company Name,Type,Quantity,Price EUR,Price ' + state.settings.currency + 
+                   ',Fees,Taxes,Notes,Asset Class';
+    
+    // Sort by date descending
+    const sorted = [...txs].sort((a, b) => b.date.localeCompare(a.date));
+    
+    // CSV rows
+    const rows = sorted.map(tx => {
+      const priceDisp = eurToDisplay(+tx.price, tx.date);
+      const cls = state.tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
+      const companyName = state.tickerMeta[tx.ticker]?.companyName || TICKER_NAMES[tx.ticker] || '';
+      
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = val => {
+        const str = String(val || '');
+        return str.includes(',') || str.includes('"') || str.includes('\n') 
+          ? '"' + str.replace(/"/g, '""') + '"' 
+          : str;
+      };
+      
+      return [
+        tx.date,
+        tx.ticker,
+        escapeCsv(companyName),
+        tx.type,
+        (+tx.qty).toFixed(8),
+        (+tx.price).toFixed(4),
+        priceDisp.toFixed(4),
+        (+(tx.fees || 0)).toFixed(2),
+        (+(tx.taxes || 0)).toFixed(2),
+        escapeCsv(tx.notes || ''),
+        cls
+      ].join(',');
+    });
+    
+    const csv = [header].concat(rows).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `portfolio_transactions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast(`Exported ${txs.length} transaction${txs.length !== 1 ? 's' : ''} from portfolio`, 'success');
+  }
+
   /** Programmatically open the file picker for JSON import (works inside modals/sidebars) */
   function triggerImport() {
     const inp = el('import-file');
@@ -4441,6 +4583,10 @@ const App = (function () {
 
     // Data management
     exportData,
+    /** Export single position's transactions as CSV. */
+    exportPositionCSV,
+    /** Export all portfolio transactions as CSV. */
+    exportPortfolioCSV,
     triggerImport,
     /** Import portfolio from JSON file. @param {Event} e */
     importData,
