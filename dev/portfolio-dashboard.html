@@ -235,6 +235,10 @@
       </div>
     </div>
     <div style="display:flex;gap:7px">
+      <button class="hdr-btn" onclick="App.exportPortfolioCSV()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
       <button class="hdr-btn" onclick="App.openCsvImport()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import CSV
@@ -655,6 +659,18 @@
     </div>
     <div class="drw-kpis"    id="drw-kpis"></div>
     <div class="drw-summary" id="drw-summary"></div>
+    
+    <!-- Export button -->
+    <div style="display:flex;gap:10px;margin:16px 0 20px 0;padding:0 20px">
+      <button class="export-btn" onclick="App.exportPositionCSV()" title="Export this position's transactions as CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:6px">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export CSV
+      </button>
+    </div>
 
     <!-- Dumbbell chart: buy price vs current price per lot -->
     <div class="chart-sec">

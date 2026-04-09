@@ -260,7 +260,7 @@ body::after {
    Sticky navigation bar below header
    ═══════════════════════════════════════════════════════════════════════ */
 /* .tab-nav base — real styles live on .portfolio-shell .tab-nav below */
-.tab-nav { display: flex; gap: 2px; border-bottom: 0.5px solid var(--b1); }
+.tab-nav { display: flex; gap: 2px; border-bottom: none; }
 .tab-nav::before { display: none; }
 .tab-btn {
   font-family: var(--font-ui); font-size: 12px; font-weight: 700;
@@ -1292,7 +1292,8 @@ html, body { height: 100%; overflow: hidden; }
 .topbar {
   display: flex; align-items: center; height: 96px;
   padding: 0 16px; gap: 9px; flex-shrink: 0;
-  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  background: var(--surf); border-bottom: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   opacity: 0; animation: fadeUp 0.38s 0.02s ease forwards;
 }
 .topbar .hdr-logo { width: 70px; height: 70px; border-radius: 12px; flex-shrink: 0; overflow: hidden; background: transparent; border: none; padding: 0; }
@@ -1313,7 +1314,7 @@ html, body { height: 100%; overflow: hidden; }
    ═══════════════════════════════════════════════════════════════════════ */
 .sidebar {
   width: 110px; flex-shrink: 0;
-  background: var(--surf); border-right: 0.5px solid var(--b1);
+  background: var(--surf); border-right: 1px solid rgba(255,255,255,0.06);
   display: flex; flex-direction: column; align-items: center;
   padding: 10px 0 12px; gap: 3px; overflow: visible;
   opacity: 0; animation: fadeUp 0.38s 0.05s ease forwards;
@@ -1340,7 +1341,7 @@ html, body { height: 100%; overflow: hidden; }
 }
 .sb-icon.active .sb-icon-lbl { color: var(--blue); font-weight: 500; }
 .sb-icon.sb-soon .sb-icon-lbl { color: var(--dim); }
-.sb-sep-line  { width: 26px; height: 0.5px; background: var(--b1); margin: 5px 0; flex-shrink: 0; }
+.sb-sep-line  { width: 26px; height: 0.5px; background: var(--b1); margin: 5px 0; flex-shrink: 0; display: none; }
 .sb-spacer    { flex: 1; }
 
 /* Tooltip — slides in to the right on hover */
@@ -1383,7 +1384,7 @@ html, body { height: 100%; overflow: hidden; }
 /* Tab nav inside module */
 .portfolio-shell .tab-nav {
   display: flex; gap: 2px; padding: 11px 18px 0;
-  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  background: var(--surf); border-bottom: none;
   flex-shrink: 0; position: static;
   opacity: 0; animation: fadeUp 0.35s 0.1s ease forwards;
 }
@@ -1457,8 +1458,8 @@ html, body { height: 100%; overflow: hidden; }
 .an-tbl tbody tr:last-child td { border-bottom: none; }
 
 /* Light theme adjustments */
-[data-theme="light"] .sidebar         { background: var(--surf2); }
-[data-theme="light"] .topbar          { background: var(--surf);  }
+[data-theme="light"] .sidebar         { background: var(--surf2); border-right: 1px solid rgba(0,0,0,0.06); }
+[data-theme="light"] .topbar          { background: var(--surf); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 [data-theme="light"] .portfolio-shell .tab-nav { background: var(--surf2); }
 
 
