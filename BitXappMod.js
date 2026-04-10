@@ -1,24 +1,64 @@
 'use strict';
 
 /**
- * Portfolio Terminal — Application Core
- * ─────────────────────────────────────
- * All logic lives inside a single IIFE to keep global scope clean.
- * Only the `App` object is exported; HTML onclick handlers call App.xxx().
- *
- * Execution flow on page load:
- *   1. loadState()      — restore from localStorage (or seed sample data)
- *   2. render()         — paint UI immediately with mock/cached prices
- *   3. fetchFxLatest()  — grab current ECB rate (async, re-renders on resolve)
- *   4. fetchFX()        — load full ECB history 2021→today (async, background)
- *   5. refreshPrices()  — fetch live prices from CoinGecko / Yahoo (async, background)
- *
- * Section index (Ctrl+F to jump):
- *   DOM HELPER · CONSTANTS · STATE · PERSISTENCE · FX RATES · PRICE ENGINE
- *   XIRR · PORTFOLIO CALCULATIONS · FORMATTING · COLOURS · CRUD
- *   RENDER PIPELINE · OVERVIEW · POSITIONS · HISTORY · DRAWER
- *   DUMBBELL CHART · MODAL · CSV IMPORT · SETTINGS · DATA MANAGEMENT
- *   SAMPLE DATA · TOAST · KEYBOARD · THEME · GIST SYNC · INIT · PUBLIC API
+ * ═══════════════════════════════════════════════════════════════════════════
+ * PORTFOLIO TERMINAL — APPLICATION CORE
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * A zero-dependency personal investment tracker for stocks, ETFs, and crypto.
+ * Built with vanilla HTML/CSS/JavaScript — no frameworks, no build tools.
+ * 
+ * ARCHITECTURE
+ * ────────────────────────────────────────────────────────────────────────────
+ * • Single IIFE pattern: All logic encapsulated, only `App` object exported
+ * • Event-driven UI: Event listeners attached during init (setupEventListeners)
+ * • State persistence: localStorage + optional GitHub Gist sync
+ * • Reactive rendering: UI updates automatically when state changes
+ * 
+ * DATA FLOW
+ * ────────────────────────────────────────────────────────────────────────────
+ * 1. Load state from localStorage (or seed sample data if empty)
+ * 2. Apply saved theme preference (light/dark)
+ * 3. Attach all event listeners to UI elements
+ * 4. Render UI immediately with cached/mock prices (instant display)
+ * 5. Fetch current ECB FX rates in background (async, re-renders on success)
+ * 6. Fetch historical FX data if stale (async, persisted for offline use)
+ * 7. Fetch live prices from CoinGecko/Yahoo (async, updates UI on completion)
+ * 
+ * KEY FEATURES
+ * ────────────────────────────────────────────────────────────────────────────
+ * • Multi-currency support: EUR (base), USD, INR with historical ECB rates
+ * • FIFO lot tracking: Accurate P&L calculation with same-date BUY-before-SELL
+ * • Real-time pricing: CoinGecko (crypto), Yahoo Finance (stocks/ETFs)
+ * • Performance metrics: P&L, P&L%, CAGR, XIRR per position and lot
+ * • CSV import/export: Bulk transaction management with ISIN resolution
+ * • Offline-first: Works without network, cached prices valid for 4 hours
+ * 
+ * SECTION INDEX (Ctrl+F to navigate)
+ * ────────────────────────────────────────────────────────────────────────────
+ * DOM HELPER · CONSTANTS · STATE · PERSISTENCE · FX RATES · PRICE ENGINE
+ * XIRR · PORTFOLIO CALCULATIONS · FORMATTING · COLOURS · CRUD OPERATIONS
+ * RENDER PIPELINE · OVERVIEW TAB · POSITIONS TAB · HISTORY TAB · DRAWER
+ * DUMBBELL CHART · MODAL · CSV IMPORT · SETTINGS · DATA MANAGEMENT
+ * SAMPLE DATA · TOAST · KEYBOARD · THEME · GIST SYNC · EVENT LISTENERS
+ * INITIALISATION · PUBLIC API
+ * 
+ * DEBUGGING
+ * ────────────────────────────────────────────────────────────────────────────
+ * • State is inside IIFE closure — not accessible from console directly
+ * • To inspect: JSON.parse(localStorage.getItem('portfolio_v3'))
+ * • Console logging: Search for console.info/warn/error throughout code
+ * • FX diagnostics: Settings panel → FX Diagnostics → Test API
+ * 
+ * IMPORTANT PATTERNS
+ * ────────────────────────────────────────────────────────────────────────────
+ * • Always call saveState() after mutating state (transactions, settings, etc)
+ * • FIFO calculation requires deterministic sort (BUYs before SELLs on same date)
+ * • Currency conversion uses getFxRate() with fallback chain: cached → latest → hardcoded
+ * • Price fetching is fault-tolerant: each ticker fails independently
+ * • All network calls use fetchWithTimeout() to avoid hanging forever
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 const App = (function () {
 
@@ -519,25 +559,18 @@ const App = (function () {
       }
       
       const tsText = state.lastRefreshTS 
-        ? timeAgo(state.lastRefreshTS)
+        ? new Date(state.lastRefreshTS).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
         : '—';
       
-      combinedText.textContent = `${fxText} • ${tsText}`;
+      combinedText.textContent = `${fxText}  •  Updated ${tsText}`;
       
-      // Tooltip with full timestamp
-      const fullTsText = state.lastRefreshTS
-        ? new Date(state.lastRefreshTS).toLocaleString('en-GB', { 
-            dateStyle: 'short', 
-            timeStyle: 'short' 
-          })
-        : '—';
-      
+      // Tooltip
       if (!allOK) {
         fxPill.title = hasHistoricalData 
           ? `Using cached historical FX data (${historicalCount} days). Check Settings for diagnostics.`
           : '⚠️ WARNING: No historical FX data. CAGR/XIRR will be inaccurate. Check Settings for diagnostics.';
       } else {
-        fxPill.title = 'ECB exchange rates via frankfurter.app · Last updated: ' + fullTsText;
+        fxPill.title = 'ECB exchange rates via frankfurter.app · Updated: ' + tsText;
       }
     }
 
@@ -2108,7 +2141,7 @@ const App = (function () {
       const cardStyle = isLiquidated ? 'opacity:0.6;filter:saturate(0.4)' : '';
 
       return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s;${cardStyle}">
-        <div class="pos-card-bar" style="color:${color}"></div>
+        <div class="pos-card-bar" style="background:linear-gradient(90deg,${color}aa,${color}22)"></div>
         ${isSimulated ? `<div style="background:rgba(255,180,0,0.08);border-bottom:0.5px solid rgba(255,180,0,0.25);padding:4px 14px;font-size:9.5px;font-weight:700;color:var(--amber);letter-spacing:0.06em;display:flex;align-items:center;gap:5px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           SIMULATED PRICE — API unavailable for ${p.ticker}
@@ -2302,7 +2335,7 @@ const App = (function () {
         <td style="color:var(--dim)">${txs.length - i}</td>
         <td style="color:var(--text2)">${fmtDate(tx.date)}</td>
         <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span></td>
+        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
         <td>${classBadge(cls)}</td>
         <td style="color:var(--text)">${fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${fmtCompact(buyPriceD)}</td>
@@ -4312,14 +4345,302 @@ const App = (function () {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     INITIALISATION
-     Boot sequence: load state → apply theme → render with mock prices
-     → fetch FX rates (background) → fetch live prices (background).
+     EVENT LISTENERS SETUP
+     Attach all event handlers that were previously inline onclick/onchange.
+     Called once during initialization to wire up the UI.
      ═══════════════════════════════════════════════════════════════════ */
 
+  /**
+   * Setup all event listeners for buttons, selects, and interactive elements.
+   * Replaces inline onclick/onchange handlers for better separation of concerns.
+   */
+  function setupEventListeners() {
+    // ─── Header Controls ──────────────────────────────────────────────
+    
+    /** Theme toggle button (topbar) */
+    const themeBtn = el('h-theme-btn');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+    
+    /** Currency selector */
+    const currencySelect = el('h-currency');
+    if (currencySelect) currencySelect.addEventListener('change', onCurrencyChange);
+    
+    /** Refresh prices button */
+    const refreshBtn = el('h-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => refreshPrices(true));
+    
+    /** Settings button */
+    const settingsBtn = el('h-settings-btn');
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+    
+    /** Gist Save button (header) */
+    const gistSaveBtn = el('h-gist-save');
+    if (gistSaveBtn) gistSaveBtn.addEventListener('click', () => gistSave(false));
+    
+    // ─── Sidebar Navigation ───────────────────────────────────────────
+    
+    /** Portfolio module icon */
+    const sbPortfolio = el('sb-portfolio');
+    if (sbPortfolio) sbPortfolio.addEventListener('click', () => switchModule('portfolio'));
+    
+    /** Gist Save icon (sidebar) */
+    const sbGistSave = el('sb-gist-save');
+    if (sbGistSave) sbGistSave.addEventListener('click', () => gistSave(false));
+    
+    // ─── Tab Navigation ───────────────────────────────────────────────
+    
+    /** Wire up all tab buttons to showTab() */
+    document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+      const tabIds = ['overview', 'positions', 'history'];
+      if (tabIds[idx]) {
+        btn.addEventListener('click', function() { showTab(tabIds[idx], this); });
+      }
+    });
+    
+    // ─── Overview Tab: Allocation Tabs ────────────────────────────────
+    
+    /** By Asset / By Class toggle */
+    const atabAsset = el('atab-asset');
+    if (atabAsset) atabAsset.addEventListener('click', () => switchAllocTab('asset'));
+    
+    const atabClass = el('atab-class');
+    if (atabClass) atabClass.addEventListener('click', () => switchAllocTab('class'));
+    
+    // ─── Positions Tab: Class Filters ─────────────────────────────────
+    
+    /** Class filter buttons (All, Stock, ETF, Crypto, Bond, MF) */
+    const filterIds = ['all', 'Stock', 'ETF', 'Crypto', 'Bond', 'MF'];
+    filterIds.forEach(cls => {
+      const btn = el('clf-' + cls);
+      if (btn) btn.addEventListener('click', () => setClsFilter(cls));
+    });
+    
+    // ─── Positions Tab: Toolbar Buttons ───────────────────────────────
+    
+    /** Export Portfolio CSV button */
+    document.querySelectorAll('.hdr-btn').forEach(btn => {
+      if (btn.textContent.includes('Export CSV')) {
+        btn.addEventListener('click', exportPortfolioCSV);
+      }
+      if (btn.textContent.includes('Import CSV')) {
+        btn.addEventListener('click', openCsvImport);
+      }
+      if (btn.textContent.includes('Add Transaction')) {
+        btn.addEventListener('click', openModal);
+      }
+    });
+    
+    // ─── History Tab: Filter Buttons ──────────────────────────────────
+    
+    /** All / Buy / Sell filters */
+    const fAll = el('f-all');
+    if (fAll) fAll.addEventListener('click', () => setHistFilter('all'));
+    
+    const fBuy = el('f-buy');
+    if (fBuy) fBuy.addEventListener('click', () => setHistFilter('buy'));
+    
+    const fSell = el('f-sell');
+    if (fSell) fSell.addEventListener('click', () => setHistFilter('sell'));
+    
+    /** History search input */
+    const histSearch = el('hist-search');
+    if (histSearch) histSearch.addEventListener('input', renderHistory);
+    
+    /** History sort select */
+    const histSort = el('hist-sort');
+    if (histSort) histSort.addEventListener('change', renderHistory);
+    
+    // ─── Modal: Add Transaction ───────────────────────────────────────
+    
+    /** BUY/SELL toggle buttons */
+    const ftBuy = el('ft-buy');
+    if (ftBuy) ftBuy.addEventListener('click', () => setType('BUY'));
+    
+    const ftSell = el('ft-sell');
+    if (ftSell) ftSell.addEventListener('click', () => setType('SELL'));
+    
+    /** Identifier mode tabs (Ticker / ISIN / WKN) */
+    const idTicker = el('id-ticker');
+    if (idTicker) idTicker.addEventListener('click', () => setIdMode('ticker'));
+    
+    const idIsin = el('id-isin');
+    if (idIsin) idIsin.addEventListener('click', () => setIdMode('isin'));
+    
+    const idWkn = el('id-wkn');
+    if (idWkn) idWkn.addEventListener('click', () => setIdMode('wkn'));
+    
+    /** Verify identifier button */
+    const verifyBtn = el('f-verify');
+    if (verifyBtn) verifyBtn.addEventListener('click', verifyIdentifier);
+    
+    /** Ticker input for live search */
+    const tickerInput = el('f-ticker');
+    if (tickerInput) {
+      // Auto-uppercase ticker input
+      tickerInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+        onTickerInput();
+      });
+    }
+    
+    /** Quantity input for total calculation */
+    const qtyInput = el('f-qty');
+    if (qtyInput) qtyInput.addEventListener('input', validateForm);
+    
+    /** Price input for total calculation */
+    const priceInput = el('f-price');
+    if (priceInput) priceInput.addEventListener('input', validateForm);
+    
+    /** Fees input */
+    const feesInput = el('f-fees');
+    if (feesInput) feesInput.addEventListener('input', validateForm);
+    
+    /** Taxes input */
+    const taxesInput = el('f-taxes');
+    if (taxesInput) taxesInput.addEventListener('input', validateForm);
+    
+    /** Asset class selector */
+    const clsSelect = el('f-cls');
+    if (clsSelect) clsSelect.addEventListener('change', validateForm);
+    
+    /** Submit transaction button */
+    const submitBtn = el('f-submit');
+    if (submitBtn) submitBtn.addEventListener('click', submitTransaction);
+    
+    /** Close modal button */
+    const modalClose = el('modal-close');
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    
+    // ─── Drawer: Position Detail ──────────────────────────────────────
+    
+    /** Close drawer button */
+    const drwX = document.querySelector('.drw-x');
+    if (drwX) drwX.addEventListener('click', closeDrawer);
+    
+    /** Drawer overlay (click to close) */
+    const drwOv = el('drw-ov');
+    if (drwOv) drwOv.addEventListener('click', closeDrawer);
+    
+    /** Drawer handle (click to close) */
+    const drwHandle = document.querySelector('.drw-handle');
+    if (drwHandle) drwHandle.addEventListener('click', closeDrawer);
+    
+    /** Export Position CSV button (inside drawer) */
+    document.querySelectorAll('.export-btn').forEach(btn => {
+      if (btn.textContent.includes('Export CSV')) {
+        btn.addEventListener('click', exportPositionCSV);
+      }
+    });
+    
+    // ─── Confirmation Dialog ──────────────────────────────────────────
+    
+    /** Confirm OK button */
+    const confirmOkBtn = el('cok');
+    if (confirmOkBtn) confirmOkBtn.addEventListener('click', confirmOk);
+    
+    /** Cancel button */
+    document.querySelectorAll('.cancel-btn').forEach(btn => {
+      btn.addEventListener('click', closeConfirm);
+    });
+    
+    // ─── Settings Panel ───────────────────────────────────────────────
+    
+    /** Close settings button */
+    const spClose = el('sp-close');
+    if (spClose) spClose.addEventListener('click', closeSettings);
+    
+    /** Settings overlay (click to close) */
+    const spOv = el('sp-ov');
+    if (spOv) spOv.addEventListener('click', closeSettings);
+    
+    /** Save settings button */
+    const saveSett = el('save-sett');
+    if (saveSett) saveSett.addEventListener('click', saveSettings);
+    
+    /** Data management buttons */
+    const exportBtn = el('export-btn');
+    if (exportBtn) exportBtn.addEventListener('click', exportData);
+    
+    const importBtn = el('import-btn');
+    if (importBtn) importBtn.addEventListener('click', triggerImport);
+    
+    const clearBtn = el('clear-btn');
+    if (clearBtn) clearBtn.addEventListener('click', clearAllData);
+    
+    const reloadBtn = el('reload-btn');
+    if (reloadBtn) reloadBtn.addEventListener('click', reloadSampleData);
+    
+    /** Gist management buttons */
+    const gistLoadBtn = el('gist-load-btn');
+    if (gistLoadBtn) gistLoadBtn.addEventListener('click', gistLoad);
+    
+    const gistClearBtn = el('gist-clear-btn');
+    if (gistClearBtn) gistClearBtn.addEventListener('click', gistClearCredentials);
+    
+    /** File import input */
+    const importFile = el('import-file');
+    if (importFile) importFile.addEventListener('change', importData);
+    
+    // ─── CSV Import Wizard ────────────────────────────────────────────
+    
+    /** Close CSV wizard */
+    const csvClose = el('csv-close');
+    if (csvClose) csvClose.addEventListener('click', closeCsvImport);
+    
+    /** CSV wizard navigation */
+    const csvPrev = el('csv-prev');
+    if (csvPrev) csvPrev.addEventListener('click', () => csvGoStep(-1));
+    
+    const csvNext = el('csv-next');
+    if (csvNext) csvNext.addEventListener('click', () => csvGoStep(1));
+    
+    /** CSV auto-resolve button */
+    const csvResolve = el('csv-resolve-btn');
+    if (csvResolve) csvResolve.addEventListener('click', csvAutoResolve);
+    
+    /** CSV execute import button */
+    const csvExec = el('csv-exec');
+    if (csvExec) csvExec.addEventListener('click', csvExecuteImport);
+    
+    // ─── Credentials Popup ────────────────────────────────────────────
+    
+    /** Save credentials button */
+    document.querySelectorAll('.submit-btn').forEach(btn => {
+      if (btn.textContent.includes('Save & Continue')) {
+        btn.addEventListener('click', saveCredentials);
+      }
+    });
+    
+    // ─── FX Diagnostics ───────────────────────────────────────────────
+    
+    /** Test FX API button */
+    document.querySelectorAll('.abtn.outline').forEach(btn => {
+      if (btn.textContent.includes('Test API')) {
+        btn.addEventListener('click', testFxAPI);
+      }
+      if (btn.textContent.includes('Copy Debug Info')) {
+        btn.addEventListener('click', copyFxDebugInfo);
+      }
+    });
+    
+    console.info('[Events] All event listeners attached');
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     INITIALISATION
+     Boot sequence: load state → apply theme → setup events → render with
+     mock prices → fetch FX rates (background) → fetch live prices (bg).
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Initialize the application.
+   * Loads saved state, applies theme, seeds mock prices, renders UI,
+   * then fetches live FX rates and prices in the background.
+   */
   async function init() {
     loadState();
     applyTheme();
+    setupEventListeners();
 
     // Load sample data if this is a fresh install
     if (!state.transactions.length) applySampleData();

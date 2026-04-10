@@ -50,10 +50,14 @@
 <!-- ════════════════════════════════════════════════════════════════════
      STYLES
      ════════════════════════════════════════════════════════════════════ -->
-<link rel="stylesheet" href="portfolio.css">
+<link rel="stylesheet" href="BitXappMod.css">
 </head>
 
 <body>
+<!-- ════════════════════════════════════════════════════════════════════════════
+     APP SHELL
+     Main application container with topbar, sidebar, and content area
+     ════════════════════════════════════════════════════════════════════════════ -->
 <div class="app-shell">
 
 <!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
@@ -65,7 +69,7 @@
     <div class="hdr-title">BiT PleB</div>
   </div>
   <div class="topbar-right">
-    <button class="hdr-btn icon-only" id="h-theme-btn" onclick="App.toggleTheme()" title="Toggle theme">
+    <button class="hdr-btn icon-only" id="h-theme-btn" title="Toggle theme">
       <svg id="h-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
   </div>
@@ -78,7 +82,7 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sb-icon active" id="sb-portfolio" onclick="App.switchModule('portfolio')">
+    <div class="sb-icon active" id="sb-portfolio" data-module="portfolio">
       <div class="sb-icon-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
       </div>
@@ -108,7 +112,7 @@
       <span class="sb-tip">Return Comparator <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span></span>
     </div>
     <div class="sb-spacer"></div>
-    <div class="sb-icon" onclick="App.gistSave(false)" title="Save to Gist">
+    <div class="sb-icon" id="sb-gist-save" title="Save to Gist">
       <div class="sb-icon-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
         <div class="sb-gist-dot gist-unsaved-dot" style="display:none"></div>
@@ -140,52 +144,60 @@
             </div>
             <div class="cur-sel">
               <span class="cur-sel-lbl">Currency</span>
-              <select id="h-currency" onchange="App.onCurrencyChange()">
+              <select id="h-currency">
                 <option value="EUR">€ EUR</option>
                 <option value="USD">$ USD</option>
                 <option value="INR">₹ INR</option>
               </select>
             </div>
-            <button class="hdr-btn primary" id="h-gist-save" onclick="App.gistSave(false)" title="Save to GitHub Gist">
+            <button class="hdr-btn primary" id="h-gist-save" title="Save to GitHub Gist">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
               Save to Gist
               <span class="gist-unsaved-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
             </button>
-            <button class="hdr-btn primary" id="h-refresh" onclick="App.doRefresh()">
+            <button class="hdr-btn primary" id="h-refresh">
               <svg class="spin-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
               Refresh
             </button>
-            <button class="hdr-btn icon-only" onclick="App.openSettings()" title="Settings">
+            <button class="hdr-btn icon-only" title="Settings">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
           </div>
         </div><!-- /.mod-header -->
 
         <nav class="tab-nav">
-          <button class="tab-btn active" onclick="App.showTab('overview',this)">
+          <button class="tab-btn active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             Overview
           </button>
-          <button class="tab-btn" onclick="App.showTab('positions',this)">
+          <button class="tab-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             Positions
           </button>
-          <button class="tab-btn" onclick="App.showTab('history',this)">
+          <button class="tab-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             History
           </button>
         </nav>
 
+        <!-- ════════════════════════════════════════════════════════════════
+             TAB CONTENT AREA
+             Contains all three tabs: Overview, Positions, and History
+             ════════════════════════════════════════════════════════════════ -->
         <div class="tab-scroll">
 
+<!-- ──────────────────────────────────────────────────────────────────────
+     OVERVIEW TAB
+     Portfolio summary with KPIs, allocation charts, and performance bars
+     ────────────────────────────────────────────────────────────────────── -->
 <div id="tab-overview" class="tab-pane active">
   <div class="kpi-grid" id="ov-kpis"></div>
   <div class="ov-charts">
     <!-- Allocation donut panel with sub-tabs -->
     <div class="panel">
       <div class="alloc-tabs">
-        <div class="alloc-tab active" id="atab-asset" onclick="App.switchAllocTab('asset')">By Asset</div>
-        <div class="alloc-tab"        id="atab-class" onclick="App.switchAllocTab('class')">By Class</div>
+        <div class="alloc-tab active" id="atab-asset">By Asset</div>
+        <div class="alloc-tab"        id="atab-class">By Class</div>
       </div>
       <div class="alloc-view active" id="aview-asset">
         <div class="donut-wrap">
@@ -220,30 +232,33 @@
   <div id="ov-analytics"></div>
 </div>
 
-
+<!-- ──────────────────────────────────────────────────────────────────────
+     POSITIONS TAB
+     Filterable table of all holdings with real-time P&L tracking
+     ────────────────────────────────────────────────────────────────────── -->
 <div id="tab-positions" class="tab-pane">
   <div class="pos-toolbar">
     <div class="pos-left">
       <div class="pos-count"><strong id="pos-count">0</strong> Positions</div>
       <div class="cls-filters">
-        <button class="cls-fb active" id="clf-all"    onclick="App.setClsFilter('all')">All</button>
-        <button class="cls-fb"        id="clf-Stock"  onclick="App.setClsFilter('Stock')">Stock</button>
-        <button class="cls-fb"        id="clf-ETF"    onclick="App.setClsFilter('ETF')">ETF</button>
-        <button class="cls-fb"        id="clf-Crypto" onclick="App.setClsFilter('Crypto')">Crypto</button>
-        <button class="cls-fb"        id="clf-Bond"   onclick="App.setClsFilter('Bond')">Bond</button>
-        <button class="cls-fb"        id="clf-MF"     onclick="App.setClsFilter('MF')">MF</button>
+        <button class="cls-fb active" id="clf-all"   >All</button>
+        <button class="cls-fb"        id="clf-Stock" >Stock</button>
+        <button class="cls-fb"        id="clf-ETF"   >ETF</button>
+        <button class="cls-fb"        id="clf-Crypto">Crypto</button>
+        <button class="cls-fb"        id="clf-Bond"  >Bond</button>
+        <button class="cls-fb"        id="clf-MF"    >MF</button>
       </div>
     </div>
     <div style="display:flex;gap:7px">
-      <button class="hdr-btn" onclick="App.exportPortfolioCSV()">
+      <button class="hdr-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export CSV
       </button>
-      <button class="hdr-btn" onclick="App.openCsvImport()">
+      <button class="hdr-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import CSV
       </button>
-      <button class="hdr-btn primary" onclick="App.openModal()">
+      <button class="hdr-btn primary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Transaction
       </button>
@@ -252,16 +267,19 @@
   <div class="pos-grid" id="pos-grid"></div>
 </div>
 
-
+<!-- ──────────────────────────────────────────────────────────────────────
+     HISTORY TAB
+     Complete transaction log with search, filters, and sorting
+     ────────────────────────────────────────────────────────────────────── -->
 <div id="tab-history" class="tab-pane">
   <div class="hist-toolbar">
-    <input type="text" class="search-input" id="hist-search" placeholder="Search ticker…" oninput="App.renderHistory()">
+    <input type="text" class="search-input" id="hist-search" placeholder="Search ticker…">
     <div class="filter-btns">
-      <button class="fbtn active" id="f-all"  onclick="App.setHistFilter('all')">All</button>
-      <button class="fbtn"        id="f-buy"  onclick="App.setHistFilter('buy')">Buy</button>
-      <button class="fbtn"        id="f-sell" onclick="App.setHistFilter('sell')">Sell</button>
+      <button class="fbtn active" id="f-all" >All</button>
+      <button class="fbtn"        id="f-buy" >Buy</button>
+      <button class="fbtn"        id="f-sell">Sell</button>
     </div>
-    <select class="sort-select" id="hist-sort" onchange="App.renderHistory()">
+    <select class="sort-select" id="hist-sort">
       <option value="date-desc">Newest first</option>
       <option value="date-asc">Oldest first</option>
       <option value="ticker">Ticker A→Z</option>
@@ -321,48 +339,48 @@
 </div><!-- /.app-shell -->
 
 <!-- Floating "Add Transaction" button -->
-<button class="fab" onclick="App.openModal()" title="Add Transaction">
+<button class="fab" title="Add Transaction">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      MODAL — Add Transaction Form
      ═══════════════════════════════════════════════════════════════════════ -->
-<div class="modal-ov" id="modal-ov" onclick="if(event.target===this)App.closeModal()">
+<div class="modal-ov" id="modal-ov">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
         Add Transaction
       </div>
-      <button class="modal-x" onclick="App.closeModal()">✕</button>
+      <button class="modal-x">✕</button>
     </div>
     <div class="modal-body">
       <!-- Quick ticker buttons -->
       <div class="fgrp" style="margin-bottom:12px">
         <label class="flbl">Quick Select</label>
         <div class="quick-tickers">
-          <button class="qt-btn" onclick="App.setTicker('AAPL')">AAPL</button>
-          <button class="qt-btn" onclick="App.setTicker('MSFT')">MSFT</button>
-          <button class="qt-btn" onclick="App.setTicker('NVDA')">NVDA</button>
-          <button class="qt-btn" onclick="App.setTicker('GOOGL')">GOOGL</button>
-          <button class="qt-btn" onclick="App.setTicker('AMZN')">AMZN</button>
-          <button class="qt-btn" onclick="App.setTicker('META')">META</button>
-          <button class="qt-btn" onclick="App.setTicker('TSLA')">TSLA</button>
-          <button class="qt-btn" onclick="App.setTicker('VOO')">VOO</button>
-          <button class="qt-btn" onclick="App.setTicker('SPY')">SPY</button>
-          <button class="qt-btn" onclick="App.setTicker('BTC')">BTC</button>
-          <button class="qt-btn" onclick="App.setTicker('ETH')">ETH</button>
+          <button class="qt-btn">AAPL</button>
+          <button class="qt-btn">MSFT</button>
+          <button class="qt-btn">NVDA</button>
+          <button class="qt-btn">GOOGL</button>
+          <button class="qt-btn">AMZN</button>
+          <button class="qt-btn">META</button>
+          <button class="qt-btn">TSLA</button>
+          <button class="qt-btn">VOO</button>
+          <button class="qt-btn">SPY</button>
+          <button class="qt-btn">BTC</button>
+          <button class="qt-btn">ETH</button>
         </div>
       </div>
 
       <!-- BUY / SELL toggle -->
       <div class="type-toggle">
-        <button class="type-btn is-buy" id="type-buy" onclick="App.setType('BUY')">
+        <button class="type-btn is-buy" id="type-buy">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
           Buy
         </button>
-        <button class="type-btn" id="type-sell" onclick="App.setType('SELL')">
+        <button class="type-btn" id="type-sell">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
           Sell
         </button>
@@ -373,13 +391,13 @@
         <div class="fgrp fg-full">
           <label class="flbl">Identifier</label>
           <div class="id-type-tabs">
-            <button class="id-tab active" id="id-tab-ticker" onclick="App.setIdMode('ticker')">Ticker</button>
-            <button class="id-tab" id="id-tab-isin" onclick="App.setIdMode('isin')">ISIN</button>
-            <button class="id-tab" id="id-tab-wkn" onclick="App.setIdMode('wkn')">WKN</button>
+            <button class="id-tab active" id="id-tab-ticker">Ticker</button>
+            <button class="id-tab" id="id-tab-isin">ISIN</button>
+            <button class="id-tab" id="id-tab-wkn">WKN</button>
           </div>
           <div class="id-input-wrap">
-            <input type="text" class="finp" id="f-ticker" placeholder="e.g. AAPL" oninput="this.value=this.value.toUpperCase();App.onTickerInput()">
-            <button class="verify-btn" id="f-verify-btn" onclick="App.verifyIdentifier()" title="Look up company name and ticker">
+            <input type="text" class="finp" id="f-ticker" placeholder="e.g. AAPL">
+            <button class="verify-btn" id="f-verify-btn" title="Look up company name and ticker">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Verify
             </button>
@@ -403,11 +421,11 @@
         </div>
         <div class="fgrp">
           <label class="flbl">Quantity (Shares)</label>
-          <input type="text" inputmode="decimal" class="finp" id="f-qty" placeholder="0" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-qty" placeholder="0">
         </div>
         <div class="fgrp">
           <label class="flbl">Price per Share (<span id="f-price-cur-lbl">EUR</span>)</label>
-          <input type="text" inputmode="decimal" class="finp" id="f-price" placeholder="0,00" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-price" placeholder="0,00">
         </div>
         <div class="fgrp">
           <label class="flbl">Estimated Total (<span id="f-cur-lbl">EUR</span>)</label>
@@ -420,18 +438,18 @@
         <!-- Fees (buys) and Taxes (sells) -->
         <div class="fgrp" id="f-fees-grp">
           <label class="flbl">Broker Fees <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
-          <input type="text" inputmode="decimal" class="finp" id="f-fees" placeholder="0" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-fees" placeholder="0">
         </div>
         <div class="fgrp" id="f-taxes-grp" style="display:none">
           <label class="flbl">Capital Gains Tax <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
-          <input type="text" inputmode="decimal" class="finp" id="f-taxes" placeholder="0" oninput="App.validateForm()">
+          <input type="text" inputmode="decimal" class="finp" id="f-taxes" placeholder="0">
         </div>
       </div>
       <div class="fhint" id="f-hint" style="margin-top:2px"></div>
     </div>
     <div class="modal-foot">
-      <button class="cancel-btn" onclick="App.closeModal()">Cancel</button>
-      <button class="submit-btn" onclick="App.submitTransaction()">
+      <button class="cancel-btn">Cancel</button>
+      <button class="submit-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Add Transaction
       </button>
@@ -443,7 +461,7 @@
      CSV IMPORT MODAL — 3-step wizard
      Step 1: Upload & Parse  |  Step 2: Resolve ISINs  |  Step 3: Preview & Import
      ═══════════════════════════════════════════════════════════════════════ -->
-<div class="modal-ov" id="csv-ov" onclick="if(event.target===this)App.closeCsvImport()">
+<div class="modal-ov" id="csv-ov">
   <div class="modal csv-modal">
     <div class="modal-header" style="flex-wrap:wrap;gap:10px">
       <div class="modal-title">
@@ -467,7 +485,7 @@
           <span class="csv-step-lbl">Preview</span>
         </div>
       </div>
-      <button class="modal-x" onclick="App.closeCsvImport()">✕</button>
+      <button class="modal-x">✕</button>
     </div>
     <div class="modal-body" id="csv-body" style="min-height:200px"></div>
     <div class="modal-foot" id="csv-foot"></div>
@@ -478,7 +496,7 @@
      SETTINGS SIDE PANEL
      API key, FX status, data management
      ═══════════════════════════════════════════════════════════════════════ -->
-<div class="sp-ov" id="sp-ov" onclick="App.closeSettings()"></div>
+<div class="sp-ov" id="sp-ov"></div>
 <div class="sp" id="sp">
   <div class="sp-hdr">
     <div class="sp-title">
@@ -488,7 +506,7 @@
       </svg>
       Settings
     </div>
-    <button class="sp-x" onclick="App.closeSettings()">✕</button>
+    <button class="sp-x">✕</button>
   </div>
   <div class="sp-body">
     <!-- API key section -->
@@ -518,7 +536,7 @@
           <option value="86400000">24 hours</option>
         </select>
       </div>
-      <button class="abtn blue" onclick="App.saveSettings()">
+      <button class="abtn blue">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
         Save Settings
       </button>
@@ -545,10 +563,10 @@
         </div>
         <div id="fx-diag-content" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></div>
         <div style="margin-top:8px;display:flex;gap:6px">
-          <button class="abtn outline" onclick="App.testFxAPI()" style="font-size:10px;padding:4px 8px">
+          <button class="abtn outline" style="font-size:10px;padding:4px 8px">
             Test API Now
           </button>
-          <button class="abtn outline" onclick="App.copyFxDebugInfo()" style="font-size:10px;padding:4px 8px">
+          <button class="abtn outline" style="font-size:10px;padding:4px 8px">
             Copy Debug Info
           </button>
         </div>
@@ -563,16 +581,16 @@
         Data Management
       </div>
       <div class="info-box" id="sp-storage">—</div>
-      <button class="abtn green" onclick="App.exportData()">
+      <button class="abtn green">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export JSON
       </button>
-      <button class="abtn outline" onclick="App.triggerImport()">
+      <button class="abtn outline">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import JSON
       </button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="App.importData(event)">
-      <button class="abtn red" onclick="App.clearAllData()">
+      <input type="file" id="import-file" accept=".json" style="display:none">
+      <button class="abtn red">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Clear All Data
       </button>
@@ -604,15 +622,15 @@
         <input type="text" class="finp" id="cfg-gist-id" placeholder="Paste your saved Gist ID here, or leave blank to create a new one">
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="abtn green" onclick="App.gistSave(false)">
+        <button class="abtn green">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
           Save to Gist
         </button>
-        <button class="abtn outline" onclick="App.gistLoad()">
+        <button class="abtn outline">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Load from Gist
         </button>
-        <button class="abtn red" onclick="App.gistClearCredentials()" title="Clear saved token and Gist ID from this browser">
+        <button class="abtn red" title="Clear saved token and Gist ID from this browser">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           Clear Credentials
         </button>
@@ -630,7 +648,7 @@
         Pre-loaded with AAPL, MSFT, NVDA, VOO and TSLA including both buys and sells —
         good for exploring XIRR calculation.
       </p>
-      <button class="abtn outline" onclick="App.reloadSampleData()">
+      <button class="abtn outline">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.5"/></svg>
         Reload Sample Data
       </button>
@@ -642,9 +660,9 @@
      POSITION DETAIL DRAWER
      Bottom sheet with lots breakdown, dumbbell chart, transaction history
      ═══════════════════════════════════════════════════════════════════════ -->
-<div class="drw-ov" id="drw-ov" onclick="App.closeDrawer()"></div>
+<div class="drw-ov" id="drw-ov"></div>
 <div class="drw" id="drw">
-  <div class="drw-handle" onclick="App.closeDrawer()"></div>
+  <div class="drw-handle"></div>
   <div class="drw-inner">
     <div class="drw-hdr">
       <div style="display:flex;align-items:flex-start;gap:13px">
@@ -655,14 +673,14 @@
           <div class="drw-pills"  id="drw-pills"></div>
         </div>
       </div>
-      <button class="drw-x" onclick="App.closeDrawer()">✕</button>
+      <button class="drw-x">✕</button>
     </div>
     <div class="drw-kpis"    id="drw-kpis"></div>
     <div class="drw-summary" id="drw-summary"></div>
     
     <!-- Export button -->
     <div style="display:flex;gap:10px;margin:16px 0 20px 0;padding:0 20px">
-      <button class="export-btn" onclick="App.exportPositionCSV()" title="Export this position's transactions as CSV">
+      <button class="export-btn" title="Export this position's transactions as CSV">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-right:6px">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
@@ -730,8 +748,8 @@
     <div class="confirm-title" id="ct">Are you sure?</div>
     <div class="confirm-msg"   id="cm"></div>
     <div class="confirm-btns">
-      <button class="cancel-btn" onclick="App.closeConfirm()">Cancel</button>
-      <button class="abtn red" id="cok" onclick="App.confirmOk()" style="width:auto">Delete</button>
+      <button class="cancel-btn">Cancel</button>
+      <button class="abtn red" id="cok" style="width:auto">Delete</button>
     </div>
   </div>
 </div>
@@ -765,7 +783,7 @@
     <div id="cred-hint" style="font-size:11px;min-height:14px;margin-top:6px"></div>
     <button class="submit-btn"
             style="margin-top:16px;width:100%;justify-content:center"
-            onclick="App.saveCredentials()">
+           >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
            stroke-linecap="round" stroke-linejoin="round"
            style="width:13px;height:13px"><polyline points="20 6 9 17 4 12"/></svg>
@@ -776,14 +794,10 @@
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      JAVASCRIPT
-     All application logic in a single IIFE, exposing only what the HTML
-     onclick handlers need via the global `App` object.
+     All application logic lives in a single IIFE that exposes the `App`
+     object. Event listeners are attached during initialization (setupEventListeners).
      ═══════════════════════════════════════════════════════════════════════ -->
-
-<!-- ════════════════════════════════════════════════════════════════════
-     JAVASCRIPT
-     ════════════════════════════════════════════════════════════════════ -->
-<script src="portfolio.js"></script>
+<script src="BitXappMod.js"></script>
 
 </body>
 </html>
