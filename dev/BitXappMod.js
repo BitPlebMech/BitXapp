@@ -519,18 +519,25 @@ const App = (function () {
       }
       
       const tsText = state.lastRefreshTS 
-        ? new Date(state.lastRefreshTS).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        ? timeAgo(state.lastRefreshTS)
         : '—';
       
-      combinedText.textContent = `${fxText}  •  Updated ${tsText}`;
+      combinedText.textContent = `${fxText} • ${tsText}`;
       
-      // Tooltip
+      // Tooltip with full timestamp
+      const fullTsText = state.lastRefreshTS
+        ? new Date(state.lastRefreshTS).toLocaleString('en-GB', { 
+            dateStyle: 'short', 
+            timeStyle: 'short' 
+          })
+        : '—';
+      
       if (!allOK) {
         fxPill.title = hasHistoricalData 
           ? `Using cached historical FX data (${historicalCount} days). Check Settings for diagnostics.`
           : '⚠️ WARNING: No historical FX data. CAGR/XIRR will be inaccurate. Check Settings for diagnostics.';
       } else {
-        fxPill.title = 'ECB exchange rates via frankfurter.app · Updated: ' + tsText;
+        fxPill.title = 'ECB exchange rates via frankfurter.app · Last updated: ' + fullTsText;
       }
     }
 
@@ -2101,7 +2108,7 @@ const App = (function () {
       const cardStyle = isLiquidated ? 'opacity:0.6;filter:saturate(0.4)' : '';
 
       return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s;${cardStyle}">
-        <div class="pos-card-bar" style="background:linear-gradient(90deg,${color}aa,${color}22)"></div>
+        <div class="pos-card-bar" style="color:${color}"></div>
         ${isSimulated ? `<div style="background:rgba(255,180,0,0.08);border-bottom:0.5px solid rgba(255,180,0,0.25);padding:4px 14px;font-size:9.5px;font-weight:700;color:var(--amber);letter-spacing:0.06em;display:flex;align-items:center;gap:5px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           SIMULATED PRICE — API unavailable for ${p.ticker}
@@ -2295,7 +2302,7 @@ const App = (function () {
         <td style="color:var(--dim)">${txs.length - i}</td>
         <td style="color:var(--text2)">${fmtDate(tx.date)}</td>
         <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
+        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span></td>
         <td>${classBadge(cls)}</td>
         <td style="color:var(--text)">${fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${fmtCompact(buyPriceD)}</td>

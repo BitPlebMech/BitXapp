@@ -490,20 +490,6 @@ body::after {
   position: relative;
 }
 
-/* Bottom gradient glow using pseudo-element */
-.pos-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: inherit; /* Will inherit color from pos-card-bar */
-  opacity: 0.6;
-  box-shadow: 0 0 8px var(--blue), 0 0 4px var(--blue);
-  pointer-events: none;
-}
-
 /* Dark mode: darker border on hover */
 .pos-card:hover { 
   border-color: var(--b2); 
@@ -546,8 +532,9 @@ body::after {
   margin-top: 2px; display: flex; align-items: center; gap: 4px;
 }
 
+/* Thin glowing gradient at top of each position card - matches KPI cards */
 .pos-card-bar  { 
-  height: 1px; flex-shrink: 0; 
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
   opacity: 0.6;
   box-shadow: 0 0 8px currentColor, 0 0 4px currentColor;
 }
@@ -1435,11 +1422,11 @@ html, body { height: 100%; overflow: hidden; }
   scrollbar-width: thin; scrollbar-color: var(--b2) transparent;
 }
 
-/* Tab nav inside module */
+/* Tab nav inside module - supports wrapping on narrow screens */
 .portfolio-shell .tab-nav {
-  display: flex; gap: 2px; padding: 11px 18px 0;
-  background: var(--surf); border-bottom: none;
-  flex-shrink: 0; position: static;
+  display: flex; gap: 2px; padding: 11px 18px;
+  background: var(--surf); border-bottom: 0.5px solid var(--b1);
+  flex-shrink: 0; position: static; flex-wrap: wrap;
   opacity: 0; animation: fadeUp 0.35s 0.1s ease forwards;
 }
 
@@ -1519,24 +1506,28 @@ html, body { height: 100%; overflow: hidden; }
 
 /* ═══════════════════════════════════════════════════════════════════════
    MODULE HEADER
-   Per-module subheader between topbar and tab-nav.
-   Contains module-specific status + action controls.
+   Two-line layout: Line 1 = title + controls, Line 2 = tab navigation
    ═══════════════════════════════════════════════════════════════════════ */
 .mod-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 18px; height: 48px; flex-shrink: 0;
+  padding: 0 18px; min-height: 42px; flex-shrink: 0;
   background: var(--surf); border-bottom: 0.5px solid var(--b1);
-  gap: 10px; flex-wrap: nowrap; overflow: hidden;
+  gap: 10px; flex-wrap: wrap;
   opacity: 0; animation: fadeUp 0.35s 0.06s ease forwards;
 }
 .mod-header-left  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.mod-header-right { display: flex; align-items: center; gap: 5px; margin-left: auto; }
-.mod-status-txt   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.mod-header-right { display: flex; align-items: center; gap: 5px; margin-left: auto; flex-wrap: wrap; }
+.mod-status-txt   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
 .mod-header-title {
   font-size: 13px; font-weight: 900; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text2);
   padding-right: 10px; border-right: 0.5px solid var(--b2);
   white-space: nowrap;
+}
+
+/* Compact timestamp on narrow screens */
+@media (max-width: 768px) {
+  .mod-status-txt { font-size: 9px; }
 }
 
 [data-theme="light"] .mod-header { background: var(--surf2); }
