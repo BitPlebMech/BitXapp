@@ -1122,7 +1122,7 @@ const App = (function () {
 
       positions[ticker] = {
         ticker, txs, openLots,
-        shares: +totalShares.toFixed(8),
+        shares: totalShares,  // Preserve full precision for crypto (up to 15 decimals)
         avgCostDisp: totalShares > 0 ? totalCostD / totalShares : 0,
         costDisp: totalCostD,
         curEUR: currentEUR,
@@ -1365,9 +1365,11 @@ const App = (function () {
    */
   function fmtQty(qty) {
     if (qty === null || qty === undefined) return '—';
+    // Whole numbers (stocks): no decimals
+    // Fractional (crypto): preserve up to 15 decimals, minimum 2
     return qty % 1 === 0
       ? _fmt(qty, { maximumFractionDigits: 0 })
-      : _fmt(+qty, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      : _fmt(+qty, { minimumFractionDigits: 2, maximumFractionDigits: 15 });
   }
 
   /**
@@ -1403,20 +1405,43 @@ const App = (function () {
    * @param {string} s
    * @returns {number}
    */
+  /**
+   * Parse user-typed number strings respecting the active currency's format.
+   * EUR (de-DE): 1.234,56 → comma is decimal
+   * USD/INR (en-US/en-IN): 1,234.56 → period is decimal
+   * Falls back to auto-detection if format is ambiguous.
+   */
   function parseLocaleFloat(s) {
     if (typeof s !== 'string') return parseFloat(s);
     const str = s.trim();
     if (!str) return NaN;
-    const lastComma  = str.lastIndexOf(',');
-    const lastPeriod = str.lastIndexOf('.');
+    
+    const locale = activeLocale();
+    const isEuropean = locale === 'de-DE'; // EUR uses comma as decimal
+    
+    const hasComma  = str.includes(',');
+    const hasPeriod = str.includes('.');
+    
     let normalised;
-    if (lastComma > lastPeriod) {
-      // Decimal comma (EU format): strip thousand dots, convert decimal comma
-      normalised = str.replace(/\./g, '').replace(',', '.');
+    
+    // If only one separator, use currency convention
+    if (hasComma && !hasPeriod) {
+      normalised = isEuropean 
+        ? str.replace(',', '.')              // EUR: comma → decimal
+        : str.replace(/,/g, '');             // USD/INR: comma → thousands
+    } else if (hasPeriod && !hasComma) {
+      normalised = isEuropean && str.split('.')[1]?.length <= 3
+        ? str.replace(/\./g, '')             // EUR: 1.234 → thousands  
+        : str;                               // USD/INR: period → decimal
+    } else if (hasComma && hasPeriod) {
+      // Both separators: use locale convention
+      normalised = isEuropean
+        ? str.replace(/\./g, '').replace(',', '.')  // EUR: 1.234,56
+        : str.replace(/,/g, '');                    // USD/INR: 1,234.56
     } else {
-      // Decimal period (US/IN format): strip thousand commas
-      normalised = str.replace(/,/g, '');
+      normalised = str; // No separators
     }
+    
     return parseFloat(normalised);
   }
 
@@ -2700,7 +2725,7 @@ const App = (function () {
     // Reset identifier mode to ticker
     _idMode = 'ticker';
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === 'ticker');
     });
     el('f-ticker').placeholder = 'e.g. AAPL';
@@ -2757,7 +2782,7 @@ const App = (function () {
     // Reset id mode to ticker
     _idMode = 'ticker';
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === 'ticker');
     });
     const inp = el('f-ticker');
@@ -2801,7 +2826,7 @@ const App = (function () {
   function setIdMode(mode) {
     _idMode = mode;
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === mode);
     });
     const inp = el('f-ticker');
@@ -2821,7 +2846,7 @@ const App = (function () {
     const raw = el('f-ticker').value.trim().toUpperCase();
     const hint = el('f-ticker-hint');
     const preview = el('f-company-preview');
-    const btn = el('f-verify-btn');
+    const btn = el('f-verify');
 
     if (!raw) { hint.textContent = 'Enter an identifier first'; hint.className = 'fhint warn'; return; }
 
@@ -2907,7 +2932,7 @@ const App = (function () {
         // Populate the form
         _idMode = 'ticker';
         ['ticker','isin','wkn'].forEach(m => {
-          const t = el('id-tab-' + m);
+          const t = el('id-' + m);
           if (t) t.classList.toggle('active', m === 'ticker');
         });
         el('f-ticker').value = ticker;
@@ -3303,8 +3328,10 @@ const App = (function () {
     }
 
     /**
-     * Parse European-formatted number strings.
-     * Handles: "1.234,56" → 1234.56, "1234.56" → 1234.56, "1.234" → 1234, "-1.277,20" → -1277.20
+     * Parse number strings from CSV - auto-detects European vs US/Indian format.
+     * European: "1.234,56" or "0,09135035" → comma is decimal
+     * US/Indian: "1,234.56" or "0.09135035" → period is decimal
+     * Handles crypto with high precision decimals.
      */
     function parseEuNum(str) {
       if (!str) return NaN;
@@ -3312,25 +3339,47 @@ const App = (function () {
       // Remove leading minus for detection, restore later
       const neg = s.startsWith('-');
       if (neg) s = s.slice(1);
-      // If both . and , are present: European format (. = thousands, , = decimal)
-      if (s.includes('.') && s.includes(',')) {
-        s = s.replace(/\./g, '').replace(',', '.');
-      } else if (s.includes(',') && !s.includes('.')) {
-        // Only comma: could be decimal separator
-        const parts = s.split(',');
-        if (parts.length === 2 && parts[1].length <= 2) {
-          s = s.replace(',', '.');           // treat as decimal
+      
+      const hasComma  = s.includes(',');
+      const hasPeriod = s.includes('.');
+      
+      // Both separators: determine which is decimal based on position
+      if (hasPeriod && hasComma) {
+        const lastComma  = s.lastIndexOf(',');
+        const lastPeriod = s.lastIndexOf('.');
+        if (lastComma > lastPeriod) {
+          // European: 1.234,56 → comma is decimal
+          s = s.replace(/\./g, '').replace(',', '.');
         } else {
-          s = s.replace(/,/g, '');           // treat as thousands separator
+          // US/Indian: 1,234.56 → period is decimal
+          s = s.replace(/,/g, '');
         }
-      } else if (s.includes('.') && !s.includes(',')) {
-        // Only dot: could be decimal or thousands separator
+      } 
+      // Only comma: European format (crypto, prices, amounts)
+      else if (hasComma && !hasPeriod) {
+        const parts = s.split(',');
+        // Decimal detection rules:
+        // 1. Starts with 0, → decimal (crypto: 0,09135035)
+        // 2. ≤ 4 digits before comma → decimal (prices: 1989,03280756304)
+        // 3. ≤ 2 digits after comma → decimal (traditional: 19614,8)
+        if (parts.length === 2 && (s.startsWith('0,') || parts[0].length <= 4 || parts[1].length <= 2)) {
+          s = s.replace(',', '.');
+        } else {
+          s = s.replace(/,/g, ''); // Thousands separator
+        }
+      } 
+      // Only period: could be US/Indian decimal or European thousands
+      else if (hasPeriod && !hasComma) {
         const parts = s.split('.');
-        if (parts.length === 2 && parts[1].length === 3) {
-          s = s.replace(/\./g, '');          // 1.234 → thousands
+        // If starts with 0. or has ≤ 4 digits before period → likely decimal
+        if (s.startsWith('0.') || (parts.length === 2 && parts[0].length <= 4)) {
+          // Keep as-is (decimal period)
+        } else if (parts.length === 2 && parts[1].length === 3) {
+          s = s.replace(/\./g, ''); // European thousands: 1.234
         }
         // else leave as-is (standard decimal)
       }
+      
       const val = parseFloat(s);
       return neg ? -val : val;
     }
@@ -3797,7 +3846,7 @@ const App = (function () {
         ticker,
         escapeCsv(companyName),
         tx.type,
-        (+tx.qty).toFixed(8),
+        +tx.qty,  // Preserve full precision for crypto (no .toFixed truncation)
         (+tx.price).toFixed(4),
         priceDisp.toFixed(4),
         (+(tx.fees || 0)).toFixed(2),
@@ -3863,7 +3912,7 @@ const App = (function () {
         tx.ticker,
         escapeCsv(companyName),
         tx.type,
-        (+tx.qty).toFixed(8),
+        +tx.qty,  // Preserve full precision for crypto (no .toFixed truncation)
         (+tx.price).toFixed(4),
         priceDisp.toFixed(4),
         (+(tx.fees || 0)).toFixed(2),
@@ -4533,6 +4582,10 @@ const App = (function () {
     const submitBtn = el('f-submit');
     if (submitBtn) submitBtn.addEventListener('click', submitTransaction);
     
+    /** Modal cancel button */
+    const modalCancel = el('modal-cancel');
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+    
     /** Quick ticker buttons */
     document.querySelectorAll('.qt-btn').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -4540,9 +4593,25 @@ const App = (function () {
       });
     });
     
-    /** Close modal button */
-    document.querySelectorAll('.modal-x').forEach(btn => {
-      btn.addEventListener('click', closeModal);
+    /** Close modal buttons - specific handlers for each modal */
+    const modalXBtn = el('modal-x-btn');
+    if (modalXBtn) modalXBtn.addEventListener('click', closeModal);
+    
+    const csvXBtn = el('csv-x-btn');
+    if (csvXBtn) csvXBtn.addEventListener('click', closeCsvImport);
+    
+    /** Modal overlay (click to close) */
+    const modalOv = el('modal-ov');
+    if (modalOv) modalOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not modal content
+      if (e.target === e.currentTarget) closeModal();
+    });
+    
+    /** CSV modal overlay (click to close) */
+    const csvOv = el('csv-ov');
+    if (csvOv) csvOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not modal content
+      if (e.target === e.currentTarget) closeCsvImport();
     });
     
     // ─── Drawer: Position Detail ──────────────────────────────────────
@@ -4553,7 +4622,10 @@ const App = (function () {
     
     /** Drawer overlay (click to close) */
     const drwOv = el('drw-ov');
-    if (drwOv) drwOv.addEventListener('click', closeDrawer);
+    if (drwOv) drwOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not drawer content
+      if (e.target === e.currentTarget) closeDrawer();
+    });
     
     /** Drawer handle (click to close) */
     const drwHandle = document.querySelector('.drw-handle');
@@ -4585,7 +4657,10 @@ const App = (function () {
     
     /** Settings overlay (click to close) */
     const spOv = el('sp-ov');
-    if (spOv) spOv.addEventListener('click', closeSettings);
+    if (spOv) spOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not settings panel
+      if (e.target === e.currentTarget) closeSettings();
+    });
     
     /** Save settings button */
     const saveSett = el('save-sett');
