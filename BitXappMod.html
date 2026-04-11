@@ -388,13 +388,13 @@
         <div class="fgrp fg-full">
           <label class="flbl">Identifier</label>
           <div class="id-type-tabs">
-            <button class="id-tab active" id="id-tab-ticker">Ticker</button>
-            <button class="id-tab" id="id-tab-isin">ISIN</button>
-            <button class="id-tab" id="id-tab-wkn">WKN</button>
+            <button class="id-tab active" id="id-ticker">Ticker</button>
+            <button class="id-tab" id="id-isin">ISIN</button>
+            <button class="id-tab" id="id-wkn">WKN</button>
           </div>
           <div class="id-input-wrap">
             <input type="text" class="finp" id="f-ticker" placeholder="e.g. AAPL">
-            <button class="verify-btn" id="f-verify-btn" title="Look up company name and ticker">
+            <button class="verify-btn" id="f-verify" title="Look up company name and ticker">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Verify
             </button>
@@ -445,8 +445,8 @@
       <div class="fhint" id="f-hint" style="margin-top:2px"></div>
     </div>
     <div class="modal-foot">
-      <button class="cancel-btn">Cancel</button>
-      <button class="submit-btn">
+      <button class="cancel-btn" id="modal-cancel">Cancel</button>
+      <button class="submit-btn" id="f-submit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Add Transaction
       </button>

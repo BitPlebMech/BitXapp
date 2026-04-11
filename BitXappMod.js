@@ -2700,7 +2700,7 @@ const App = (function () {
     // Reset identifier mode to ticker
     _idMode = 'ticker';
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === 'ticker');
     });
     el('f-ticker').placeholder = 'e.g. AAPL';
@@ -2757,7 +2757,7 @@ const App = (function () {
     // Reset id mode to ticker
     _idMode = 'ticker';
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === 'ticker');
     });
     const inp = el('f-ticker');
@@ -2801,7 +2801,7 @@ const App = (function () {
   function setIdMode(mode) {
     _idMode = mode;
     ['ticker','isin','wkn'].forEach(m => {
-      const t = el('id-tab-' + m);
+      const t = el('id-' + m);
       if (t) t.classList.toggle('active', m === mode);
     });
     const inp = el('f-ticker');
@@ -2821,7 +2821,7 @@ const App = (function () {
     const raw = el('f-ticker').value.trim().toUpperCase();
     const hint = el('f-ticker-hint');
     const preview = el('f-company-preview');
-    const btn = el('f-verify-btn');
+    const btn = el('f-verify');
 
     if (!raw) { hint.textContent = 'Enter an identifier first'; hint.className = 'fhint warn'; return; }
 
@@ -2907,7 +2907,7 @@ const App = (function () {
         // Populate the form
         _idMode = 'ticker';
         ['ticker','isin','wkn'].forEach(m => {
-          const t = el('id-tab-' + m);
+          const t = el('id-' + m);
           if (t) t.classList.toggle('active', m === 'ticker');
         });
         el('f-ticker').value = ticker;
@@ -4533,6 +4533,10 @@ const App = (function () {
     const submitBtn = el('f-submit');
     if (submitBtn) submitBtn.addEventListener('click', submitTransaction);
     
+    /** Modal cancel button */
+    const modalCancel = el('modal-cancel');
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+    
     /** Quick ticker buttons */
     document.querySelectorAll('.qt-btn').forEach(btn => {
       btn.addEventListener('click', function() {
@@ -4544,6 +4548,10 @@ const App = (function () {
     document.querySelectorAll('.modal-x').forEach(btn => {
       btn.addEventListener('click', closeModal);
     });
+    
+    /** Modal overlay (click to close) */
+    const modalOv = el('modal-ov');
+    if (modalOv) modalOv.addEventListener('click', closeModal);
     
     // ─── Drawer: Position Detail ──────────────────────────────────────
     
