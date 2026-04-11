@@ -1122,7 +1122,7 @@ const App = (function () {
 
       positions[ticker] = {
         ticker, txs, openLots,
-        shares: +totalShares.toFixed(8),
+        shares: totalShares,  // Preserve full precision for crypto (up to 15 decimals)
         avgCostDisp: totalShares > 0 ? totalCostD / totalShares : 0,
         costDisp: totalCostD,
         curEUR: currentEUR,
@@ -1365,9 +1365,11 @@ const App = (function () {
    */
   function fmtQty(qty) {
     if (qty === null || qty === undefined) return '—';
+    // Whole numbers (stocks): no decimals
+    // Fractional (crypto): preserve up to 15 decimals, minimum 2
     return qty % 1 === 0
       ? _fmt(qty, { maximumFractionDigits: 0 })
-      : _fmt(+qty, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      : _fmt(+qty, { minimumFractionDigits: 2, maximumFractionDigits: 15 });
   }
 
   /**
@@ -3797,7 +3799,7 @@ const App = (function () {
         ticker,
         escapeCsv(companyName),
         tx.type,
-        (+tx.qty).toFixed(8),
+        +tx.qty,  // Preserve full precision for crypto (no .toFixed truncation)
         (+tx.price).toFixed(4),
         priceDisp.toFixed(4),
         (+(tx.fees || 0)).toFixed(2),
@@ -3863,7 +3865,7 @@ const App = (function () {
         tx.ticker,
         escapeCsv(companyName),
         tx.type,
-        (+tx.qty).toFixed(8),
+        +tx.qty,  // Preserve full precision for crypto (no .toFixed truncation)
         (+tx.price).toFixed(4),
         priceDisp.toFixed(4),
         (+(tx.fees || 0)).toFixed(2),
