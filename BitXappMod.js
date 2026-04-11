@@ -3306,7 +3306,7 @@ const App = (function () {
 
     /**
      * Parse European-formatted number strings.
-     * Handles: "1.234,56" → 1234.56, "1234.56" → 1234.56, "1.234" → 1234, "-1.277,20" → -1277.20
+     * Handles: "1.234,56" → 1234.56, "0,09135035" → 0.09135035, "1989,03280756304" → 1989.03280756304
      */
     function parseEuNum(str) {
       if (!str) return NaN;
@@ -3318,9 +3318,13 @@ const App = (function () {
       if (s.includes('.') && s.includes(',')) {
         s = s.replace(/\./g, '').replace(',', '.');
       } else if (s.includes(',') && !s.includes('.')) {
-        // Only comma: could be decimal separator
+        // Only comma: check if it's a decimal separator
         const parts = s.split(',');
-        if (parts.length === 2 && parts[1].length <= 2) {
+        // Rules for decimal detection:
+        // 1. Starts with 0, → always decimal (0,09135035)
+        // 2. Two parts where first part has ≤ 4 digits → likely decimal (1989,03280756304)
+        // 3. Traditional check: second part has ≤ 2 digits → decimal (price like 19614,8)
+        if (parts.length === 2 && (s.startsWith('0,') || parts[0].length <= 4 || parts[1].length <= 2)) {
           s = s.replace(',', '.');           // treat as decimal
         } else {
           s = s.replace(/,/g, '');           // treat as thousands separator
@@ -4555,11 +4559,17 @@ const App = (function () {
     
     /** Modal overlay (click to close) */
     const modalOv = el('modal-ov');
-    if (modalOv) modalOv.addEventListener('click', closeModal);
+    if (modalOv) modalOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not modal content
+      if (e.target === e.currentTarget) closeModal();
+    });
     
     /** CSV modal overlay (click to close) */
     const csvOv = el('csv-ov');
-    if (csvOv) csvOv.addEventListener('click', closeCsvImport);
+    if (csvOv) csvOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not modal content
+      if (e.target === e.currentTarget) closeCsvImport();
+    });
     
     // ─── Drawer: Position Detail ──────────────────────────────────────
     
@@ -4569,7 +4579,10 @@ const App = (function () {
     
     /** Drawer overlay (click to close) */
     const drwOv = el('drw-ov');
-    if (drwOv) drwOv.addEventListener('click', closeDrawer);
+    if (drwOv) drwOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not drawer content
+      if (e.target === e.currentTarget) closeDrawer();
+    });
     
     /** Drawer handle (click to close) */
     const drwHandle = document.querySelector('.drw-handle');
@@ -4601,7 +4614,10 @@ const App = (function () {
     
     /** Settings overlay (click to close) */
     const spOv = el('sp-ov');
-    if (spOv) spOv.addEventListener('click', closeSettings);
+    if (spOv) spOv.addEventListener('click', (e) => {
+      // Only close if clicking the overlay itself, not settings panel
+      if (e.target === e.currentTarget) closeSettings();
+    });
     
     /** Save settings button */
     const saveSett = el('save-sett');
