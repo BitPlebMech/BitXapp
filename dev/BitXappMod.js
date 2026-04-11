@@ -4261,6 +4261,29 @@ const App = (function () {
     );
   }
 
+  /**
+   * Sign Out - Clear Gist credentials and show credentials popup.
+   * This allows the user to enter different credentials (e.g., switching accounts).
+   */
+  function signOut() {
+    confirmAction(
+      'Sign Out?',
+      'You will be asked to re-enter your GitHub token and Gist ID. Your local data will be preserved.',
+      '🚪', 'Sign Out',
+      () => {
+        // Clear credentials from state and localStorage
+        state.settings.gistToken = '';
+        state.settings.gistId    = '';
+        saveState();
+        
+        // Show credentials popup
+        openCredentialsPopup(() => {});
+        
+        toast('Signed out successfully', 'info');
+      }
+    );
+  }
+
   /* ═══════════════════════════════════════════════════════════════════
      CREDENTIALS CHECK
      Shows the credentials popup if Gist token/ID are missing.
@@ -4361,6 +4384,10 @@ const App = (function () {
     const themeBtn = el('h-theme-btn');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
     
+    /** Sign Out button (topbar) */
+    const signOutBtn = el('h-signout-btn');
+    if (signOutBtn) signOutBtn.addEventListener('click', signOut);
+    
     /** Currency selector */
     const currencySelect = el('h-currency');
     if (currencySelect) currencySelect.addEventListener('change', onCurrencyChange);
@@ -4418,17 +4445,16 @@ const App = (function () {
     // ─── Positions Tab: Toolbar Buttons ───────────────────────────────
     
     /** Export Portfolio CSV button */
-    document.querySelectorAll('.hdr-btn').forEach(btn => {
-      if (btn.textContent.includes('Export CSV')) {
-        btn.addEventListener('click', exportPortfolioCSV);
-      }
-      if (btn.textContent.includes('Import CSV')) {
-        btn.addEventListener('click', openCsvImport);
-      }
-      if (btn.textContent.includes('Add Transaction')) {
-        btn.addEventListener('click', openModal);
-      }
-    });
+    const btnExportCsv = el('btn-export-csv');
+    if (btnExportCsv) btnExportCsv.addEventListener('click', exportPortfolioCSV);
+    
+    /** Import CSV button */
+    const btnImportCsv = el('btn-import-csv');
+    if (btnImportCsv) btnImportCsv.addEventListener('click', openCsvImport);
+    
+    /** Add Transaction button */
+    const btnAddTransaction = el('btn-add-transaction');
+    if (btnAddTransaction) btnAddTransaction.addEventListener('click', () => openModal());
     
     // ─── History Tab: Filter Buttons ──────────────────────────────────
     
@@ -4453,11 +4479,11 @@ const App = (function () {
     // ─── Modal: Add Transaction ───────────────────────────────────────
     
     /** BUY/SELL toggle buttons */
-    const ftBuy = el('ft-buy');
-    if (ftBuy) ftBuy.addEventListener('click', () => setType('BUY'));
+    const typeBuy = el('type-buy');
+    if (typeBuy) typeBuy.addEventListener('click', () => setType('BUY'));
     
-    const ftSell = el('ft-sell');
-    if (ftSell) ftSell.addEventListener('click', () => setType('SELL'));
+    const typeSell = el('type-sell');
+    if (typeSell) typeSell.addEventListener('click', () => setType('SELL'));
     
     /** Identifier mode tabs (Ticker / ISIN / WKN) */
     const idTicker = el('id-ticker');
@@ -4507,9 +4533,17 @@ const App = (function () {
     const submitBtn = el('f-submit');
     if (submitBtn) submitBtn.addEventListener('click', submitTransaction);
     
+    /** Quick ticker buttons */
+    document.querySelectorAll('.qt-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        setTicker(this.textContent.trim(), true);
+      });
+    });
+    
     /** Close modal button */
-    const modalClose = el('modal-close');
-    if (modalClose) modalClose.addEventListener('click', closeModal);
+    document.querySelectorAll('.modal-x').forEach(btn => {
+      btn.addEventListener('click', closeModal);
+    });
     
     // ─── Drawer: Position Detail ──────────────────────────────────────
     
@@ -4936,6 +4970,8 @@ const App = (function () {
     gistLoad,
     /** Clear saved token and Gist ID from this browser. */
     gistClearCredentials,
+    /** Sign out - clear credentials and show login popup. */
+    signOut,
 
     // Confirmation dialog
     confirmOk,

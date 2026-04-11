@@ -552,11 +552,11 @@ body::after {
   position: relative;
 }
 
-/* Bottom gradient glow using pseudo-element */
+/* Top gradient glow using pseudo-element - matches KPI cards */
 .pos-card::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   height: 1px;
@@ -761,24 +761,6 @@ body::after {
 }
 .del-btn:hover { color: var(--red); }
 .del-btn svg   { width: 13px; height: 13px; }
-
-/* ═══════════════════════════════════════════════════════════════════════
-   FLOATING ACTION BUTTON
-   Fixed "+" button in bottom-right corner
-   ═══════════════════════════════════════════════════════════════════════ */
-.fab {
-  position: fixed; bottom: 28px; right: 28px; left: auto; z-index: 200;
-  width: 54px; height: 54px; border-radius: 50%;
-  background: var(--blue); border: none; color: #fff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 24px rgba(91, 156, 255, 0.42);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.fab:hover {
-  transform: scale(1.09);
-  box-shadow: 0 6px 32px rgba(91, 156, 255, 0.56);
-}
-.fab svg { width: 22px; height: 22px; }
 
 /* ═══════════════════════════════════════════════════════════════════════
    MODAL (Add Transaction)
