@@ -1405,20 +1405,43 @@ const App = (function () {
    * @param {string} s
    * @returns {number}
    */
+  /**
+   * Parse user-typed number strings respecting the active currency's format.
+   * EUR (de-DE): 1.234,56 → comma is decimal
+   * USD/INR (en-US/en-IN): 1,234.56 → period is decimal
+   * Falls back to auto-detection if format is ambiguous.
+   */
   function parseLocaleFloat(s) {
     if (typeof s !== 'string') return parseFloat(s);
     const str = s.trim();
     if (!str) return NaN;
-    const lastComma  = str.lastIndexOf(',');
-    const lastPeriod = str.lastIndexOf('.');
+    
+    const locale = activeLocale();
+    const isEuropean = locale === 'de-DE'; // EUR uses comma as decimal
+    
+    const hasComma  = str.includes(',');
+    const hasPeriod = str.includes('.');
+    
     let normalised;
-    if (lastComma > lastPeriod) {
-      // Decimal comma (EU format): strip thousand dots, convert decimal comma
-      normalised = str.replace(/\./g, '').replace(',', '.');
+    
+    // If only one separator, use currency convention
+    if (hasComma && !hasPeriod) {
+      normalised = isEuropean 
+        ? str.replace(',', '.')              // EUR: comma → decimal
+        : str.replace(/,/g, '');             // USD/INR: comma → thousands
+    } else if (hasPeriod && !hasComma) {
+      normalised = isEuropean && str.split('.')[1]?.length <= 3
+        ? str.replace(/\./g, '')             // EUR: 1.234 → thousands  
+        : str;                               // USD/INR: period → decimal
+    } else if (hasComma && hasPeriod) {
+      // Both separators: use locale convention
+      normalised = isEuropean
+        ? str.replace(/\./g, '').replace(',', '.')  // EUR: 1.234,56
+        : str.replace(/,/g, '');                    // USD/INR: 1,234.56
     } else {
-      // Decimal period (US/IN format): strip thousand commas
-      normalised = str.replace(/,/g, '');
+      normalised = str; // No separators
     }
+    
     return parseFloat(normalised);
   }
 
@@ -3305,8 +3328,10 @@ const App = (function () {
     }
 
     /**
-     * Parse European-formatted number strings.
-     * Handles: "1.234,56" → 1234.56, "0,09135035" → 0.09135035, "1989,03280756304" → 1989.03280756304
+     * Parse number strings from CSV - auto-detects European vs US/Indian format.
+     * European: "1.234,56" or "0,09135035" → comma is decimal
+     * US/Indian: "1,234.56" or "0.09135035" → period is decimal
+     * Handles crypto with high precision decimals.
      */
     function parseEuNum(str) {
       if (!str) return NaN;
@@ -3314,29 +3339,47 @@ const App = (function () {
       // Remove leading minus for detection, restore later
       const neg = s.startsWith('-');
       if (neg) s = s.slice(1);
-      // If both . and , are present: European format (. = thousands, , = decimal)
-      if (s.includes('.') && s.includes(',')) {
-        s = s.replace(/\./g, '').replace(',', '.');
-      } else if (s.includes(',') && !s.includes('.')) {
-        // Only comma: check if it's a decimal separator
-        const parts = s.split(',');
-        // Rules for decimal detection:
-        // 1. Starts with 0, → always decimal (0,09135035)
-        // 2. Two parts where first part has ≤ 4 digits → likely decimal (1989,03280756304)
-        // 3. Traditional check: second part has ≤ 2 digits → decimal (price like 19614,8)
-        if (parts.length === 2 && (s.startsWith('0,') || parts[0].length <= 4 || parts[1].length <= 2)) {
-          s = s.replace(',', '.');           // treat as decimal
+      
+      const hasComma  = s.includes(',');
+      const hasPeriod = s.includes('.');
+      
+      // Both separators: determine which is decimal based on position
+      if (hasPeriod && hasComma) {
+        const lastComma  = s.lastIndexOf(',');
+        const lastPeriod = s.lastIndexOf('.');
+        if (lastComma > lastPeriod) {
+          // European: 1.234,56 → comma is decimal
+          s = s.replace(/\./g, '').replace(',', '.');
         } else {
-          s = s.replace(/,/g, '');           // treat as thousands separator
+          // US/Indian: 1,234.56 → period is decimal
+          s = s.replace(/,/g, '');
         }
-      } else if (s.includes('.') && !s.includes(',')) {
-        // Only dot: could be decimal or thousands separator
+      } 
+      // Only comma: European format (crypto, prices, amounts)
+      else if (hasComma && !hasPeriod) {
+        const parts = s.split(',');
+        // Decimal detection rules:
+        // 1. Starts with 0, → decimal (crypto: 0,09135035)
+        // 2. ≤ 4 digits before comma → decimal (prices: 1989,03280756304)
+        // 3. ≤ 2 digits after comma → decimal (traditional: 19614,8)
+        if (parts.length === 2 && (s.startsWith('0,') || parts[0].length <= 4 || parts[1].length <= 2)) {
+          s = s.replace(',', '.');
+        } else {
+          s = s.replace(/,/g, ''); // Thousands separator
+        }
+      } 
+      // Only period: could be US/Indian decimal or European thousands
+      else if (hasPeriod && !hasComma) {
         const parts = s.split('.');
-        if (parts.length === 2 && parts[1].length === 3) {
-          s = s.replace(/\./g, '');          // 1.234 → thousands
+        // If starts with 0. or has ≤ 4 digits before period → likely decimal
+        if (s.startsWith('0.') || (parts.length === 2 && parts[0].length <= 4)) {
+          // Keep as-is (decimal period)
+        } else if (parts.length === 2 && parts[1].length === 3) {
+          s = s.replace(/\./g, ''); // European thousands: 1.234
         }
         // else leave as-is (standard decimal)
       }
+      
       const val = parseFloat(s);
       return neg ? -val : val;
     }
