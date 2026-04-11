@@ -4544,14 +4544,20 @@ const App = (function () {
       });
     });
     
-    /** Close modal button */
-    document.querySelectorAll('.modal-x').forEach(btn => {
-      btn.addEventListener('click', closeModal);
-    });
+    /** Close modal buttons - specific handlers for each modal */
+    const modalXBtn = el('modal-x-btn');
+    if (modalXBtn) modalXBtn.addEventListener('click', closeModal);
+    
+    const csvXBtn = el('csv-x-btn');
+    if (csvXBtn) csvXBtn.addEventListener('click', closeCsvImport);
     
     /** Modal overlay (click to close) */
     const modalOv = el('modal-ov');
     if (modalOv) modalOv.addEventListener('click', closeModal);
+    
+    /** CSV modal overlay (click to close) */
+    const csvOv = el('csv-ov');
+    if (csvOv) csvOv.addEventListener('click', closeCsvImport);
     
     // ─── Drawer: Position Detail ──────────────────────────────────────
     
