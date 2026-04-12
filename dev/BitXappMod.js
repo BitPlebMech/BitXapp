@@ -1677,36 +1677,41 @@ const App = (function () {
         bar: summary.realized >= 0 ? 'var(--green)' : 'var(--red)', delay: '.13s',
         valClass: summary.realized >= 0 ? 'c-green' : 'c-red',
         icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
+      { label: 'Net P&L', value: ((summary.unrealized + summary.realized) >= 0 ? '+' : '') + fmtValue(summary.unrealized + summary.realized), 
+        sub: 'total realised + unrealised',
+        bar: (summary.unrealized + summary.realized) >= 0 ? 'var(--green)' : 'var(--red)', delay: '.15s',
+        valClass: (summary.unrealized + summary.realized) >= 0 ? 'c-green' : 'c-red',
+        icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
       { label: 'Portfolio CAGR', value: fmtCAGR(summary.cagr),         sub: state.settings.currency + '-adj. annualised',
-        bar: summary.cagr !== null && summary.cagr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.17s',
+        bar: summary.cagr !== null && summary.cagr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.19s',
         valClass: cagrClass, subClass: cagrClass,
         icon: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>' },
       { label: 'Portfolio XIRR', value: fmtXIRR(summary.xirr),         sub: 'time-weighted returns',
-        bar: summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.21s',
+        bar: summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--red)', delay: '.23s',
         valClass: xirrClass, subClass: xirrClass,
         spark: miniSpark(summary.xirr !== null && summary.xirr >= 0 ? 'var(--green)' : 'var(--muted)'),
         icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
       { label: 'Win Rate',       value: winRate + ' %',
         sub: winners + ' winning · ' + (rows.length - winners) + ' losing',
-        bar: winColor, delay: '.25s', valClass: winRate >= 50 ? 'c-green' : 'c-red',
+        bar: winColor, delay: '.27s', valClass: winRate >= 50 ? 'c-green' : 'c-red',
         icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
       { label: 'Best XIRR',      value: bestX ? bestX.ticker : '—',
         sub: bestX ? fmtXIRR(bestX.xirr) : '—',
         subClass: bestX && bestX.xirr >= 0 ? 'c-green' : 'c-red',
         valClass: bestX ? '' : 'c-muted',
-        bar: 'linear-gradient(90deg,var(--green),var(--blue))', delay: '.29s',
+        bar: 'linear-gradient(90deg,var(--green),var(--blue))', delay: '.31s',
         icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>' },
       { label: 'Needs Attention', value: (worstX && worstX.ticker !== bestX?.ticker) ? worstX.ticker : '—',
         sub: (worstX && worstX.ticker !== bestX?.ticker) ? fmtXIRR(worstX.xirr) : 'all positions healthy',
         subClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
         valClass: worstX && worstX.xirr < 0 ? 'c-red' : 'c-muted',
-        bar: (worstX && worstX.xirr < 0) ? 'var(--red)' : 'var(--dim)', delay: '.33s',
+        bar: (worstX && worstX.xirr < 0) ? 'var(--red)' : 'var(--dim)', delay: '.35s',
         icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
       { label: 'Avg Hold Time',   value: summary.avgDaysHeld > 0 ? (summary.avgDaysHeld < 365 ? summary.avgDaysHeld + 'd' : fmtNum(summary.avgDaysHeld/365.25,1) + 'yr') : '—',
-        sub: 'weighted by cost basis', bar: 'var(--blue)', delay: '.37s',
+        sub: 'weighted by cost basis', bar: 'var(--blue)', delay: '.39s',
         icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
       { label: 'Concentration',   value: fmtNum(summary.concentration, 1) + ' %',
-        sub: 'largest single position', bar: summary.concentration > 40 ? 'var(--amber)' : 'var(--purple)', delay: '.41s',
+        sub: 'largest single position', bar: summary.concentration > 40 ? 'var(--amber)' : 'var(--purple)', delay: '.43s',
         valClass: summary.concentration > 40 ? 'c-muted' : '',
         icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
     ];
@@ -2198,6 +2203,7 @@ const App = (function () {
             <div class="pm"><div class="pm-lbl">Unrealised P&L</div><div class="pm-val highlight" style="color:${gainColor}">${p.unrealized >= 0 ? '+' : ''}${fmtValue(p.unrealized)}</div></div>
             `}
             <div class="pm"><div class="pm-lbl">Realised P&L</div><div class="pm-val" style="color:${p.realized >= 0 ? 'var(--green)' : 'var(--red)'}">${p.realized >= 0 ? '+' : ''}${fmtValue(p.realized)}</div></div>
+            <div class="pm"><div class="pm-lbl">Net P&L</div><div class="pm-val" style="color:${(p.unrealized + p.realized) >= 0 ? 'var(--green)' : 'var(--red)'}">${(p.unrealized + p.realized) >= 0 ? '+' : ''}${fmtValue(p.unrealized + p.realized)}</div></div>
             ${!isLiquidated ? `
             <div class="pm wide">
               <div class="pm-lbl">Returns</div>
@@ -3228,9 +3234,24 @@ const App = (function () {
             <polyline points="9 15 12 12 15 15"/>
           </svg>
         </div>
-        <div>${hasRows ? '✓ File loaded — drop another to replace' : 'Drop your depot <strong style="color:var(--blue)">.csv</strong> here'}</div>
-        <div class="csv-drop-sub">${hasRows ? '' : 'or click to browse'}</div>
-        ${!hasRows ? `<div class="csv-drop-sub" style="margin-top:8px;padding:8px 12px;background:rgba(91,156,255,0.08);border:0.5px solid rgba(91,156,255,0.2);border-radius:6px;color:var(--text2);font-size:11px;line-height:1.5"><strong style="color:var(--blue)">Required columns:</strong> date, isin, shares, price, type, currency<br><strong style="color:var(--blue)">Format:</strong> Date (DD/MM/YYYY), Type (buy/sell), Price & Shares (numbers)</div>` : ''}
+        <div>${hasRows ? '✓ File loaded — drop another to replace' : 'Drop your depot <strong style="color:var(--blue)">.csv</strong> here or click to browse'}</div>
+        ${hasRows ? `<button class="abtn outline" style="margin-top:12px" onclick="event.stopPropagation();el('csv-file-inp').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Choose Different File
+        </button>` : `<button class="abtn blue" style="margin-top:12px" onclick="event.stopPropagation();el('csv-file-inp').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+            <path d="M3 3h18v18H3z"/>
+            <polyline points="9 9 9 15"/>
+            <polyline points="12 9 12 15"/>
+            <polyline points="15 9 15 15"/>
+          </svg>
+          Browse Files
+        </button>`}
+        ${!hasRows ? `<div class="csv-drop-sub" style="margin-top:12px;padding:8px 12px;background:rgba(91,156,255,0.08);border:0.5px solid rgba(91,156,255,0.2);border-radius:6px;color:var(--text2);font-size:11px;line-height:1.5"><strong style="color:var(--blue)">Required columns:</strong> date, isin, shares, price, type, currency<br><strong style="color:var(--blue)">Format:</strong> Date (DD/MM/YYYY), Type (buy/sell), Price & Shares (numbers)</div>` : ''}
       </div>
       ${hasRows ? `
       <div class="csv-summary-card">
