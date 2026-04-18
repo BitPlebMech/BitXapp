@@ -82,14 +82,8 @@ window.App.Shell = (() => {
 
     const gistBtn = el('sb-gist-save');
     if (gistBtn) {
-      gistBtn.addEventListener('click', () => {
-        // ARCH-03 fix: use active module's triggerGistSave generically — no hardcoded fallback
-        if (_active && window.App[_capitalise(_active)]?.triggerGistSave) {
-          window.App[_capitalise(_active)].triggerGistSave();
-        } else {
-          toast('No active module supports Gist sync', 'warn');
-        }
-      });
+      // Shell owns the sidebar Gist save — works for every module automatically.
+      gistBtn.addEventListener('click', () => triggerGistSave());
     }
   }
 
@@ -243,6 +237,47 @@ window.App.Shell = (() => {
     _confirmCallback = null;
   }
 
+  /* ── Gist sync ────────────────────────────────────────────────────
+   *
+   * Shell-owned canonical save. Every module — current and future —
+   * benefits automatically via the sidebar Gist button.
+   * Portfolio keeps its own richer version for its header button
+   * (status indicators, silent mode); this handles everything else.
+   * ─────────────────────────────────────────────────────────────── */
+
+  async function triggerGistSave() {
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) {
+      toast('Add your GitHub token in Settings → Gist Sync', 'error');
+      return;
+    }
+    if (!creds.id) {
+      confirmAction(
+        'Create a new Gist?',
+        'No Gist ID set. This will create a brand-new Gist. If you already have one, paste its ID in Settings first.',
+        '☁️', 'Create new Gist',
+        () => _doGistSave(creds.token, '')
+      );
+      return;
+    }
+    _doGistSave(creds.token, creds.id);
+  }
+
+  async function _doGistSave(token, id) {
+    try {
+      toast('Saving to Gist…', 'info');
+      const result = await window.App.Gist.save(window.App.State.getAll(), token, id);
+      if (!id) {
+        // First save — persist the new Gist ID so future saves update the same Gist
+        window.App.State.setGistCredentials({ id: result.id });
+      }
+      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+      toast('Saved to GitHub Gist ✓', 'success');
+    } catch (e) {
+      toast('Gist save failed: ' + e.message, 'error');
+    }
+  }
+
   /* ── Theme application ────────────────────────────────────────── */
 
   /**
@@ -295,6 +330,8 @@ window.App.Shell = (() => {
     confirmAction,
     confirmDo,
     confirmCancel,
+    // App-level Gist sync — works for every module automatically
+    triggerGistSave,
     /** Returns the currently active module id */
     get active() { return _active; },
   };

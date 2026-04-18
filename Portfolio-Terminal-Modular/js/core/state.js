@@ -171,6 +171,35 @@ window.App.State = (() => {
     _save();
   }
 
+  /**
+   * Merge an incoming state (e.g. from a Gist load) with the current DEFAULT_STATE.
+   *
+   * Unlike setAll(), this is safe across module additions and removals:
+   *   • New modules not present in the Gist get their default state automatically.
+   *   • Removed modules present in the Gist are silently ignored.
+   *   • Existing module data is deep-merged so new fields get defaults.
+   *
+   * Always use this instead of setAll() when loading from Gist.
+   */
+  function mergeAll(incoming) {
+    _ensure();
+    const merged = { ...DEFAULT_STATE };
+    for (const ns of Object.keys(DEFAULT_STATE)) {
+      if (incoming[ns]) {
+        merged[ns] = _deepMerge(DEFAULT_STATE[ns], incoming[ns]);
+      }
+    }
+    // Re-apply settings deep merge (many evolving keys)
+    if (incoming.portfolio?.settings) {
+      merged.portfolio.settings = {
+        ...DEFAULT_PORTFOLIO_SETTINGS,
+        ...incoming.portfolio.settings,
+      };
+    }
+    _state = merged;
+    _save();
+  }
+
   // ─── Portfolio namespace ────────────────────────────────────────
 
   function getPortfolioData() {
@@ -280,6 +309,7 @@ window.App.State = (() => {
     init,
     getAll,
     setAll,
+    mergeAll,
     // Portfolio
     getPortfolioData,
     setPortfolioData,

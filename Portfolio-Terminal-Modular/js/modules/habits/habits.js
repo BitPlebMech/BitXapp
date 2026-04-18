@@ -226,27 +226,12 @@ window.App.Habits = (() => {
      together in one Gist, proving the cross-module sync works.
      ═══════════════════════════════════════════════════════════════ */
 
-  async function triggerGistSave() {
-    const creds = window.App.State.getGistCredentials();
-    if (!creds.token) {
-      _toast('Set up Gist credentials in Portfolio → Settings', 'error');
-      return;
-    }
-
-    try {
-      _toast('Saving to Gist…', 'info');
-      const payload = window.App.State.getAll();
-      const result  = await window.App.Gist.save(payload, creds.token, creds.id || '');
-
-      if (!creds.id) {
-        // First save — store the new Gist ID
-        window.App.State.setGistCredentials({ id: result.id });
-      }
-      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
-      _toast('Saved to GitHub Gist (' + result.id + ')', 'success');
-    } catch (e) {
-      _toast('Gist save failed: ' + e.message, 'error');
-    }
+  /**
+   * Delegate to App.Shell.triggerGistSave() — Shell owns the canonical
+   * save logic so every module gets sync for free without duplicating code.
+   */
+  function triggerGistSave() {
+    window.App.Shell.triggerGistSave();
   }
 
   /**

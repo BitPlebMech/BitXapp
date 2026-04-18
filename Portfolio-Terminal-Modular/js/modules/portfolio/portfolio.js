@@ -1055,7 +1055,9 @@ window.App.Portfolio = (() => {
 
           // Support both new unified format and old flat format
           if (parsed.portfolio) {
-            window.App.State.setAll(parsed);
+            // mergeAll() safely handles future module additions/removals — new modules
+            // not in the Gist get default state; removed modules are silently ignored.
+            window.App.State.mergeAll(parsed);
             // BUG-02 fix: credentials were scrubbed before saving — restore them now
             window.App.State.setGistCredentials({ token: currentToken, id: currentId });
           } else {
