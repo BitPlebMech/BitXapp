@@ -1382,6 +1382,8 @@ window.App.Portfolio = (() => {
     // Constants (read-only)
     PALETTE, LOT_COLORS, CLASS_COLORS, CLS_CSS, CUR_SYMBOLS,
     TICKER_NAMES, COINGECKO_IDS, QTY_EPSILON,
+    // Re-expose Data sub-module so portfolio-ui.js can reach it via App.Portfolio.Data
+    Data,
   };
 
 })();
