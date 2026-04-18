@@ -927,7 +927,7 @@ window.App.PortfolioUI = (() => {
     icon.textContent = P().tickerInitials(ticker);
     icon.style.cssText = `background:${color}20;color:${color};width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:15px;font-weight:800;flex-shrink:0`;
 
-    el('drw-ticker').innerHTML = `${ticker} ${classBadge(pos.cls)}`;
+    el('drw-ticker').innerHTML = `${ticker} ${P().clsBadgeHtml(pos.cls)}`;
     el('drw-full').textContent = (P().TICKER_NAMES[ticker] || ticker) + ' · ' +
       (pos.src === 'av' ? 'Live · Alpha Vantage' : pos.src === 'yahoo' ? 'Live · Yahoo Finance' : pos.src === 'cg' ? 'Live · CoinGecko' : 'Simulated price');
 
@@ -1126,8 +1126,8 @@ window.App.PortfolioUI = (() => {
     if (el('f-total-display')) el('f-total-display').textContent = '';
 
     const mt = P().modalType();
-    el('type-buy')?.classList.toggle('active', mt === 'BUY');
-    el('type-sell')?.classList.toggle('active', mt === 'SELL');
+    el('type-buy')?.classList.toggle('is-buy', mt === 'BUY');
+    el('type-sell')?.classList.toggle('is-sell', mt === 'SELL');
   }
 
   function _setTickerInModal(ticker) {
@@ -1142,8 +1142,8 @@ window.App.PortfolioUI = (() => {
 
   function setType(type) {
     P().setModalType(type);
-    el('type-buy')?.classList.toggle('active', type === 'BUY');
-    el('type-sell')?.classList.toggle('active', type === 'SELL');
+    el('type-buy')?.classList.toggle('is-buy', type === 'BUY');
+    el('type-sell')?.classList.toggle('is-sell', type === 'SELL');
   }
 
   function validateForm() {
