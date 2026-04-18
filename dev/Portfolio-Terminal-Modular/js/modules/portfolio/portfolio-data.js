@@ -73,6 +73,27 @@ window.App.Portfolio.Data = (() => {
     dupCount: 0,
   };
 
+  /* ── Asset class detection (inlined to avoid parent-module dependency) ── */
+
+  /**
+   * ARCH-02 fix: guessClass was previously delegated to window.App.Portfolio.guessClass,
+   * creating a circular sub-module→parent dependency.  The sets are inlined here so
+   * portfolio-data.js has no runtime dependency on its parent module.
+   *
+   * Keep this in sync with the CRYPTO_TICKERS / ETF_TICKERS / BOND_TICKERS
+   * constants in portfolio.js if they are ever expanded.
+   */
+  const _CRYPTO_TICKERS = new Set(['BTC','ETH','SOL','ADA','XRP','DOT','DOGE','MATIC','LINK','UNI','ATOM','AVAX']);
+  const _ETF_TICKERS    = new Set(['SPY','QQQ','VOO','VTI','IVV','VUG','ARKK','GLD','SLV','TLT','HYG','IEF','XLK','XLF','IWM','EEM','VEA','VWO','SCHD','JEPI','VGT','SMH','SOXX','XBI','BOTZ','USO','IAU']);
+  const _BOND_TICKERS   = new Set(['TLT','HYG','IEF','LQD','BND','AGG','SHY','TIP','MBB']);
+
+  function _guessClass(ticker) {
+    if (_CRYPTO_TICKERS.has(ticker)) return 'Crypto';
+    if (_BOND_TICKERS.has(ticker))   return 'Bond';
+    if (_ETF_TICKERS.has(ticker))    return 'ETF';
+    return 'Stock';
+  }
+
   /* ── Helpers ──────────────────────────────────────────────────── */
 
   /** Find the column index for a semantic field in a header row */
@@ -258,19 +279,19 @@ window.App.Portfolio.Data = (() => {
       // Convert price to EUR if needed
       let priceEUR = row.price;
       if (row.currency && row.currency !== 'EUR') {
-        // Use App.Portfolio's conversion if available, else keep as-is
-        if (window.App.Portfolio.usdToEur && row.currency === 'USD') {
+        if (row.currency === 'USD' && typeof window.App.Portfolio?.usdToEur === 'function') {
+          // ARCH-02 note: usdToEur reads live FX rates managed by App.Portfolio.
+          // This is an intentional sub-module dependency — data.js is part of
+          // the Portfolio module and usdToEur cannot be inlined without duplicating
+          // the entire FX state.  Optional-chain ensures graceful fallback.
           priceEUR = window.App.Portfolio.usdToEur(row.price, row.dateISO);
-        }
-        // Other currencies: log warning, use price as-is
-        if (!['EUR', 'USD'].includes(row.currency)) {
+        } else if (!['EUR', 'USD'].includes(row.currency)) {
           console.warn(`[CSV] Unsupported currency ${row.currency} for ${ticker} — price stored as-is`);
         }
       }
 
-      // Auto-detect class
-      const cls = tickerMeta[ticker]?.cls ||
-        (window.App.Portfolio.guessClass ? window.App.Portfolio.guessClass(ticker) : 'Stock');
+      // ARCH-02 fix: use inlined _guessClass instead of calling parent module
+      const cls = tickerMeta[ticker]?.cls || _guessClass(ticker);
 
       const dupKey = `${row.dateISO}|${ticker}|${row.type}|${row.qty}`;
       const isDuplicate = existingSet.has(dupKey);

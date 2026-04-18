@@ -927,7 +927,7 @@ window.App.PortfolioUI = (() => {
     icon.textContent = P().tickerInitials(ticker);
     icon.style.cssText = `background:${color}20;color:${color};width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:15px;font-weight:800;flex-shrink:0`;
 
-    el('drw-ticker').innerHTML = `${ticker} ${classBadge(pos.cls)}`;
+    el('drw-ticker').innerHTML = `${ticker} ${P().clsBadgeHtml(pos.cls)}`;
     el('drw-full').textContent = (P().TICKER_NAMES[ticker] || ticker) + ' · ' +
       (pos.src === 'av' ? 'Live · Alpha Vantage' : pos.src === 'yahoo' ? 'Live · Yahoo Finance' : pos.src === 'cg' ? 'Live · CoinGecko' : 'Simulated price');
 
@@ -1126,8 +1126,9 @@ window.App.PortfolioUI = (() => {
     if (el('f-total-display')) el('f-total-display').textContent = '';
 
     const mt = P().modalType();
-    el('type-buy')?.classList.toggle('active', mt === 'BUY');
-    el('type-sell')?.classList.toggle('active', mt === 'SELL');
+    el('type-buy')?.classList.toggle('is-buy', mt === 'BUY');
+    el('type-sell')?.classList.toggle('is-sell', mt === 'SELL');
+    if (el('f-taxes-grp')) el('f-taxes-grp').style.display = mt === 'SELL' ? '' : 'none';
   }
 
   function _setTickerInModal(ticker) {
@@ -1142,8 +1143,10 @@ window.App.PortfolioUI = (() => {
 
   function setType(type) {
     P().setModalType(type);
-    el('type-buy')?.classList.toggle('active', type === 'BUY');
-    el('type-sell')?.classList.toggle('active', type === 'SELL');
+    el('type-buy')?.classList.toggle('is-buy', type === 'BUY');
+    el('type-sell')?.classList.toggle('is-sell', type === 'SELL');
+    // Show taxes field only on SELL; hide on BUY
+    if (el('f-taxes-grp')) el('f-taxes-grp').style.display = type === 'SELL' ? '' : 'none';
   }
 
   function validateForm() {
@@ -1250,6 +1253,12 @@ window.App.PortfolioUI = (() => {
   function renderCsvStep() {
     const csvState = PD()?.csvState;
     if (!csvState) return;
+    // Update step indicator dots
+    [1, 2, 3].forEach(n => {
+      el('cstep-' + n)?.classList.toggle('active', n === csvState.step);
+      el('cstep-' + n)?.classList.toggle('done',   n < csvState.step);
+      if (n < 3) el('cline-' + n)?.classList.toggle('done', n < csvState.step);
+    });
     if (csvState.step === 1) renderCsvStep1();
     else if (csvState.step === 2) renderCsvStep2();
     else if (csvState.step === 3) renderCsvStep3();
@@ -1446,6 +1455,31 @@ window.App.PortfolioUI = (() => {
     P().toast(msg, 'success');
   }
 
+  /* ── Ticker verify (modal) ────────────────────────────────────── */
+  function _verifyTicker() {
+    const raw    = (el('f-ticker')?.value || '').trim().toUpperCase();
+    const hint   = el('f-ticker-hint');
+    const prev   = el('f-company-preview');
+    if (!raw) { if (hint) hint.textContent = ''; if (prev) prev.textContent = ''; return; }
+
+    const s    = window.App.State.getPortfolioData();
+    const name = s.tickerMeta[raw]?.companyName || P().TICKER_NAMES[raw] || '';
+    const cls  = s.tickerMeta[raw]?.cls || P().guessClass(raw);
+
+    if (name) {
+      if (prev) { prev.textContent = name; prev.style.color = 'var(--text2)'; }
+      if (hint) { hint.textContent = '✓ Recognised'; hint.style.color = 'var(--green)'; }
+    } else {
+      if (prev) prev.textContent = '';
+      if (hint) { hint.textContent = 'Unknown ticker — will be added on save'; hint.style.color = 'var(--muted)'; }
+    }
+    // Auto-fill class and price
+    if (el('f-cls')) el('f-cls').value = cls;
+    const curEUR = P().getPrice(raw);
+    if (curEUR && el('f-price')) el('f-price').value = P().fmtInputNum(P().eurToDisplay(curEUR), 4);
+    validateForm();
+  }
+
   /* ═══════════════════════════════════════════════════════════════
      EVENT LISTENERS
      ═══════════════════════════════════════════════════════════════ */
@@ -1494,9 +1528,38 @@ window.App.PortfolioUI = (() => {
     el('hist-search')?.addEventListener('input', renderHistory);
     el('hist-sort')?.addEventListener('change', renderHistory);
 
-    // Modal
+    // Modal — type toggle
     el('type-buy')?.addEventListener('click', () => setType('BUY'));
     el('type-sell')?.addEventListener('click', () => setType('SELL'));
+
+    // Modal — identifier mode tabs (Ticker / ISIN / WKN)
+    ['ticker', 'isin', 'wkn'].forEach(mode => {
+      el('id-' + mode)?.addEventListener('click', () => {
+        document.querySelectorAll('.id-tab').forEach(b => b.classList.remove('active'));
+        el('id-' + mode)?.classList.add('active');
+        const placeholders = { ticker: 'e.g. AAPL', isin: 'e.g. US0378331005', wkn: 'e.g. 865985' };
+        if (el('f-ticker')) el('f-ticker').placeholder = placeholders[mode];
+        if (el('f-ticker-hint')) el('f-ticker-hint').textContent = '';
+        if (el('f-company-preview')) el('f-company-preview').textContent = '';
+      });
+    });
+
+    // Modal — verify button and quick-select tickers
+    el('f-verify')?.addEventListener('click', _verifyTicker);
+    el('f-ticker')?.addEventListener('keydown', e => { if (e.key === 'Enter') _verifyTicker(); });
+    document.querySelectorAll('.qt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ticker = btn.textContent.trim();
+        if (el('f-ticker')) el('f-ticker').value = ticker;
+        // Reset to Ticker mode when quick-selecting
+        document.querySelectorAll('.id-tab').forEach(b => b.classList.remove('active'));
+        el('id-ticker')?.classList.add('active');
+        if (el('f-ticker')) el('f-ticker').placeholder = 'e.g. AAPL';
+        _verifyTicker();
+      });
+    });
+
+    // Modal — form inputs
     el('f-qty')?.addEventListener('input', validateForm);
     el('f-price')?.addEventListener('input', validateForm);
     el('f-fees')?.addEventListener('input', validateForm);

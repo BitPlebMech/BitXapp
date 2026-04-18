@@ -89,7 +89,7 @@ window.App.Portfolio = (() => {
 
   let histFilter   = 'all';
   let clsFilter    = 'all';
-  let confirmCallback  = null;
+  // confirmCallback removed — confirm dialog state is now owned by App.Shell
   let activeDrawer = null;
   let modalType    = 'BUY';
   let _idMode      = 'ticker';
@@ -102,9 +102,16 @@ window.App.Portfolio = (() => {
   function _save(s)   { window.App.State.setPortfolioData(s); }
   function _settings(){ return _state().settings; }
 
+  /**
+   * QUALITY-01: Force-persist the current in-memory state and refresh status UI.
+   *
+   * IMPORTANT: _state() returns the live reference to _state.portfolio.
+   * Callers that mutate it directly (e.g. s.fxDaily.USD[date] = rate) must call
+   * _save(s) themselves.  saveState() is only for callers that cannot easily
+   * thread the reference through — prefer explicit _save(s) + updateStorageStatus()
+   * calls in new code.
+   */
   function saveState() {
-    // No-op wrapper — App.State.setPortfolioData already persists.
-    // Kept for internal calls that mutate _state() reference directly.
     _save(_state());
     updateStorageStatus();
     updateGistSaveIndicator();
@@ -220,19 +227,19 @@ window.App.Portfolio = (() => {
     }
   }
 
+  // PERF-02: replaced full-history O(n) scan with a 5-day backward walk using a
+  // single reused Date object — avoids allocating one Date per history entry.
   function getFxRate(toCurrency, dateStr) {
     if (toCurrency === 'EUR') return 1;
     const history = _state().fxDaily[toCurrency];
     if (history && Object.keys(history).length > 0) {
       if (history[dateStr]) return history[dateStr];
-      const targetTime  = new Date(dateStr + 'T12:00:00').getTime();
-      let bestRate = null, bestDist = Infinity;
-      const maxDist = 5 * 86400000;
-      for (const [d, r] of Object.entries(history)) {
-        const dist = Math.abs(new Date(d + 'T12:00:00').getTime() - targetTime);
-        if (dist < bestDist && dist <= maxDist) { bestDist = dist; bestRate = r; }
+      const d = new Date(dateStr + 'T12:00:00');
+      for (let offset = 1; offset <= 5; offset++) {
+        d.setDate(d.getDate() - 1);
+        const key = d.toISOString().slice(0, 10);
+        if (history[key]) return history[key];
       }
-      if (bestRate) return bestRate;
     }
     return fxLatest[toCurrency];
   }
@@ -974,10 +981,12 @@ window.App.Portfolio = (() => {
   }
 
   function _gistCreds() {
-    const s   = _state();
-    const token = (s.settings.gistToken || '').trim();
-    const id    = (s.settings.gistId    || '').trim();
-    return { token, id };
+    // BUG-01 fix: read from the canonical _state.gist namespace, not portfolio.settings
+    const creds = window.App.State.getGistCredentials();
+    return {
+      token: (creds.token || '').trim(),
+      id:    (creds.id    || '').trim(),
+    };
   }
 
   async function triggerGistSave(silent = false) {
@@ -1006,10 +1015,8 @@ window.App.Portfolio = (() => {
       const result  = await window.App.Gist.save(payload, token, id);
 
       if (!id) {
-        // First save — store the new Gist ID back to state
-        const s = _state();
-        s.settings.gistId = result.id;
-        _save(s);
+        // First save — store the new Gist ID in the canonical credential namespace
+        window.App.State.setGistCredentials({ id: result.id });
         if (el('cfg-gist-id')) el('cfg-gist-id').value = result.id;
         setGistStatus('Gist created — ID: ' + result.id, true);
       } else {
@@ -1043,12 +1050,16 @@ window.App.Portfolio = (() => {
         `Replace current data with ${txCount} transactions from Gist?`,
         '☁️', 'Load',
         () => {
-          const currentToken = _state().settings.gistToken;
-          const currentId    = _state().settings.gistId;
+          // BUG-01/02 fix: read from canonical credential namespace before overwriting state
+          const { token: currentToken, id: currentId } = window.App.State.getGistCredentials();
 
-          // Support both old format (flat) and new unified format
+          // Support both new unified format and old flat format
           if (parsed.portfolio) {
-            window.App.State.setAll(parsed);
+            // mergeAll() safely handles future module additions/removals — new modules
+            // not in the Gist get default state; removed modules are silently ignored.
+            window.App.State.mergeAll(parsed);
+            // BUG-02 fix: credentials were scrubbed before saving — restore them now
+            window.App.State.setGistCredentials({ token: currentToken, id: currentId });
           } else {
             // Legacy flat format — migrate into portfolio namespace
             const s = _state();
@@ -1077,9 +1088,8 @@ window.App.Portfolio = (() => {
       'Removes token and Gist ID from this browser only. Your GitHub data is untouched.',
       '🔑', 'Clear',
       () => {
-        const s = _state();
-        s.settings.gistToken = ''; s.settings.gistId = '';
-        _save(s);
+        // BUG-01 fix: clear from canonical credential namespace
+        window.App.State.clearGistCredentials();
         if (el('cfg-gist-token')) el('cfg-gist-token').value = '';
         if (el('cfg-gist-id'))    el('cfg-gist-id').value    = '';
         setGistStatus('Credentials cleared', null);
@@ -1099,10 +1109,8 @@ window.App.Portfolio = (() => {
       'You will be asked to re-enter your GitHub token and Gist ID. Your local data will be preserved.',
       '🚪', 'Sign Out',
       () => {
-        const s = _state();
-        s.settings.gistToken = '';
-        s.settings.gistId    = '';
-        _save(s);
+        // BUG-01 fix: clear from canonical credential namespace
+        window.App.State.clearGistCredentials();
         openCredentialsPopup(() => {});
         toast('Signed out successfully', 'info');
       }
@@ -1114,8 +1122,9 @@ window.App.Portfolio = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function initLockScreen() {
-    const s = _state();
-    if (!(s.settings.gistToken||'').trim() || !(s.settings.gistId||'').trim()) {
+    // BUG-01 fix: read from canonical credential namespace
+    const creds = window.App.State.getGistCredentials();
+    if (!(creds.token||'').trim() || !(creds.id||'').trim()) {
       openCredentialsPopup(() => {});
     }
   }
@@ -1136,10 +1145,8 @@ window.App.Portfolio = (() => {
     if (!token)  { if (hint) { hint.textContent = 'GitHub token is required'; hint.style.color = 'var(--red)'; } return; }
     if (!gistId) { if (hint) { hint.textContent = 'Gist ID is required'; hint.style.color = 'var(--red)'; } return; }
 
-    const s = _state();
-    s.settings.gistToken = token;
-    s.settings.gistId    = gistId;
-    _save(s);
+    // BUG-01 fix: write to canonical credential namespace
+    window.App.State.setGistCredentials({ token, id: gistId });
     el('cred-ov')?.classList.remove('open');
 
     // Offer to load from Gist
@@ -1161,23 +1168,28 @@ window.App.Portfolio = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function syncSettingsUI() {
-    const s = _state();
+    const s      = _state();
+    // BUG-01 fix: read Gist credentials from canonical namespace
+    const creds  = window.App.State.getGistCredentials();
     if (el('cfg-currency'))   el('cfg-currency').value   = s.settings.currency;
     if (el('cfg-cache-ttl'))  el('cfg-cache-ttl').value  = s.settings.cacheTTL / 3600000;
     if (el('cfg-api-key'))    el('cfg-api-key').value    = s.settings.apiKey || '';
-    if (el('cfg-gist-token')) el('cfg-gist-token').value = s.settings.gistToken || '';
-    if (el('cfg-gist-id'))    el('cfg-gist-id').value    = s.settings.gistId || '';
+    if (el('cfg-gist-token')) el('cfg-gist-token').value = creds.token || '';
+    if (el('cfg-gist-id'))    el('cfg-gist-id').value    = creds.id    || '';
     updateStorageStatus();
   }
 
   function applySettings() {
     const s = _state();
-    s.settings.currency  = el('cfg-currency')?.value  || s.settings.currency;
-    s.settings.cacheTTL  = (parseFloat(el('cfg-cache-ttl')?.value) || 4) * 3600000;
-    s.settings.apiKey    = (el('cfg-api-key')?.value    || '').trim();
-    s.settings.gistToken = (el('cfg-gist-token')?.value || '').trim();
-    s.settings.gistId    = (el('cfg-gist-id')?.value    || '').trim();
+    s.settings.currency = el('cfg-currency')?.value  || s.settings.currency;
+    s.settings.cacheTTL = (parseFloat(el('cfg-cache-ttl')?.value) || 4) * 3600000;
+    s.settings.apiKey   = (el('cfg-api-key')?.value    || '').trim();
     _save(s);
+    // BUG-01 fix: write Gist credentials to canonical namespace, not portfolio.settings
+    window.App.State.setGistCredentials({
+      token: (el('cfg-gist-token')?.value || '').trim(),
+      id:    (el('cfg-gist-id')?.value    || '').trim(),
+    });
     render();
     toast('Settings saved', 'success');
   }
@@ -1230,37 +1242,29 @@ window.App.Portfolio = (() => {
      TOAST
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * ARCH-01 fix: toast is now owned by App.Shell.
+   * This wrapper preserves the existing call-site API in portfolio-ui.js.
+   */
   function toast(msg, type = 'info') {
-    const container = el('toast-container') || (() => {
-      const div = Object.assign(document.createElement('div'), { id:'toast-container' });
-      Object.assign(div.style, { position:'fixed', bottom:'24px', right:'24px', zIndex:'9999', display:'flex', flexDirection:'column', gap:'8px' });
-      document.body.appendChild(div);
-      return div;
-    })();
-
-    const t = document.createElement('div');
-    t.className = 'toast toast-' + type;
-    t.textContent = msg;
-    container.appendChild(t);
-    setTimeout(() => t.classList.add('show'), 10);
-    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+    window.App.Shell.toast(msg, type);
   }
 
   /* ═══════════════════════════════════════════════════════════════
      CONFIRM DIALOG
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * ARCH-01 fix: confirmAction / confirmDo / confirmCancel are now owned by App.Shell.
+   * These wrappers preserve the existing call-site API in portfolio-ui.js.
+   * The in-module `confirmCallback` variable is no longer needed and has been removed.
+   */
   function confirmAction(title, body, icon, confirmLabel, onConfirm) {
-    confirmCallback = onConfirm;
-    if (el('cd-icon'))    el('cd-icon').textContent    = icon || '⚠️';
-    if (el('cd-title'))   el('cd-title').textContent   = title;
-    if (el('cd-body'))    el('cd-body').textContent     = body;
-    if (el('cd-confirm')) el('cd-confirm').textContent = confirmLabel || 'Confirm';
-    el('confirm-dialog')?.classList.add('open');
+    window.App.Shell.confirmAction(title, body, icon, confirmLabel, onConfirm);
   }
 
-  function confirmDo()   { el('confirm-dialog')?.classList.remove('open'); if (confirmCallback) { confirmCallback(); confirmCallback = null; } }
-  function confirmCancel(){ el('confirm-dialog')?.classList.remove('open'); confirmCallback = null; }
+  function confirmDo()    { window.App.Shell.confirmDo(); }
+  function confirmCancel(){ window.App.Shell.confirmCancel(); }
 
   /* ═══════════════════════════════════════════════════════════════
      HEADER STATUS
@@ -1340,7 +1344,7 @@ window.App.Portfolio = (() => {
     clsBadgeHtml,
     // Formatting
     fmtNum, fmtCurrency, fmtValue, fmtCompact, fmtPct, fmtXIRR, fmtCAGR,
-    fmtQty, fmtInputNum, fmtDate, fmtDateShort, fmtPct,
+    fmtQty, fmtInputNum, fmtDate, fmtDateShort,
     parseLocaleFloat, decimalSep, generateId, timeAgo,
     currencySymbol, activeLocale, activeCurrencyCode,
     // FX
@@ -1382,6 +1386,8 @@ window.App.Portfolio = (() => {
     // Constants (read-only)
     PALETTE, LOT_COLORS, CLASS_COLORS, CLS_CSS, CUR_SYMBOLS,
     TICKER_NAMES, COINGECKO_IDS, QTY_EPSILON,
+    // Re-expose Data sub-module so portfolio-ui.js can reach it via App.Portfolio.Data
+    Data,
   };
 
 })();

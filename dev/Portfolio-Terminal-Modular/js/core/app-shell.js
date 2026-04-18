@@ -82,13 +82,8 @@ window.App.Shell = (() => {
 
     const gistBtn = el('sb-gist-save');
     if (gistBtn) {
-      gistBtn.addEventListener('click', () => {
-        if (_active && window.App[_capitalise(_active)]?.triggerGistSave) {
-          window.App[_capitalise(_active)].triggerGistSave();
-        } else if (window.App.Portfolio?.triggerGistSave) {
-          window.App.Portfolio.triggerGistSave();
-        }
-      });
+      // Shell owns the sidebar Gist save — works for every module automatically.
+      gistBtn.addEventListener('click', () => triggerGistSave());
     }
   }
 
@@ -125,12 +120,15 @@ window.App.Shell = (() => {
       if (mod?.init) {
         try {
           mod.init();
+          _initialised.add(modId);  // BUG-03 fix: only mark as initialised on success
           console.info(`[Shell] Module "${modId}" initialised`);
         } catch (e) {
-          console.error(`[Shell] Module "${modId}" init failed:`, e);
+          console.error(`[Shell] Module "${modId}" init failed — will retry on next visit:`, e);
+          // NOT added to _initialised so the user can retry by switching away and back
         }
+      } else {
+        _initialised.add(modId);  // modules with no init() are always "ready"
       }
-      _initialised.add(modId);
     }
   }
 
@@ -171,6 +169,113 @@ window.App.Shell = (() => {
         }
       }
     });
+  }
+
+  /* ── Toast ────────────────────────────────────────────────────── */
+
+  /**
+   * Display a transient toast notification.
+   * This is the canonical implementation — all modules call App.Shell.toast().
+   *
+   * @param {string} msg   - Message to display
+   * @param {string} type  - 'info' | 'success' | 'warn' | 'error'
+   */
+  function toast(msg, type = 'info') {
+    const container = el('toast-container') || (() => {
+      const div = Object.assign(document.createElement('div'), { id: 'toast-container' });
+      Object.assign(div.style, {
+        position: 'fixed', bottom: '24px', right: '24px', zIndex: '9999',
+        display: 'flex', flexDirection: 'column', gap: '8px',
+      });
+      document.body.appendChild(div);
+      return div;
+    })();
+    const t = document.createElement('div');
+    t.className = 'toast toast-' + type;
+    t.textContent = msg;
+    container.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+  }
+
+  /* ── Confirm dialog ───────────────────────────────────────────── */
+
+  /**
+   * Open the shared confirm dialog.
+   * This is the canonical implementation — all modules call App.Shell.confirmAction().
+   *
+   * @param {string}   title        - Dialog heading
+   * @param {string}   body         - Dialog body message
+   * @param {string}   icon         - Emoji or text icon
+   * @param {string}   confirmLabel - Label for the confirm button
+   * @param {Function} onConfirm    - Callback executed when user confirms
+   */
+  let _confirmCallback = null;
+
+  function confirmAction(title, body, icon, confirmLabel, onConfirm) {
+    _confirmCallback = onConfirm;
+    const cdIcon    = document.getElementById('cd-icon');
+    const cdTitle   = document.getElementById('cd-title');
+    const cdBody    = document.getElementById('cd-body');
+    const cdConfirm = document.getElementById('cd-confirm');
+    if (cdIcon)    cdIcon.textContent    = icon || '⚠️';
+    if (cdTitle)   cdTitle.textContent   = title;
+    if (cdBody)    cdBody.textContent    = body;
+    if (cdConfirm) cdConfirm.textContent = confirmLabel || 'Confirm';
+    document.getElementById('confirm-dialog')?.classList.add('open');
+  }
+
+  /** Called when the user clicks the confirm button in the dialog. */
+  function confirmDo() {
+    document.getElementById('confirm-dialog')?.classList.remove('open');
+    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+  }
+
+  /** Called when the user clicks cancel or closes the dialog. */
+  function confirmCancel() {
+    document.getElementById('confirm-dialog')?.classList.remove('open');
+    _confirmCallback = null;
+  }
+
+  /* ── Gist sync ────────────────────────────────────────────────────
+   *
+   * Shell-owned canonical save. Every module — current and future —
+   * benefits automatically via the sidebar Gist button.
+   * Portfolio keeps its own richer version for its header button
+   * (status indicators, silent mode); this handles everything else.
+   * ─────────────────────────────────────────────────────────────── */
+
+  async function triggerGistSave() {
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) {
+      toast('Add your GitHub token in Settings → Gist Sync', 'error');
+      return;
+    }
+    if (!creds.id) {
+      confirmAction(
+        'Create a new Gist?',
+        'No Gist ID set. This will create a brand-new Gist. If you already have one, paste its ID in Settings first.',
+        '☁️', 'Create new Gist',
+        () => _doGistSave(creds.token, '')
+      );
+      return;
+    }
+    _doGistSave(creds.token, creds.id);
+  }
+
+  async function _doGistSave(token, id) {
+    try {
+      toast('Saving to Gist…', 'info');
+      const result = await window.App.Gist.save(window.App.State.getAll(), token, id);
+      if (!id) {
+        // First save — persist the new Gist ID so future saves update the same Gist
+        window.App.State.setGistCredentials({ id: result.id });
+      }
+      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+      toast('Saved to GitHub Gist ✓', 'success');
+    } catch (e) {
+      toast('Gist save failed: ' + e.message, 'error');
+    }
   }
 
   /* ── Theme application ────────────────────────────────────────── */
@@ -220,6 +325,13 @@ window.App.Shell = (() => {
     switchModule,
     applyTheme,
     init,
+    // App-level UI services — all modules should call these instead of each other
+    toast,
+    confirmAction,
+    confirmDo,
+    confirmCancel,
+    // App-level Gist sync — works for every module automatically
+    triggerGistSave,
     /** Returns the currently active module id */
     get active() { return _active; },
   };

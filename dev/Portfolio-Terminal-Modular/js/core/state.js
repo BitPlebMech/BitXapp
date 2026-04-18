@@ -37,6 +37,9 @@ window.App.State = (() => {
     apiKey: '',
     cacheTTL: 14400000,   // 4 hours
     theme: 'dark',
+    // NOTE: gistToken / gistId are legacy fields kept here only for migration
+    // compatibility.  The canonical storage location is _state.gist (see below).
+    // New code must use getGistCredentials() / setGistCredentials().
     gistToken: '',
     gistId: '',
   };
@@ -113,6 +116,20 @@ window.App.State = (() => {
             ...saved.portfolio.settings,
           };
         }
+
+        // ── One-time migration (BUG-01 / SCALE-02) ───────────────────────────
+        // Credentials were previously stored in portfolio.settings.gistToken/Id.
+        // Canonical storage is now _state.gist.  If the new location is still
+        // empty but the legacy location has a value, migrate it automatically
+        // so existing users do not lose their Gist connection on first load.
+        if (!merged.gist.token && merged.portfolio?.settings?.gistToken) {
+          merged.gist.token = merged.portfolio.settings.gistToken;
+        }
+        if (!merged.gist.id && merged.portfolio?.settings?.gistId) {
+          merged.gist.id = merged.portfolio.settings.gistId;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         _state = merged;
       } else {
         _state = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -151,6 +168,35 @@ window.App.State = (() => {
   function setAll(newState) {
     _ensure();
     _state = newState;
+    _save();
+  }
+
+  /**
+   * Merge an incoming state (e.g. from a Gist load) with the current DEFAULT_STATE.
+   *
+   * Unlike setAll(), this is safe across module additions and removals:
+   *   • New modules not present in the Gist get their default state automatically.
+   *   • Removed modules present in the Gist are silently ignored.
+   *   • Existing module data is deep-merged so new fields get defaults.
+   *
+   * Always use this instead of setAll() when loading from Gist.
+   */
+  function mergeAll(incoming) {
+    _ensure();
+    const merged = { ...DEFAULT_STATE };
+    for (const ns of Object.keys(DEFAULT_STATE)) {
+      if (incoming[ns]) {
+        merged[ns] = _deepMerge(DEFAULT_STATE[ns], incoming[ns]);
+      }
+    }
+    // Re-apply settings deep merge (many evolving keys)
+    if (incoming.portfolio?.settings) {
+      merged.portfolio.settings = {
+        ...DEFAULT_PORTFOLIO_SETTINGS,
+        ...incoming.portfolio.settings,
+      };
+    }
+    _state = merged;
     _save();
   }
 
@@ -263,6 +309,7 @@ window.App.State = (() => {
     init,
     getAll,
     setAll,
+    mergeAll,
     // Portfolio
     getPortfolioData,
     setPortfolioData,

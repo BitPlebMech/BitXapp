@@ -226,37 +226,24 @@ window.App.Habits = (() => {
      together in one Gist, proving the cross-module sync works.
      ═══════════════════════════════════════════════════════════════ */
 
-  async function triggerGistSave() {
-    const creds = window.App.State.getGistCredentials();
-    if (!creds.token) {
-      _toast('Set up Gist credentials in Portfolio → Settings', 'error');
-      return;
-    }
-
-    try {
-      _toast('Saving to Gist…', 'info');
-      const payload = window.App.State.getAll();
-      const result  = await window.App.Gist.save(payload, creds.token, creds.id || '');
-
-      if (!creds.id) {
-        // First save — store the new Gist ID
-        window.App.State.setGistCredentials({ id: result.id });
-      }
-      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
-      _toast('Saved to GitHub Gist (' + result.id + ')', 'success');
-    } catch (e) {
-      _toast('Gist save failed: ' + e.message, 'error');
-    }
+  /**
+   * Delegate to App.Shell.triggerGistSave() — Shell owns the canonical
+   * save logic so every module gets sync for free without duplicating code.
+   */
+  function triggerGistSave() {
+    window.App.Shell.triggerGistSave();
   }
 
-  /* ── Toast (minimal — delegates to Portfolio toast if available) */
+  /**
+   * ARCH-01 fix: toast now routes through App.Shell — no cross-module dependency.
+   * Previously called App.Portfolio.toast, which violated the isolation rule.
+   */
   function _toast(msg, type = 'info') {
-    if (window.App.Portfolio?.toast) {
-      window.App.Portfolio.toast(msg, type);
-      return;
+    if (window.App.Shell?.toast) {
+      window.App.Shell.toast(msg, type);
+    } else {
+      console.info('[Habits] ' + type.toUpperCase() + ':', msg);
     }
-    // Fallback minimal toast
-    console.info('[Habits] ' + type.toUpperCase() + ':', msg);
   }
 
   /* ── Render delegate ──────────────────────────────────────────── */
