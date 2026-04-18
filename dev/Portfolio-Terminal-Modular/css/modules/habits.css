@@ -1,0 +1,267 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   HABITS.CSS — Habits module-specific styles
+   Habit cards, heatmap, stats, add form, color swatches, archived section
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Module scroll region ───────────────────────────────────────────── */
+
+#habits-content {
+  flex: 1; overflow-y: auto; padding: 20px 22px 90px;
+  scrollbar-width: thin; scrollbar-color: var(--b2) transparent;
+}
+
+/* ── Header row ─────────────────────────────────────────────────────── */
+
+.habits-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+}
+
+.habits-summary {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+
+.habits-today-count {
+  font-size: 13px; color: var(--muted);
+}
+.habits-today-count strong { color: var(--text); font-size: 15px; }
+
+.habits-congrats {
+  font-size: 12px; font-weight: 700; color: var(--green);
+  background: rgba(0, 219, 168, 0.09); border: 0.5px solid rgba(0, 219, 168, 0.25);
+  border-radius: 20px; padding: 3px 10px;
+  animation: pulse 1.2s ease-in-out 2;
+}
+
+/* Add Habit button */
+.btn-add-habit {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(91, 156, 255, 0.09); border: 0.5px solid rgba(91, 156, 255, 0.3);
+  color: var(--blue); border-radius: 8px; padding: 8px 14px;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-add-habit:hover { background: var(--blue); color: #fff; }
+.btn-add-habit svg   { flex-shrink: 0; }
+
+/* ── Card Grid ──────────────────────────────────────────────────────── */
+
+.habits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ── Empty State ────────────────────────────────────────────────────── */
+
+.habits-empty {
+  grid-column: 1 / -1; text-align: center; padding: 60px 20px;
+  color: var(--muted);
+}
+.habits-empty h3 { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.habits-empty p  { font-size: 13px; line-height: 1.65; }
+
+/* ── Habit Card ─────────────────────────────────────────────────────── */
+
+.habit-card {
+  background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
+  overflow: hidden; display: flex; flex-direction: column;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  opacity: 0; animation: fadeUp 0.42s ease forwards;
+  /* CSS custom property for per-habit accent colour */
+  --habit-color: var(--blue);
+}
+.habit-card:hover { border-color: var(--b2); }
+
+/* Done state: tinted border */
+.habit-card--done {
+  border-color: rgba(0, 219, 168, 0.25);
+}
+.habit-card--done:hover { border-color: rgba(0, 219, 168, 0.4); }
+
+[data-theme="light"] .habit-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* Top accent line using the habit's colour */
+.habit-card::before {
+  content: '';
+  display: block; height: 1px;
+  background: var(--habit-color);
+  opacity: 0.5;
+  box-shadow: 0 0 6px var(--habit-color);
+}
+
+/* ── Card Top Row (icon + name + check-in btn) ───────────────────── */
+
+.habit-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 14px 10px; gap: 10px;
+}
+
+.habit-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.habit-icon {
+  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  /* background and color set inline per habit */
+}
+
+.habit-name-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.habit-name {
+  font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.habit-streak { font-size: 11px; font-weight: 600; }
+
+/* Check-in button */
+.habit-checkin-btn {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surf2); border: 1.5px solid var(--b2);
+  color: var(--muted); cursor: pointer;
+  transition: all 0.18s; --habit-color: var(--blue);
+}
+.habit-checkin-btn:hover {
+  background: rgba(0, 219, 168, 0.09);
+  border-color: rgba(0, 219, 168, 0.5);
+  color: var(--green);
+  transform: scale(1.08);
+}
+.habit-checkin-btn--done {
+  background: rgba(0, 219, 168, 0.12);
+  border-color: rgba(0, 219, 168, 0.4);
+  color: var(--green);
+}
+.habit-checkin-btn--done:hover {
+  background: rgba(255, 61, 90, 0.09);
+  border-color: rgba(255, 61, 90, 0.35);
+  color: var(--red);
+}
+
+/* ── Heatmap ────────────────────────────────────────────────────────── */
+
+.habit-heatmap {
+  display: grid;
+  grid-template-columns: repeat(28, 1fr);
+  gap: 2px;
+  padding: 0 14px 10px;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--surf3);
+  transition: background 0.15s;
+}
+.heat-cell--done {
+  background: var(--habit-color, var(--blue));
+  opacity: 0.75;
+}
+.heat-cell:hover { opacity: 1; }
+
+/* ── Stats Row ──────────────────────────────────────────────────────── */
+
+.habit-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  border-top: 0.5px solid var(--b1);
+  border-bottom: 0.5px solid var(--b1);
+  background: var(--b1);       /* gap "colour" via background on parent */
+}
+
+.habit-stat {
+  background: var(--surf2);
+  padding: 8px 4px;
+  text-align: center;
+}
+.habit-stat-val {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+  color: var(--text); line-height: 1;
+}
+.habit-stat-lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); margin-top: 3px;
+}
+
+/* ── Card Action Buttons ────────────────────────────────────────────── */
+
+.habit-actions {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 4px; padding: 8px 10px; background: var(--surf2);
+}
+
+.habit-action-btn {
+  background: transparent; border: 0.5px solid var(--b2); color: var(--muted);
+  border-radius: 6px; padding: 5px 8px; cursor: pointer;
+  font-size: 13px; transition: all 0.14s; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.habit-action-btn:hover { border-color: var(--blue); background: var(--blue-bg); }
+.habit-action-btn--danger:hover { border-color: var(--red); background: rgba(255,61,90,0.08); }
+
+/* ── Add Habit Inline Form ──────────────────────────────────────────── */
+
+.habit-add-form {
+  background: var(--surf2); border: 0.5px solid var(--b1); border-radius: 12px;
+  padding: 16px; margin-bottom: 16px;
+  animation: fadeUp 0.25s ease;
+}
+
+.hab-form-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px;
+  margin-bottom: 12px;
+}
+
+.hab-form-field { display: flex; flex-direction: column; gap: 5px; }
+
+.hab-form-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* Color swatch grid */
+.hab-color-grid {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  padding: 4px 0;
+}
+
+.hab-color-swatch {
+  width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+  border: 2px solid transparent; transition: transform 0.14s, border-color 0.14s;
+  flex-shrink: 0;
+}
+.hab-color-swatch:hover   { transform: scale(1.15); }
+.hab-color-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* ── Archived Section ───────────────────────────────────────────────── */
+
+.archived-section {
+  margin-top: 24px;
+}
+.archived-section summary {
+  cursor: pointer; color: var(--muted); font-size: 12px;
+  user-select: none; list-style: none; display: flex; align-items: center; gap: 6px;
+}
+.archived-section summary::before {
+  content: '▸'; font-size: 10px; transition: transform 0.15s;
+}
+.archived-section[open] summary::before { transform: rotate(90deg); }
+.archived-section summary::-webkit-details-marker { display: none; }
+
+.habit-archived-chip {
+  background: var(--surf2); border: 0.5px solid var(--b1);
+  border-radius: 6px; padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.habit-archived-chip span { font-size: 12px; color: var(--text2); }
