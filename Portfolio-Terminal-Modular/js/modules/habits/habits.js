@@ -249,14 +249,16 @@ window.App.Habits = (() => {
     }
   }
 
-  /* ── Toast (minimal — delegates to Portfolio toast if available) */
+  /**
+   * ARCH-01 fix: toast now routes through App.Shell — no cross-module dependency.
+   * Previously called App.Portfolio.toast, which violated the isolation rule.
+   */
   function _toast(msg, type = 'info') {
-    if (window.App.Portfolio?.toast) {
-      window.App.Portfolio.toast(msg, type);
-      return;
+    if (window.App.Shell?.toast) {
+      window.App.Shell.toast(msg, type);
+    } else {
+      console.info('[Habits] ' + type.toUpperCase() + ':', msg);
     }
-    // Fallback minimal toast
-    console.info('[Habits] ' + type.toUpperCase() + ':', msg);
   }
 
   /* ── Render delegate ──────────────────────────────────────────── */

@@ -37,11 +37,15 @@ window.App.HabitsUI = (() => {
     const habits  = (data.habits || []).filter(h => !h.archivedAt);
     const today   = H().today();
 
+    // PERF-01: pre-compute streak info once per habit — avoids a second
+    // getStreakInfo() call inside _renderHabitCard (which previously called it again).
+    const streakMap = {};
+    for (const h of habits) {
+      streakMap[h.id] = H().getStreakInfo(h.id);
+    }
+
     // Count how many habits checked in today
-    const doneToday = habits.filter(h => {
-      const info = H().getStreakInfo(h.id);
-      return info.checkedToday;
-    }).length;
+    const doneToday = habits.filter(h => streakMap[h.id].checkedToday).length;
 
     container.innerHTML = `
       <div class="habits-header">
@@ -60,7 +64,7 @@ window.App.HabitsUI = (() => {
       ${_addFormOpen ? _renderAddForm() : ''}
 
       <div class="habits-grid" id="habits-grid">
-        ${habits.length === 0 ? _renderEmptyState() : habits.map(h => _renderHabitCard(h)).join('')}
+        ${habits.length === 0 ? _renderEmptyState() : habits.map(h => _renderHabitCard(h, streakMap[h.id])).join('')}
       </div>
 
       ${habits.length > 0 ? _renderArchivedSection(data.habits.filter(h => !!h.archivedAt)) : ''}
@@ -79,8 +83,8 @@ window.App.HabitsUI = (() => {
 
   /* ── Habit card ───────────────────────────────────────────────── */
 
-  function _renderHabitCard(habit) {
-    const info        = H().getStreakInfo(habit.id);
+  // PERF-01: info is pre-computed by render() via streakMap — no extra getStreakInfo() call here.
+  function _renderHabitCard(habit, info) {
     const rate7       = H().getCompletionRate(habit.id, 7);
     const rate30      = H().getCompletionRate(habit.id, 30);
     const total       = H().getTotalCheckIns(habit.id);
@@ -224,22 +228,32 @@ window.App.HabitsUI = (() => {
 
   /* ── Confirm archive/delete ───────────────────────────────────── */
 
+  /**
+   * QUALITY-02 fix: replaced native browser confirm() with App.Shell.confirmAction()
+   * for consistent UX and non-blocking behaviour.
+   */
   function confirmArchive(habitId) {
     const data  = H().getData();
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit) return;
-    if (confirm(`Archive "${habit.name}"? It will be hidden but logs are kept.`)) {
-      H().archiveHabit(habitId);
-    }
+    window.App.Shell.confirmAction(
+      `Archive "${habit.name}"?`,
+      'It will be hidden from the main view but all log history is preserved.',
+      '📦', 'Archive',
+      () => H().archiveHabit(habitId)
+    );
   }
 
   function confirmDelete(habitId) {
     const data  = H().getData();
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit) return;
-    if (confirm(`Delete "${habit.name}" permanently? All log history will be lost.`)) {
-      H().deleteHabit(habitId);
-    }
+    window.App.Shell.confirmAction(
+      `Delete "${habit.name}"?`,
+      'All check-in history will be permanently lost and cannot be recovered.',
+      '🗑️', 'Delete',
+      () => H().deleteHabit(habitId)
+    );
   }
 
   /* ── Archived section ─────────────────────────────────────────── */

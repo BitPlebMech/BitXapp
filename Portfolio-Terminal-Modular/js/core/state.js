@@ -37,6 +37,9 @@ window.App.State = (() => {
     apiKey: '',
     cacheTTL: 14400000,   // 4 hours
     theme: 'dark',
+    // NOTE: gistToken / gistId are legacy fields kept here only for migration
+    // compatibility.  The canonical storage location is _state.gist (see below).
+    // New code must use getGistCredentials() / setGistCredentials().
     gistToken: '',
     gistId: '',
   };
@@ -113,6 +116,20 @@ window.App.State = (() => {
             ...saved.portfolio.settings,
           };
         }
+
+        // ── One-time migration (BUG-01 / SCALE-02) ───────────────────────────
+        // Credentials were previously stored in portfolio.settings.gistToken/Id.
+        // Canonical storage is now _state.gist.  If the new location is still
+        // empty but the legacy location has a value, migrate it automatically
+        // so existing users do not lose their Gist connection on first load.
+        if (!merged.gist.token && merged.portfolio?.settings?.gistToken) {
+          merged.gist.token = merged.portfolio.settings.gistToken;
+        }
+        if (!merged.gist.id && merged.portfolio?.settings?.gistId) {
+          merged.gist.id = merged.portfolio.settings.gistId;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         _state = merged;
       } else {
         _state = JSON.parse(JSON.stringify(DEFAULT_STATE));
