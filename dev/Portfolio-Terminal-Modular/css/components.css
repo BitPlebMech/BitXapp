@@ -5,9 +5,10 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Generic Panels ─────────────────────────────────────────────────── */
+/* Canonical definition — removed duplicate from main.css */
 
 .panel {
-  background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
+  background: var(--surf); border: 0.5px solid var(--b1); border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .panel-hdr {
@@ -23,7 +24,7 @@
 .panel-title svg { width: 12px; height: 12px; }
 .panel-badge {
   font-size: 10px; color: var(--dim); background: var(--surf2);
-  border: 0.5px solid var(--b1); border-radius: 5px;
+  border: 0.5px solid var(--b1); border-radius: var(--radius-xs);
   padding: 2px 8px; font-family: var(--font-mono);
 }
 
@@ -81,7 +82,7 @@
 .modal-ov.open { opacity: 1; pointer-events: all; }
 
 .modal {
-  background: #0c1526; border: 0.5px solid var(--b2); border-radius: 18px;
+  background: var(--surf); border: 0.5px solid var(--b2); border-radius: var(--radius-xl);
   width: 100%; max-width: 510px; overflow: hidden;
   transform: scale(0.96) translateY(10px);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
@@ -137,6 +138,57 @@
 }
 .cancel-btn:hover { border-color: var(--muted); color: var(--text); }
 
+/* ── Focus-visible: keyboard nav visibility ──────────────────────────── */
+/* Applies to all existing button classes — accessibility baseline */
+.submit-btn:focus-visible,
+.cancel-btn:focus-visible,
+.hdr-btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.export-btn:focus-visible,
+.abtn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ── Unified Button System ───────────────────────────────────────────── */
+/* Use .btn + modifier for all NEW elements going forward.               */
+/* Existing classes are preserved — migrate gradually when editing HTML. */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  border-radius: var(--radius-sm); padding: 8px 16px;
+  cursor: pointer; transition: all 0.15s;
+  border: 0.5px solid transparent; white-space: nowrap;
+  text-decoration: none; line-height: 1;
+}
+.btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.btn:disabled      { opacity: 0.4; pointer-events: none; }
+.btn svg           { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Variants */
+.btn--primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn--primary:hover { opacity: 0.85; }
+
+.btn--ghost   { background: transparent; border-color: var(--b2); color: var(--muted); }
+.btn--ghost:hover { border-color: var(--blue); color: var(--blue); }
+
+.btn--tonal   { background: rgba(91,156,255,0.09); border-color: rgba(91,156,255,0.3); color: var(--blue); }
+.btn--tonal:hover { background: var(--blue); color: #fff; }
+
+.btn--danger  { background: rgba(255,61,90,0.09); border-color: rgba(255,61,90,0.25); color: var(--red); }
+.btn--danger:hover { background: var(--red); color: #fff; }
+
+.btn--success { background: rgba(0,219,168,0.09); border-color: rgba(0,219,168,0.25); color: var(--green); }
+.btn--success:hover { background: var(--green); color: #0b1120; }
+
+/* Sizes */
+.btn--sm { font-size: 11px; padding: 6px 12px; }
+.btn--lg { font-size: 13px; padding: 10px 20px; }
+.btn--icon { padding: 8px; border-radius: var(--radius-sm); }
+
 /* ── Action Buttons (Settings Panel) ────────────────────────────────── */
 
 .abtn {
@@ -179,7 +231,7 @@
 .sp {
   position: fixed; top: 0; right: 0; bottom: 0;
   width: 400px; max-width: 96vw; z-index: 291;
-  background: #0b1120; border-left: 0.5px solid var(--b2);
+  background: var(--surf); border-left: 0.5px solid var(--b2);
   transform: translateX(100%);
   transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   overflow-y: auto; display: flex; flex-direction: column;
@@ -237,7 +289,7 @@
 
 .drw {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 401;
-  background: #0b1120; border-top: 0.5px solid var(--b2);
+  background: var(--surf); border-top: 0.5px solid var(--b2);
   border-radius: 22px 22px 0 0;
   max-height: 90vh; overflow-y: auto;
   transform: translateY(100%);
@@ -366,7 +418,7 @@
 .confirm-ov.open { opacity: 1; pointer-events: all; }
 
 .confirm-box {
-  background: #0d1526; border: 0.5px solid var(--b2); border-radius: 14px;
+  background: var(--surf); border: 0.5px solid var(--b2); border-radius: var(--radius-lg);
   padding: 24px; max-width: 360px; width: 100%;
   transform: scale(0.95); transition: transform 0.22s;
 }

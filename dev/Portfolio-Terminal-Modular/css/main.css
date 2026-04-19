@@ -2,7 +2,7 @@
    MAIN.CSS — Design tokens, reset, app shell layout, animations
    ═══════════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 
 /* ── Design Tokens ──────────────────────────────────────────────────── */
 :root {
@@ -23,8 +23,22 @@
   --purple: #a07cf8;
   --orange: #ff9848;
   --blue-bg: rgba(91, 156, 255, 0.09);
-  --font-ui:   'Cabinet Grotesk', system-ui, sans-serif;
+  --font-ui:   'DM Sans', system-ui, sans-serif;
   --font-mono: 'DM Mono', 'Courier New', monospace;
+
+  /* ── Radius scale ───────────────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* ── Spacing scale ──────────────────────────────────────────────── */
+  --space-xs:  6px;
+  --space-sm:  10px;
+  --space-md:  16px;
+  --space-lg:  22px;
+  --space-xl:  32px;
 }
 
 /* ── Light Theme ────────────────────────────────────────────────────── */
@@ -50,10 +64,8 @@
 [data-theme="light"] body::after {
   background: radial-gradient(ellipse 78% 44% at 50% -5%, rgba(37,99,235,0.055) 0%, transparent 68%);
 }
-[data-theme="light"] .modal       { background: #ffffff; }
-[data-theme="light"] .sp          { background: #f7f9fe; border-left-color: var(--b1); }
-[data-theme="light"] .drw         { background: #ffffff; }
-[data-theme="light"] .confirm-box { background: #ffffff; }
+/* modal / sp / drw / confirm-box now use var(--surf) — no overrides needed */
+[data-theme="light"] .sp { border-left-color: var(--b1); }
 [data-theme="light"] .toast.success { background: #ecfdf5; }
 [data-theme="light"] .toast.error   { background: #fef2f2; }
 [data-theme="light"] .toast.info    { background: #eff6ff; }
@@ -135,11 +147,13 @@ input, select, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 .sb-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-.sb-btn:hover       { background: var(--surf2); color: var(--text); }
-.sb-btn.active      { background: rgba(91,156,255,0.12); color: var(--blue); }
-.sb-btn--action     { margin-top: auto; }
+.sb-btn:hover  { background: var(--surf2); color: var(--text); }
+.sb-btn.active {
+  background: rgba(91,156,255,0.15); color: var(--blue);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+.sb-btn--action       { margin-top: auto; }
 .sb-btn--action:hover { color: var(--green); }
-.sb-spacer { flex: 1; }
 
 /* Unsaved Gist indicator dot */
 .gist-unsaved-dot {
@@ -222,27 +236,6 @@ input, select, textarea { font-family: inherit; }
 .hdr-btn.icon-only     { padding: 8px 9px; }
 .hdr-btn.spin-me svg.spin-target { animation: spin 0.7s linear infinite; }
 .hdr-btn svg { flex-shrink: 0; width: 13px; height: 13px; }
-
-/* ── Panels ─────────────────────────────────────────────────────────── */
-.panel {
-  background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
-  overflow: hidden;
-}
-.panel-hdr {
-  padding: 12px 17px; border-bottom: none;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; flex-wrap: wrap;
-}
-.panel-title {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--muted); display: flex; align-items: center; gap: 6px;
-}
-.panel-title svg { width: 12px; height: 12px; }
-.panel-badge {
-  font-size: 10px; color: var(--dim); background: var(--surf2);
-  border: 0.5px solid var(--b1); border-radius: 5px;
-  padding: 2px 8px; font-family: var(--font-mono);
-}
 
 /* ── Tables (shared) ────────────────────────────────────────────────── */
 .tbl-wrap { overflow-x: auto; }
