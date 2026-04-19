@@ -28,7 +28,7 @@
 
 .habits-congrats {
   font-size: 12px; font-weight: 700; color: var(--green);
-  background: rgba(0, 219, 168, 0.09); border: 0.5px solid rgba(0, 219, 168, 0.25);
+  background: rgba(34,214,133,0.09); border: 1px solid rgba(34,214,133,0.25);
   border-radius: 20px; padding: 3px 10px;
   animation: pulse 1.2s ease-in-out 2;
 }
@@ -37,8 +37,8 @@
 .btn-add-habit {
   display: flex; align-items: center; gap: 6px;
   font-family: var(--font-ui); font-size: 11px; font-weight: 700;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  background: rgba(91, 156, 255, 0.09); border: 0.5px solid rgba(91, 156, 255, 0.3);
+  letter-spacing: 0.04em;
+  background: rgba(79,142,247,0.09); border: 1px solid rgba(79,142,247,0.3);
   color: var(--blue); border-radius: 8px; padding: 8px 14px;
   cursor: pointer; transition: all 0.15s; flex-shrink: 0;
 }
@@ -66,23 +66,27 @@
 /* ── Habit Card ─────────────────────────────────────────────────────── */
 
 .habit-card {
-  background: var(--surf); border: 0.5px solid var(--b1); border-radius: 14px;
+  background: var(--surf); border: 1px solid var(--b1); border-radius: 16px;
   overflow: hidden; display: flex; flex-direction: column;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
   opacity: 0; animation: fadeUp 0.42s ease forwards;
   /* CSS custom property for per-habit accent colour */
   --habit-color: var(--blue);
 }
-.habit-card:hover { border-color: var(--b2); }
-
-/* Done state: tinted border */
-.habit-card--done {
-  border-color: rgba(0, 219, 168, 0.25);
+.habit-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--b2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
 }
-.habit-card--done:hover { border-color: rgba(0, 219, 168, 0.4); }
 
-[data-theme="light"] .habit-card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+/* Done state: tinted border with glow */
+.habit-card--done {
+  border-color: rgba(34,214,133,0.25);
+  box-shadow: 0 0 20px rgba(34,214,133,0.05);
+}
+.habit-card--done:hover {
+  border-color: rgba(34,214,133,0.4);
+  box-shadow: 0 8px 32px rgba(34,214,133,0.1);
 }
 
 /* Top accent line using the habit's colour */
@@ -90,8 +94,8 @@
   content: '';
   display: block; height: 1px;
   background: var(--habit-color);
-  opacity: 0.5;
-  box-shadow: 0 0 6px var(--habit-color);
+  opacity: 0.6;
+  box-shadow: 0 0 8px var(--habit-color), 0 0 4px var(--habit-color);
 }
 
 /* ── Card Top Row (icon + name + check-in btn) ───────────────────── */
@@ -128,19 +132,19 @@
   transition: all 0.18s; --habit-color: var(--blue);
 }
 .habit-checkin-btn:hover {
-  background: rgba(0, 219, 168, 0.09);
-  border-color: rgba(0, 219, 168, 0.5);
+  background: rgba(34,214,133,0.09);
+  border-color: rgba(34,214,133,0.5);
   color: var(--green);
   transform: scale(1.08);
 }
 .habit-checkin-btn--done {
-  background: rgba(0, 219, 168, 0.12);
-  border-color: rgba(0, 219, 168, 0.4);
+  background: rgba(34,214,133,0.12);
+  border-color: rgba(34,214,133,0.4);
   color: var(--green);
 }
 .habit-checkin-btn--done:hover {
-  background: rgba(255, 61, 90, 0.09);
-  border-color: rgba(255, 61, 90, 0.35);
+  background: rgba(255,68,68,0.09);
+  border-color: rgba(255,68,68,0.35);
   color: var(--red);
 }
 
@@ -180,6 +184,7 @@
   background: var(--surf2);
   padding: 8px 4px;
   text-align: center;
+  transition: background 0.15s;
 }
 .habit-stat-val {
   font-family: var(--font-mono); font-size: 14px; font-weight: 600;
@@ -190,6 +195,13 @@
   text-transform: uppercase; color: var(--muted); margin-top: 3px;
 }
 
+/* Secondary stats: hidden by default, revealed on card hover */
+.habit-stat--secondary {
+  opacity: 0;
+  transition: opacity 0.2s, background 0.15s;
+}
+.habit-card:hover .habit-stat--secondary { opacity: 1; }
+
 /* ── Card Action Buttons ────────────────────────────────────────────── */
 
 .habit-actions {
@@ -198,18 +210,18 @@
 }
 
 .habit-action-btn {
-  background: transparent; border: 0.5px solid var(--b2); color: var(--muted);
+  background: transparent; border: 1px solid var(--b2); color: var(--muted);
   border-radius: 6px; padding: 5px 8px; cursor: pointer;
   font-size: 13px; transition: all 0.14s; line-height: 1;
   display: flex; align-items: center; justify-content: center;
 }
-.habit-action-btn:hover { border-color: var(--blue); background: var(--blue-bg); }
-.habit-action-btn--danger:hover { border-color: var(--red); background: rgba(255,61,90,0.08); }
+.habit-action-btn:hover { border-color: var(--blue); background: rgba(79,142,247,0.08); }
+.habit-action-btn--danger:hover { border-color: var(--red); background: rgba(255,68,68,0.08); }
 
 /* ── Add Habit Inline Form ──────────────────────────────────────────── */
 
 .habit-add-form {
-  background: var(--surf2); border: 0.5px solid var(--b1); border-radius: 12px;
+  background: var(--surf2); border: 1px solid var(--b1); border-radius: 16px;
   padding: 16px; margin-bottom: 16px;
   animation: fadeUp 0.25s ease;
 }

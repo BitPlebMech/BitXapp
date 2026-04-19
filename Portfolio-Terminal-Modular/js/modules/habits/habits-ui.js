@@ -123,30 +123,36 @@ window.App.HabitsUI = (() => {
       <div class="habit-stats">
         <div class="habit-stat">
           <div class="habit-stat-val">${info.current}</div>
-          <div class="habit-stat-lbl">Current</div>
-        </div>
-        <div class="habit-stat">
-          <div class="habit-stat-val">${info.longest}</div>
-          <div class="habit-stat-lbl">Best</div>
+          <div class="habit-stat-lbl">Streak</div>
         </div>
         <div class="habit-stat">
           <div class="habit-stat-val">${rate7}%</div>
           <div class="habit-stat-lbl">7d rate</div>
         </div>
-        <div class="habit-stat">
+        <div class="habit-stat habit-stat--secondary">
+          <div class="habit-stat-val">${info.longest}</div>
+          <div class="habit-stat-lbl">Best</div>
+        </div>
+        <div class="habit-stat habit-stat--secondary">
           <div class="habit-stat-val">${rate30}%</div>
           <div class="habit-stat-lbl">30d rate</div>
         </div>
-        <div class="habit-stat">
+        <div class="habit-stat habit-stat--secondary">
           <div class="habit-stat-val">${total}</div>
           <div class="habit-stat-lbl">Total</div>
         </div>
       </div>
 
       <div class="habit-actions">
-        <button class="habit-action-btn" onclick="App.HabitsUI.openEditForm('${habit.id}')" title="Edit">✏️</button>
-        <button class="habit-action-btn" onclick="App.HabitsUI.confirmArchive('${habit.id}')" title="Archive">📦</button>
-        <button class="habit-action-btn habit-action-btn--danger" onclick="App.HabitsUI.confirmDelete('${habit.id}')" title="Delete">🗑️</button>
+        <button class="habit-action-btn" onclick="App.HabitsUI.openEditForm('${habit.id}')" title="Edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="habit-action-btn" onclick="App.HabitsUI.confirmArchive('${habit.id}')" title="Archive">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        </button>
+        <button class="habit-action-btn habit-action-btn--danger" onclick="App.HabitsUI.confirmDelete('${habit.id}')" title="Delete">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
       </div>
     </div>`;
   }
@@ -270,8 +276,12 @@ window.App.HabitsUI = (() => {
         <div class="habit-archived-chip" style="background:var(--surf2);border-radius:6px;padding:6px 12px;display:flex;align-items:center;gap:8px">
           <span>${h.icon}</span>
           <span style="font-size:12px;color:var(--text2)">${h.name}</span>
-          <button class="habit-action-btn" title="Restore" onclick="App.Habits.editHabit('${h.id}', {archivedAt: null})" style="font-size:11px;padding:2px 6px">Restore</button>
-          <button class="habit-action-btn habit-action-btn--danger" title="Delete" onclick="App.HabitsUI.confirmDelete('${h.id}')" style="font-size:11px">🗑️</button>
+          <button class="habit-action-btn" title="Restore" onclick="App.Habits.editHabit('${h.id}', {archivedAt: null})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          </button>
+          <button class="habit-action-btn habit-action-btn--danger" title="Delete" onclick="App.HabitsUI.confirmDelete('${h.id}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
         </div>`).join('')}
       </div>
     </details>`;

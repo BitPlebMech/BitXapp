@@ -547,7 +547,7 @@ window.App.PortfolioUI = (() => {
       const gcClass = f => f === 'n' ? 'c-muted' : f === 'g' ? 'c-green' : 'c-red';
 
       return `<div class="pos-card" style="animation-delay:${0.04 + i * 0.04}s;${cardStyle}">
-        <div class="pos-card-bar" style="background:linear-gradient(90deg,${color}aa,${color}22)"></div>
+        <div class="pos-card-bar" style="background:${color};box-shadow:0 0 14px ${color},0 0 6px ${color}99"></div>
         ${isSimulated ? `<div style="background:rgba(255,180,0,0.08);border-bottom:0.5px solid rgba(255,180,0,0.25);padding:4px 14px;font-size:9.5px;font-weight:700;color:var(--amber);letter-spacing:0.06em;display:flex;align-items:center;gap:5px;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           SIMULATED PRICE — API unavailable for ${p.ticker}
@@ -1270,7 +1270,7 @@ window.App.PortfolioUI = (() => {
     body.innerHTML = `
       <div class="csv-step1">
         <div class="csv-drop-zone" id="csv-drop-zone">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <p>Drop a CSV file here or</p>
           <button class="csv-nav-btn" onclick="document.getElementById('csv-file-input').click()">Browse</button>
           <input type="file" id="csv-file-input" accept=".csv,.tsv,.txt" style="display:none">
@@ -1284,7 +1284,7 @@ window.App.PortfolioUI = (() => {
     const foot = el('csv-foot');
     if (foot) foot.innerHTML = `
       <div style="flex:1"></div>
-      <button class="csv-nav-btn" id="csv-step1-next" onclick="App.PortfolioUI.csvProceedStep1()">
+      <button class="csv-nav-btn next" id="csv-step1-next" onclick="App.PortfolioUI.csvProceedStep1()">
         Next
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
       </button>`;
@@ -1361,7 +1361,7 @@ window.App.PortfolioUI = (() => {
         Back
       </button>
       <div style="flex:1"></div>
-      <button class="csv-nav-btn" onclick="App.PortfolioUI._csvGoStep(3)">
+      <button class="csv-nav-btn next" onclick="App.PortfolioUI._csvGoStep(3)">
         Preview →
       </button>`;
   }
