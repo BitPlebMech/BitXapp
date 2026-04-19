@@ -1122,20 +1122,39 @@ window.App.Portfolio = (() => {
   }
 
   /**
-   * Sign out of Gist — clears token + Gist ID, then immediately shows the
-   * credentials popup so the user can re-enter them. Matches source behaviour.
-   * Portfolio transaction data is untouched. GitHub Gist is untouched.
+   * Wipe real portfolio data from localStorage and reload sample/demo data.
+   * Called on sign-out so that cached Gist data is not readable without credentials.
+   * GitHub Gist is completely untouched — only the local copy is cleared.
+   */
+  function _clearToSampleData() {
+    const s = _state();
+    s.transactions        = [];
+    s.deletedTransactions = [];
+    s.priceCache          = {};
+    s.tickerMeta          = {};
+    s.lastRefreshTS       = null;
+    _save(s);
+    seedSampleData(); // guard removed: transactions=[] so seed will run
+    render();
+  }
+
+  /**
+   * Sign out of Gist — clears credentials AND wipes the locally-cached real
+   * portfolio data, then loads demo/sample data.
+   * This ensures that without a token + Gist ID the real portfolio is never
+   * visible, which matters on public hosting (e.g. GitHub Pages).
+   * GitHub Gist is completely untouched.
    */
   function signOut() {
     confirmAction(
       'Sign Out?',
-      'You will be asked to re-enter your GitHub token and Gist ID. Your local data will be preserved.',
+      'Your credentials and locally-cached portfolio data will be cleared. Demo data will be shown until you sign in again. Your GitHub Gist is untouched.',
       '🚪', 'Sign Out',
       () => {
-        // BUG-01 fix: clear from canonical credential namespace
         window.App.State.clearGistCredentials();
+        _clearToSampleData();
         openCredentialsPopup(() => {});
-        toast('Signed out successfully', 'info');
+        toast('Signed out — showing demo data', 'info');
       }
     );
   }
@@ -1183,6 +1202,13 @@ window.App.Portfolio = (() => {
 
   function closeCredentialsPopup() {
     el('cred-ov')?.classList.remove('open');
+    // If skipped with no credentials, ensure only demo data is visible.
+    // This is the privacy guarantee: real Gist data requires a valid token + ID.
+    const creds = window.App.State.getGistCredentials();
+    const hasAuth = (creds.token || '').trim() && (creds.id || '').trim();
+    if (!hasAuth) {
+      _clearToSampleData();
+    }
     if (_credCallback) { _credCallback(); _credCallback = null; }
   }
 
@@ -1238,7 +1264,7 @@ window.App.Portfolio = (() => {
 
   function seedSampleData() {
     const s = _state();
-    if (s.transactions.length > 0) return;  // Don't overwrite existing data
+    if (s.transactions.length > 0) return; // Don't overwrite existing data on normal init
 
     s.transactions = [
       { id: generateId(), date:'2022-03-15', ticker:'AAPL', type:'BUY',  qty:10,  price:155.00, fees:1.50, taxes:0,     notes:'Initial position' },
