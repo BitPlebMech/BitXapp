@@ -277,6 +277,12 @@ window.App.State = (() => {
   function clearGistCredentials() {
     _ensure();
     _state.gist = { token: '', id: '', lastSync: '' };
+    // Also wipe the legacy portfolio.settings fields so the one-time migration
+    // in _load() cannot restore cleared credentials on the next page load.
+    if (_state.portfolio?.settings) {
+      _state.portfolio.settings.gistToken = '';
+      _state.portfolio.settings.gistId    = '';
+    }
     _save();
   }
 

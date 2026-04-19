@@ -1607,7 +1607,6 @@ window.App.PortfolioUI = (() => {
 
     // Credentials popup
     el('cred-save-btn')?.addEventListener('click', P().saveCredentials);
-    el('cred-skip-btn')?.addEventListener('click', P().closeCredentialsPopup);
     el('lock-token')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
     el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
 
