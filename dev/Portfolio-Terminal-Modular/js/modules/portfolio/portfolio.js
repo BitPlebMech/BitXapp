@@ -1191,10 +1191,10 @@ window.App.Portfolio = (() => {
     window.App.State.setGistCredentials({ token, id: gistId });
     el('cred-ov')?.classList.remove('open');
 
-    // Offer to load from Gist
+    // Offer to load from Gist — cancelling shows demo data
     confirmAction(
       'Load from Gist?',
-      'Would you like to replace the current data with your saved portfolio from GitHub Gist? Choose Skip to keep local data.',
+      'Load your saved portfolio from GitHub Gist, or cancel to browse with demo data. You can load from Gist anytime via Refresh.',
       '☁️', 'Load from Gist',
       () => { gistLoad().then(() => { if (_credCallback) _credCallback(); }); }
     );
