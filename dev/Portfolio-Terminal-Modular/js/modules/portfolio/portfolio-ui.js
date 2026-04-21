@@ -35,6 +35,11 @@ window.App.PortfolioUI = (() => {
   let _anSortAsc = false;
   let _anViewMode = 'asset';
 
+  /* ── Drawer sort state ────────────────────────────────────────── */
+  let _drawerTicker   = null;
+  let _drawerTxSort   = { col: 'date', dir: -1 }; // -1 = desc, 1 = asc
+  let _drawerFifoSort = { col: 'date', dir:  1 };
+
   /* ═══════════════════════════════════════════════════════════════
      MASTER RENDER
      ═══════════════════════════════════════════════════════════════ */
@@ -915,6 +920,11 @@ window.App.PortfolioUI = (() => {
     const pos = positions[ticker];
     if (!pos) return;
 
+    // Track ticker for re-renders; reset sort to defaults on each open
+    _drawerTicker   = ticker;
+    _drawerTxSort   = { col: 'date', dir: -1 };
+    _drawerFifoSort = { col: 'date', dir:  1 };
+
     const color     = P().tickerColor(ticker);
     const gainColor = pos.unrealized >= 0 ? 'var(--green)' : 'var(--red)';
     const accentBar = `linear-gradient(90deg,${color}cc,${color}44)`;
@@ -989,8 +999,46 @@ window.App.PortfolioUI = (() => {
       el('drw-lot-dist').style.display = 'none';
     }
 
-    // Transactions table
-    el('drw-txs').innerHTML = [...pos.txs].sort((a, b) => b.date.localeCompare(a.date)).map((tx, i) => {
+    // Transactions & FIFO tables (use extracted helpers for re-sortability)
+    renderDrawerTxs(pos, color);
+    renderDrawerFifo(pos);
+
+    // Open drawer
+    el('drw-ov').classList.add('open');
+    el('drw').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Draw dumbbell after layout settles
+    requestAnimationFrame(() => requestAnimationFrame(() => drawDumbbell(pos)));
+  }
+
+  /* ── Drawer table renderers (called by openDrawer & sortDrawer) ─ */
+
+  function renderDrawerTxs(pos, color) {
+    if (!color) color = P().tickerColor(_drawerTicker);
+    const { col, dir } = _drawerTxSort;
+
+    const sorted = [...pos.txs].sort((a, b) => {
+      let va, vb;
+      const buyA = P().eurToDisplay(a.price, a.date);
+      const buyB = P().eurToDisplay(b.price, b.date);
+      switch (col) {
+        case 'type':   va = a.type;                                   vb = b.type;    break;
+        case 'date':   va = a.date;                                   vb = b.date;    break;
+        case 'qty':    va = +a.qty;                                   vb = +b.qty;    break;
+        case 'price':  va = buyA;                                     vb = buyB;      break;
+        case 'total':  va = +a.qty * buyA;                            vb = +b.qty * buyB; break;
+        case 'fees':   va = +(a.fees||0) + +(a.taxes||0);            vb = +(b.fees||0) + +(b.taxes||0); break;
+        case 'pnl':    va = a.type==='BUY' ? (pos.curDisp-buyA)*+a.qty : -Infinity;
+                       vb = b.type==='BUY' ? (pos.curDisp-buyB)*+b.qty : -Infinity; break;
+        case 'pnlpct': va = a.type==='BUY' && buyA>0 ? (pos.curDisp-buyA)/buyA : -Infinity;
+                       vb = b.type==='BUY' && buyB>0 ? (pos.curDisp-buyB)/buyB : -Infinity; break;
+        default:       va = a.date; vb = b.date;
+      }
+      return va < vb ? -dir : va > vb ? dir : 0;
+    });
+
+    el('drw-txs').innerHTML = sorted.map((tx, i) => {
       const isBuy     = tx.type === 'BUY';
       const buyPriceD = P().eurToDisplay(tx.price, tx.date);
       const pnl       = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : null;
@@ -1010,47 +1058,144 @@ window.App.PortfolioUI = (() => {
       </tr>`;
     }).join('');
 
-    // FIFO open lots table
+    _updateDrawerSortArrows('txs');
+  }
+
+  function renderDrawerFifo(pos) {
     const hasFIFO = pos.openLots.length > 0;
     el('drw-fifo-lbl').style.display = hasFIFO ? '' : 'none';
     el('drw-fifo-tbl').style.display = hasFIFO ? '' : 'none';
+    if (!hasFIFO) return;
 
-    if (hasFIFO) {
-      el('drw-fifo-body').innerHTML = pos.openLots.map((lot, i) => {
-        const buyPriceD   = P().eurToDisplay(lot.priceEUR, lot.date);
-        const lotValue    = lot.qty * pos.curDisp;
-        const gain        = lotValue - lot.costDisp;
-        const gainPct     = lot.costDisp > 0 ? (gain / lot.costDisp) * 100 : 0;
-        const lotCagr     = P().calcCagr(lot.costDisp, lotValue, lot.avgYears);
-        const lotXirrVal  = lotXIRR(lot, pos.curDisp);
-        const lotXirrColor = lotXirrVal === null ? 'var(--muted)' : lotXirrVal >= 0 ? 'var(--green)' : 'var(--red)';
-        const lotColor    = P().LOT_COLORS[i % P().LOT_COLORS.length];
-        return `<tr>
-          <td><span class="lot-num" style="background:${lotColor}22;color:${lotColor}">${i + 1}</span></td>
-          <td style="text-align:left;color:var(--text2)">${P().fmtDate(lot.date)}</td>
-          <td style="color:var(--text)">${P().fmtQty(lot.qty)}</td>
-          <td>${P().fmtCompact(buyPriceD)}</td>
-          <td>${P().fmtValue(lot.costDisp)}</td>
-          <td style="color:var(--text)">${P().fmtValue(lotValue)}</td>
-          <td style="color:${gain >= 0 ? 'var(--green)' : 'var(--red)'}">${gain >= 0 ? '+' : ''}${P().fmtValue(gain)}</td>
-          <td><span class="pill ${gain >= 0 ? 'g' : 'r'}">${P().fmtPct(gainPct)}</span></td>
-          <td style="color:${lotCagr === null ? 'var(--muted)' : lotCagr >= 0 ? 'var(--green)' : 'var(--red)'}">${P().fmtCAGR(lotCagr)}</td>
-          <td style="color:${lotXirrColor}">${P().fmtXIRR(lotXirrVal)}</td>
-        </tr>`;
-      }).join('');
+    const { col, dir } = _drawerFifoSort;
+
+    const enriched = pos.openLots.map((lot, origIdx) => {
+      const buyPriceD  = P().eurToDisplay(lot.priceEUR, lot.date);
+      const lotValue   = lot.qty * pos.curDisp;
+      const gain       = lotValue - lot.costDisp;
+      const gainPct    = lot.costDisp > 0 ? (gain / lot.costDisp) * 100 : 0;
+      const lotCagr    = P().calcCagr(lot.costDisp, lotValue, lot.avgYears);
+      const lotXirrVal = lotXIRR(lot, pos.curDisp);
+      return { lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr, lotXirrVal };
+    });
+
+    enriched.sort((a, b) => {
+      let va, vb;
+      switch (col) {
+        case 'date':    va = a.lot.date;    vb = b.lot.date;    break;
+        case 'qty':     va = +a.lot.qty;    vb = +b.lot.qty;    break;
+        case 'price':   va = a.buyPriceD;   vb = b.buyPriceD;   break;
+        case 'cost':    va = a.lot.costDisp; vb = b.lot.costDisp; break;
+        case 'value':   va = a.lotValue;    vb = b.lotValue;    break;
+        case 'gain':    va = a.gain;        vb = b.gain;        break;
+        case 'gainpct': va = a.gainPct;     vb = b.gainPct;     break;
+        case 'cagr':    va = a.lotCagr ?? -Infinity; vb = b.lotCagr ?? -Infinity; break;
+        case 'xirr':    va = a.lotXirrVal ?? -Infinity; vb = b.lotXirrVal ?? -Infinity; break;
+        default:        va = a.lot.date;    vb = b.lot.date;
+      }
+      return va < vb ? -dir : va > vb ? dir : 0;
+    });
+
+    el('drw-fifo-body').innerHTML = enriched.map(({ lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr, lotXirrVal }) => {
+      const lotXirrColor = lotXirrVal === null ? 'var(--muted)' : lotXirrVal >= 0 ? 'var(--green)' : 'var(--red)';
+      const lotColor     = P().LOT_COLORS[origIdx % P().LOT_COLORS.length];
+      return `<tr>
+        <td><span class="lot-num" style="background:${lotColor}22;color:${lotColor}">${origIdx + 1}</span></td>
+        <td style="text-align:left;color:var(--text2)">${P().fmtDate(lot.date)}</td>
+        <td style="color:var(--text)">${P().fmtQty(lot.qty)}</td>
+        <td>${P().fmtCompact(buyPriceD)}</td>
+        <td>${P().fmtValue(lot.costDisp)}</td>
+        <td style="color:var(--text)">${P().fmtValue(lotValue)}</td>
+        <td style="color:${gain >= 0 ? 'var(--green)' : 'var(--red)'}">${gain >= 0 ? '+' : ''}${P().fmtValue(gain)}</td>
+        <td><span class="pill ${gain >= 0 ? 'g' : 'r'}">${P().fmtPct(gainPct)}</span></td>
+        <td style="color:${lotCagr === null ? 'var(--muted)' : lotCagr >= 0 ? 'var(--green)' : 'var(--red)'}">${P().fmtCAGR(lotCagr)}</td>
+        <td style="color:${lotXirrColor}">${P().fmtXIRR(lotXirrVal)}</td>
+      </tr>`;
+    }).join('');
+
+    _updateDrawerSortArrows('fifo');
+  }
+
+  function _updateDrawerSortArrows(table) {
+    const state = table === 'txs' ? _drawerTxSort : _drawerFifoSort;
+    document.querySelectorAll(`.sort-th[data-sort="${table}"]`).forEach(th => {
+      const arrow = th.querySelector('.sort-arrow');
+      if (!arrow) return;
+      if (th.dataset.col === state.col) {
+        arrow.textContent = state.dir === -1 ? ' ↓' : ' ↑';
+        th.classList.add('sort-active');
+      } else {
+        arrow.textContent = '';
+        th.classList.remove('sort-active');
+      }
+    });
+  }
+
+  function sortDrawer(table, col) {
+    const state = table === 'txs' ? _drawerTxSort : _drawerFifoSort;
+    if (state.col === col) {
+      state.dir *= -1;
+    } else {
+      state.col = col;
+      state.dir = -1; // default descending on new column
+    }
+    if (!_drawerTicker) return;
+    const positions = P().computePositions();
+    const pos = positions[_drawerTicker];
+    if (!pos) return;
+    if (table === 'txs') renderDrawerTxs(pos);
+    else renderDrawerFifo(pos);
+  }
+
+  function exportDrawerCSV() {
+    if (!_drawerTicker) return;
+    const positions = P().computePositions();
+    const pos = positions[_drawerTicker];
+    if (!pos) return;
+    const currency = (window.App.State.getPortfolioData().settings || {}).currency || 'EUR';
+
+    // ── Transactions sheet
+    let csv = 'All Transactions\n';
+    csv += `#,Type,Date,Qty,Price (${currency}),Total (${currency}),Fees/Tax,P&L,P&L %\n`;
+    [...pos.txs].sort((a, b) => b.date.localeCompare(a.date)).forEach((tx, i) => {
+      const isBuy     = tx.type === 'BUY';
+      const buyPriceD = P().eurToDisplay(tx.price, tx.date);
+      const pnl       = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : '';
+      const pnlPct    = isBuy && buyPriceD > 0 ? (((pos.curDisp - buyPriceD) / buyPriceD) * 100).toFixed(2) + '%' : '';
+      const fees      = +(tx.fees || 0) + +(tx.taxes || 0);
+      csv += `${i + 1},${tx.type},${tx.date},${tx.qty},${buyPriceD.toFixed(4)},${(tx.qty * buyPriceD).toFixed(2)},${fees > 0 ? fees.toFixed(2) : ''},${pnl !== '' ? pnl.toFixed(2) : ''},${pnlPct}\n`;
+    });
+
+    // ── Open Lots sheet
+    if (pos.openLots.length > 0) {
+      csv += `\nOpen Lots (FIFO)\n`;
+      csv += `#,Date,Qty,Buy Price (${currency}),Cost,Value,Gain,Gain %,CAGR,XIRR\n`;
+      pos.openLots.forEach((lot, i) => {
+        const buyPriceD = P().eurToDisplay(lot.priceEUR, lot.date);
+        const lotValue  = lot.qty * pos.curDisp;
+        const gain      = lotValue - lot.costDisp;
+        const gainPct   = lot.costDisp > 0 ? (gain / lot.costDisp) * 100 : 0;
+        const lotCagr   = P().calcCagr(lot.costDisp, lotValue, lot.avgYears);
+        const lotXirr   = lotXIRR(lot, pos.curDisp);
+        csv += `${i + 1},${lot.date},${lot.qty},${buyPriceD.toFixed(4)},${lot.costDisp.toFixed(2)},${lotValue.toFixed(2)},${gain.toFixed(2)},${gainPct.toFixed(2)}%,${lotCagr !== null ? (lotCagr * 100).toFixed(2) + '%' : ''},${lotXirr !== null ? (lotXirr * 100).toFixed(2) + '%' : ''}\n`;
+      });
     }
 
-    // Open drawer
-    el('drw-ov').classList.add('open');
-    el('drw').classList.add('open');
-    document.body.style.overflow = 'hidden';
-
-    // Draw dumbbell after layout settles
-    requestAnimationFrame(() => requestAnimationFrame(() => drawDumbbell(pos)));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${_drawerTicker}_positions.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    P().toast(`Exported ${_drawerTicker} positions`, 'success');
   }
 
   function closeDrawer() {
     P().setActiveDrawer(null);
+    _drawerTicker = null;
     el('drw-ov')?.classList.remove('open');
     el('drw')?.classList.remove('open');
     document.body.style.overflow = '';
@@ -1574,9 +1719,17 @@ window.App.PortfolioUI = (() => {
     el('csv-x-btn')?.addEventListener('click', closeCsvImport);
     el('csv-ov')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeCsvImport(); });
 
-    // Drawer close
+    // Drawer close + export + sort
     el('drw-ov')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeDrawer(); });
     el('drw-x')?.addEventListener('click', closeDrawer);
+    el('drw-export-csv')?.addEventListener('click', exportDrawerCSV);
+
+    // Sortable column headers in drawer tables (event delegation)
+    document.querySelector('#drw')?.addEventListener('click', e => {
+      const th = e.target.closest('.sort-th');
+      if (!th) return;
+      sortDrawer(th.dataset.sort, th.dataset.col);
+    });
 
     // Settings overlay click-outside
     el('sp-ov')?.addEventListener('click', closeSettings);
@@ -1646,6 +1799,8 @@ window.App.PortfolioUI = (() => {
     // Drawer
     openDrawer,
     closeDrawer,
+    sortDrawer,
+    exportDrawerCSV,
     // Modal
     openModal,
     openEditModal,

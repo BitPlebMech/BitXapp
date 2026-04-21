@@ -1246,8 +1246,11 @@ window.App.Portfolio = (() => {
   function applyTheme() {
     const theme = _settings().theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
-    const btn = el('theme-toggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    // Sun shown in dark mode (click → go light); Moon shown in light mode (click → go dark)
+    const sun  = el('theme-icon-sun');
+    const moon = el('theme-icon-moon');
+    if (sun)  sun.style.display  = theme === 'dark'  ? '' : 'none';
+    if (moon) moon.style.display = theme === 'light' ? '' : 'none';
   }
 
   function toggleTheme() {
