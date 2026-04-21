@@ -1679,7 +1679,7 @@ html, body { height: 100%; overflow: hidden; }
 @media (max-width: 480px) {
   .topbar { padding: 0 8px; gap: 6px; }
   .topbar-right { gap: 4px; }
-  .sidebar { width: 48px; padding: 8px 0 10px; }
+  .sidebar { width: 48px; padding: 8px 0 10px; gap: 4px; }
   .sb-icon-btn { width: 36px; height: 36px; }
   .hdr-btn { padding: 7px 8px; }
 }
@@ -1855,4 +1855,46 @@ html, body { height: 100%; overflow: hidden; }
     width: 5px;
     height: 5px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SIDEBAR — breathing room between module buttons
+   ═══════════════════════════════════════════════════════════════════════ */
+.sidebar          { gap: 6px; padding: 16px 0; }
+.sb-icon          { gap: 4px; }
+.sb-sep-line      { margin: 6px 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TOPBAR — slightly more room between buttons in the right cluster
+   ═══════════════════════════════════════════════════════════════════════ */
+.topbar-right { gap: 8px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRAWER HEADER — export + close button group
+   ═══════════════════════════════════════════════════════════════════════ */
+.drw-hdr-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;          /* comfortable space between Export and Close */
+  flex-shrink: 0;
+  margin-left: 8px;   /* pull away from the ticker info on the left */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRAWER TABLES — sortable column headers
+   ═══════════════════════════════════════════════════════════════════════ */
+.sort-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.14s;
+}
+.sort-th:hover      { color: var(--blue) !important; }
+.sort-th.sort-active { color: var(--blue) !important; }
+.sort-arrow {
+  display: inline-block;
+  font-size: 9px;
+  margin-left: 2px;
+  opacity: 0.75;
+  min-width: 8px;
 }

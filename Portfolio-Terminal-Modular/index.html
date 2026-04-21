@@ -43,10 +43,25 @@
           <line x1="21" y1="12" x2="9" y2="12"/>
         </svg>
       </button>
-      <button class="hdr-btn icon-only" id="theme-toggle" title="Toggle theme">
-        <svg id="h-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      <button class="hdr-btn icon-only theme-mode-btn" id="theme-toggle" title="Switch theme">
+        <!-- Sun: shown in dark mode → click to go light -->
+        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             style="width:14px;height:14px">
+             style="width:15px;height:15px">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1"  x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22"   x2="5.64"  y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1"  y1="12" x2="3"  y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+          <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+        </svg>
+        <!-- Moon: shown in light mode → click to go dark -->
+        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="width:15px;height:15px;display:none">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
@@ -654,7 +669,17 @@
           <div class="drw-pills"  id="drw-pills"></div>
         </div>
       </div>
-      <button class="drw-x" id="drw-x">✕</button>
+      <div class="drw-hdr-btns">
+        <button class="hdr-btn icon-only" id="drw-export-csv" title="Export CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+        <button class="drw-x" id="drw-x">✕</button>
+      </div>
     </div>
     <div class="drw-kpis"    id="drw-kpis"></div>
     <div class="drw-summary" id="drw-summary"></div>
@@ -682,9 +707,16 @@
     <div class="drw-sec-lbl">All Transactions</div>
     <table class="ltbl">
       <thead><tr>
-        <th>#</th><th style="text-align:center">Type</th><th style="text-align:left">Date</th>
-        <th>Qty</th><th id="drw-price-hdr">Price</th>
-        <th>Total</th><th>Fees/Tax</th><th>P&amp;L</th><th>P&amp;L %</th><th></th>
+        <th>#</th>
+        <th class="sort-th" data-sort="txs" data-col="type" style="text-align:center">Type<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="date" style="text-align:left">Date<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="qty">Qty<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="price"><span id="drw-price-hdr">Price</span><span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="total">Total<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="fees">Fees/Tax<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="pnl">P&amp;L<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="pnlpct">P&amp;L %<span class="sort-arrow"></span></th>
+        <th></th>
       </tr></thead>
       <tbody id="drw-txs"></tbody>
     </table>
@@ -693,8 +725,16 @@
     <div class="drw-sec-lbl" id="drw-fifo-lbl">Open Lots (FIFO)</div>
     <table class="ltbl" id="drw-fifo-tbl">
       <thead><tr>
-        <th>#</th><th>Date</th><th>Qty</th><th>Buy Price</th><th>Cost</th>
-        <th>Value</th><th>Gain</th><th>Gain %</th><th>CAGR</th><th>XIRR</th>
+        <th>#</th>
+        <th class="sort-th" data-sort="fifo" data-col="date">Date<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="qty">Qty<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="price">Buy Price<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="cost">Cost<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="value">Value<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="gain">Gain<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="gainpct">Gain %<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="cagr">CAGR<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="xirr">XIRR<span class="sort-arrow"></span></th>
       </tr></thead>
       <tbody id="drw-fifo-body"></tbody>
     </table>
@@ -726,15 +766,18 @@
       Enter your GitHub Personal Access Token and Gist ID to sync your portfolio.
       Save both values somewhere safe — you'll need them again after a cache clear.
     </div>
+    <form autocomplete="on" onsubmit="return false" style="width:100%">
     <div class="fgrp">
       <label class="flbl">GitHub Personal Access Token</label>
-      <input type="password" class="finp" id="lock-token"
-             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+      <input type="text" class="finp" id="lock-token" name="username"
+             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="username">
     </div>
     <div class="fgrp" style="margin-top:10px">
       <label class="flbl">Gist ID</label>
-      <input type="text" class="finp" id="lock-gist-id" placeholder="Your Gist ID">
+      <input type="password" class="finp" id="lock-gist-id" name="password"
+             placeholder="Your Gist ID" autocomplete="current-password">
     </div>
+    </form>
     <div id="cred-hint" style="font-size:11px;min-height:14px;margin-top:6px"></div>
     <button class="submit-btn" id="cred-save-btn"
             style="margin-top:16px;width:100%;justify-content:center">
