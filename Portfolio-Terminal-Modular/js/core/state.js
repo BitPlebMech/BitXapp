@@ -63,6 +63,10 @@ window.App.State = (() => {
       saved: [],
       history: [],
     },
+    ember: {
+      sources: [],    // [{ id, title, author, format, importedAt, highlightCount }]
+      highlights: [], // [{ id, sourceId, text, chapter, location, page, color, hash, addedAt }]
+    },
     gist: {
       token: '',
       id: '',
@@ -259,6 +263,25 @@ window.App.State = (() => {
     _save();
   }
 
+  // ─── Ember namespace ────────────────────────────────────────────
+
+  /**
+   * Returns the ember namespace: { sources: [], highlights: [] }
+   * sources:    [{ id, title, author, format, importedAt, highlightCount }]
+   * highlights: [{ id, sourceId, text, chapter, location, page, color, hash, addedAt }]
+   */
+  function getEmberData() {
+    _ensure();
+    return _state.ember;
+  }
+
+  /** Persist the ember namespace. */
+  function setEmberData(emberObj) {
+    _ensure();
+    _state.ember = emberObj;
+    _save();
+  }
+
   // ─── Gist credential namespace ──────────────────────────────────
 
   function getGistCredentials() {
@@ -327,6 +350,9 @@ window.App.State = (() => {
     // FinanceCalc
     getFinanceCalcData,
     setFinanceCalcData,
+    // Ember
+    getEmberData,
+    setEmberData,
     // Gist credentials
     getGistCredentials,
     setGistCredentials,

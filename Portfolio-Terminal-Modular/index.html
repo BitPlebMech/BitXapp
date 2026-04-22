@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="css/bitxapp-base.css">
   <link rel="stylesheet" href="css/modules/habits.css">
   <link rel="stylesheet" href="css/modules/financecalc.css">
+  <link rel="stylesheet" href="css/modules/ember.css">
 </head>
 
 <body>
@@ -329,6 +330,92 @@
           <span class="placeholder-soon-badge">Coming soon</span>
         </div>
       </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           EMBER MODULE  —  Reading Highlights
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="module-pane" id="mod-ember">
+
+        <!-- ── Module header ─────────────────────────────────────────── -->
+        <div class="mod-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="ember-flame-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                   width="20" height="20">
+                <path d="M12 22c5 0 9-4 9-9 0-3-1.5-5.5-4-7.5C15 7 13.5 9 12 9
+                         c-2 0-3-2-3-2C6.5 9 4 12.5 4 16c0 3.3 2.7 6 6 6z"/>
+                <path d="M9.5 14.5c.5 1.5 2.5 2 3 .5" opacity="0.55"/>
+              </svg>
+            </div>
+            <span class="ember-module-title">Ember</span>
+            <div id="ember-stats" class="ember-stats"></div>
+          </div>
+          <div class="ember-header-actions">
+            <span id="ember-gist-status" class="ember-gist-status"></span>
+            <button class="hdr-btn primary" id="ember-import-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Import
+            </button>
+            <button class="hdr-btn" id="ember-gist-save" title="Save all data to GitHub Gist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61
+                         c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77
+                         5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0
+                         C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78
+                         c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              Save to Gist
+            </button>
+          </div>
+        </div><!-- /.mod-header -->
+
+        <!-- ── Tab navigation ────────────────────────────────────────── -->
+        <nav class="tab-nav" id="ember-tabs">
+          <button class="tab-btn active" id="ember-tab-books">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Books
+          </button>
+          <button class="tab-btn" id="ember-tab-library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Library
+          </button>
+          <button class="tab-btn" id="ember-tab-review">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            Daily Review
+          </button>
+        </nav>
+
+        <!-- ── Tab panes ──────────────────────────────────────────────── -->
+        <div id="ember-pane-books"   style="flex:1;overflow-y:auto;padding:20px 22px 90px">
+          <div id="ember-books-content"></div>
+        </div>
+        <div id="ember-pane-library" style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-library-content"></div>
+        </div>
+        <div id="ember-pane-review"  style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-review-content"></div>
+        </div>
+
+      </div><!-- #mod-ember -->
 
     </div><!-- /.main-area -->
   </div><!-- /.body-row -->
@@ -754,6 +841,84 @@
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════════
+     EMBER — Import Highlights Wizard
+     ════════════════════════════════════════════════════════════════════ -->
+<div class="ember-import-ov" id="ember-import-ov">
+  <div class="ember-import-box" id="ember-import-box">
+
+    <!-- Header -->
+    <div class="ember-import-header">
+      <div class="ember-import-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             style="width:15px;height:15px;vertical-align:middle;margin-right:6px">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Import Highlights
+      </div>
+      <button class="ember-import-close-btn" id="ember-import-close">✕</button>
+    </div>
+
+    <!-- Step indicators -->
+    <div class="ember-import-steps">
+      <div class="ember-istep active" id="ember-istep-1">
+        <div class="ember-istep-num">1</div>
+        <span class="ember-istep-label">Upload</span>
+      </div>
+      <div class="ember-istep-connector"></div>
+      <div class="ember-istep" id="ember-istep-2">
+        <div class="ember-istep-num">2</div>
+        <span class="ember-istep-label">Preview</span>
+      </div>
+      <div class="ember-istep-connector"></div>
+      <div class="ember-istep" id="ember-istep-3">
+        <div class="ember-istep-num">3</div>
+        <span class="ember-istep-label">Done</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Upload -->
+    <div class="ember-import-body" id="ember-istep-content-1">
+      <div class="ember-dropzone" id="ember-dropzone">
+        <div class="ember-dropzone-icon">📄</div>
+        <div class="ember-dropzone-label">Drop your Kindle file here</div>
+        <div class="ember-dropzone-sub">or click to browse</div>
+        <div class="ember-dropzone-name" id="ember-dropzone-name"></div>
+      </div>
+      <input type="file" id="ember-file-input" accept=".txt,.html,.htm" style="display:none">
+      <div class="ember-format-note">
+        <strong>Kindle TXT</strong> — <code>My Clippings.txt</code> from your device<br>
+        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website<br>
+        <span style="opacity:.6">PDF annotations coming in Phase 2</span>
+      </div>
+      <div class="ember-parse-error" id="ember-parse-error" style="display:none"></div>
+    </div>
+
+    <!-- Step 2: Preview -->
+    <div class="ember-import-body" id="ember-istep-content-2" style="display:none">
+      <div id="ember-preview-content"></div>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div class="ember-import-body" id="ember-istep-content-3" style="display:none">
+      <div id="ember-import-result"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ember-import-footer">
+      <!-- Step 1 footer: just cancel -->
+      <button class="cancel-btn" id="ember-import-cancel">Cancel</button>
+      <!-- Step 2 footer: back + confirm (shown/hidden via JS) -->
+      <button class="cancel-btn" id="ember-import-back" style="display:none">← Back</button>
+      <button class="submit-btn" id="ember-import-confirm" style="display:none">Import</button>
+    </div>
+
+  </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-wrap" id="toast-wrap"></div>
 
@@ -805,18 +970,23 @@
 <script src="js/core/gist.js"></script>
 <script src="js/core/app-shell.js"></script>
 
-<!-- Habits module (registers itself with App.Shell) -->
+<!-- Habits module — sidebar position 1 -->
 <script src="js/modules/habits/habits-data.js"></script>
 <script src="js/modules/habits/habits.js"></script>
 <script src="js/modules/habits/habits-ui.js"></script>
 
-<!-- Finance Calculator stub (registers itself with App.Shell) -->
-<script src="js/modules/financecalc/calc.js"></script>
+<!-- Ember module — sidebar position 2 -->
+<script src="js/modules/ember/ember-data.js"></script>
+<script src="js/modules/ember/ember-ui.js"></script>
+<script src="js/modules/ember/ember.js"></script>
 
-<!-- Portfolio module (registers itself with App.Shell) -->
+<!-- Portfolio module — sidebar position 3 -->
 <script src="js/modules/portfolio/portfolio-data.js"></script>
 <script src="js/modules/portfolio/portfolio.js"></script>
 <script src="js/modules/portfolio/portfolio-ui.js"></script>
+
+<!-- Finance Calculator stub — sidebar position 4 (soon) -->
+<script src="js/modules/financecalc/calc.js"></script>
 
 <!-- Bootstrap — must be last -->
 <script>
