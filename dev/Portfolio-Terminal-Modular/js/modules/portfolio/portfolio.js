@@ -10,7 +10,7 @@
  *   • Price engine — CoinGecko / Yahoo Finance / Alpha Vantage / Mock
  *   • XIRR — Newton-Raphson solver, multiple seed points
  *   • FIFO lot matching — correct same-date BUY-before-SELL ordering
- *   • CAGR — with 6-month minimum guard
+ *   • CAGR — with 12-month minimum guard (< 1yr shows —)
  *   • Formatting — locale-aware number/currency/percentage display
  *   • CRUD — add/edit/delete transactions, ticker rename
  *   • Export/import — JSON and CSV downloads
@@ -38,7 +38,7 @@ window.App.Portfolio = (() => {
 
   const QTY_EPSILON           = 0.00001;
   const DEFAULT_CACHE_TTL_MS  = 14400000;  // 4 hours
-  const MIN_CAGR_YEARS        = 0.5;
+  const MIN_CAGR_YEARS        = 1.0;        // CAGR only meaningful for ≥ 1 year holdings
   const CORS_PROXY            = 'https://corsproxy.io/?';
   const FETCH_TIMEOUT_MS      = { quick: 4000, standard: 5000, slow: 10000, bulk: 25000 };
   const MAX_DELETED_HISTORY   = 10;
@@ -497,7 +497,11 @@ window.App.Portfolio = (() => {
     const cashflows = [], dates = [];
     for (const tx of txs) {
       const displayPrice = eurToDisplay(tx.price, tx.date);
-      cashflows.push(tx.type === 'BUY' ? -(tx.qty * displayPrice) : tx.qty * displayPrice);
+      const total = +tx.qty * displayPrice;
+      const fees  = +(tx.fees || 0);
+      // BUY: cash out = total + fees (fees increase your cost)
+      // SELL: cash in = total - fees (fees reduce your proceeds)
+      cashflows.push(tx.type === 'BUY' ? -(total + fees) : (total - fees));
       dates.push(new Date(tx.date + 'T12:00:00'));
     }
     return { cashflows, dates };
@@ -563,23 +567,34 @@ window.App.Portfolio = (() => {
     for (const [ticker, txs] of Object.entries(byTicker)) {
       const lotQueue = [];
       let realizedGain = 0;
+      // Per-sell FIFO gain: tx.id → realized gain for that specific sell transaction
+      const sellGainMap = new Map();
+      // For Effective Buy Average: track total cash invested and total sale proceeds
+      let totalInvested = 0;
+      let totalProceeds = 0;
 
       for (const tx of txs) {
         if (tx.type === 'BUY') {
           const feesPerShare = tx.qty > 0 ? (+(tx.fees || 0)) / +tx.qty : 0;
           lotQueue.push({ qty: +tx.qty, priceEUR: +tx.price + feesPerShare, id: tx.id, date: tx.date, fees: +(tx.fees||0) });
+          totalInvested += +tx.qty * eurToDisplay(+tx.price, tx.date);
         } else {
           let remaining = +tx.qty;
+          let txGain = 0;
           while (remaining > QTY_EPSILON && lotQueue.length > 0) {
             const lot = lotQueue[0];
             const matched = Math.min(remaining, lot.qty);
             const sellD = eurToDisplay(+tx.price, tx.date);
             const buyD  = eurToDisplay(lot.priceEUR, lot.date);
-            realizedGain += (sellD - buyD) * matched - (+(tx.taxes||0) * matched / +tx.qty);
+            const matchedGain = (sellD - buyD) * matched - (+(tx.taxes||0) * matched / +tx.qty);
+            txGain        += matchedGain;
+            realizedGain  += matchedGain;
             lot.qty   -= matched;
             remaining -= matched;
             if (lot.qty < QTY_EPSILON) lotQueue.shift();
           }
+          sellGainMap.set(tx.id, txGain);
+          totalProceeds += +tx.qty * eurToDisplay(+tx.price, tx.date);
         }
       }
 
@@ -601,10 +616,17 @@ window.App.Portfolio = (() => {
       const unrealized  = marketValue - totalCostD;
       const avgHoldYears = totalCostD > 0 ? weightedYears / totalCostD : 0;
 
+      // Effective Buy Average = (all cash invested − all sale proceeds) / remaining shares
+      // Correctly surfaces hidden realized losses from tax-loss harvesting
+      const effectiveBuyAvg = totalShares > 0 ? (totalInvested - totalProceeds) / totalShares : 0;
+
       positions[ticker] = {
         ticker, txs, openLots,
         shares: totalShares,
-        avgCostDisp: totalShares > 0 ? totalCostD / totalShares : 0,
+        avgCostDisp: totalShares > 0 ? totalCostD / totalShares : 0,  // Open Lots Average (break-even)
+        effectiveBuyAvg,                                                // True cost after accounting for all trades
+        totalInvested, totalProceeds,
+        sellGainMap,   // Map<tx.id, realizedGain> — FIFO-accurate per-sell P&L
         costDisp: totalCostD,
         curEUR: currentEUR,
         curDisp: currentDisp,
@@ -729,7 +751,7 @@ window.App.Portfolio = (() => {
   }
 
   function fmtCAGR(v) {
-    if (v === null || v === undefined || !isFinite(v)) return '< 6mo';
+    if (v === null || v === undefined || !isFinite(v)) return '< 1yr';
     return (v >= 0 ? '+' : '') + fmtNum(v, 1) + ' % p.a.';
   }
 
