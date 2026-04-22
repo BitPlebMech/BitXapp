@@ -685,6 +685,13 @@ window.App.PortfolioUI = (() => {
       return;
     }
 
+    // Build FIFO-accurate sell gain lookup from computed positions
+    const _positions = P().computePositions();
+    const _sellGainById = new Map();
+    for (const pos of Object.values(_positions)) {
+      if (pos.sellGainMap) pos.sellGainMap.forEach((gain, id) => _sellGainById.set(id, gain));
+    }
+
     tbody.innerHTML = txs.map((tx, i) => {
       const color = P().tickerColor(tx.ticker);
       const isBuy = tx.type === 'BUY';
@@ -693,23 +700,20 @@ window.App.PortfolioUI = (() => {
       const buyPriceD     = P().eurToDisplay(tx.price, tx.date);
       const totalD        = tx.qty * buyPriceD;
 
-      // P&L: unrealised for BUY, realised for SELL
+      // BUY: unrealised P&L vs current price  |  SELL: FIFO-matched realised P&L
       let plHTML = '—';
       if (isBuy) {
         const pl    = (currentPriceD - buyPriceD) * tx.qty;
         const plPct = buyPriceD > 0 ? ((currentPriceD - buyPriceD) / buyPriceD) * 100 : 0;
-        plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${P().fmtValue(pl)} <span style="font-size:10px">(${P().fmtPct(plPct)})</span></span>`;
+        plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${P().fmtValue(pl)}<span style="font-size:10px;opacity:.7"> (${P().fmtPct(plPct)}) Unrealised</span></span>`;
       } else {
-        const priorBuys = (s.transactions || []).filter(t => t.ticker === tx.ticker && t.type === 'BUY' && t.date < tx.date);
-        if (priorBuys.length > 0) {
-          let totalCost = 0, totalShares = 0;
-          priorBuys.forEach(b => { totalCost += b.price * b.qty; totalShares += b.qty; });
-          const avgCostBasisD = P().eurToDisplay(totalShares > 0 ? totalCost / totalShares : 0, tx.date);
-          const pl    = (buyPriceD - avgCostBasisD) * tx.qty;
-          const plPct = avgCostBasisD > 0 ? ((buyPriceD - avgCostBasisD) / avgCostBasisD) * 100 : 0;
-          plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${P().fmtValue(pl)} <span style="font-size:10px">(${P().fmtPct(plPct)})</span></span>`;
+        const pl = _sellGainById.get(tx.id);
+        if (pl !== undefined) {
+          const sellPriceD = P().eurToDisplay(+tx.price, tx.date);
+          const plPct      = sellPriceD > 0 ? (pl / (+tx.qty * sellPriceD)) * 100 : 0;
+          plHTML = `<span class="${pl >= 0 ? 'c-green' : 'c-red'}">${pl >= 0 ? '+' : ''}${P().fmtValue(pl)}<span style="font-size:10px;opacity:.7"> (${P().fmtPct(plPct)}) Realised</span></span>`;
         } else {
-          plHTML = '<span style="color:var(--dim)">No cost basis</span>';
+          plHTML = '<span style="color:var(--dim)">—</span>';
         }
       }
 
@@ -741,15 +745,6 @@ window.App.PortfolioUI = (() => {
   /* ═══════════════════════════════════════════════════════════════
      DRAWER — Position Detail
      ═══════════════════════════════════════════════════════════════ */
-
-  /* ── Per-lot XIRR helper ─────────────────────────────────────── */
-  function lotXIRR(lot, currentPriceD) {
-    const buyPriceD = P().eurToDisplay(lot.priceEUR || 0, lot.date);
-    return P().calcXIRR(
-      [-(lot.qty * buyPriceD), lot.qty * currentPriceD],
-      [new Date(lot.date + 'T12:00:00'), new Date()]
-    );
-  }
 
   /* ── Canvas helpers ───────────────────────────────────────────── */
   function cssVar(v) {
@@ -804,7 +799,6 @@ window.App.PortfolioUI = (() => {
       return {
         lot, buyPriceD, currentPriceD, years,
         cagr:    P().calcCagr(lotCostD, lotValueD, years),
-        xirr:    lotXIRR(lot, currentPriceD),
         gainPct: ((currentPriceD - buyPriceD) / buyPriceD) * 100,
         isUp:    currentPriceD >= buyPriceD,
       };
@@ -849,7 +843,7 @@ window.App.PortfolioUI = (() => {
 
     const maxQty = Math.max(...lots.map(l => l.qty));
 
-    lotData.forEach(({ lot, buyPriceD, years, cagr, xirr, gainPct, isUp }, i) => {
+    lotData.forEach(({ lot, buyPriceD, years, cagr, gainPct, isUp }, i) => {
       const rowCenterY = PAD_TOP + i * ROW_H + ROW_H / 2;
       const buyX = priceToX(buyPriceD);
       const gc   = isUp ? '#00dba8' : '#ff3d5a';
@@ -907,7 +901,7 @@ window.App.PortfolioUI = (() => {
       ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       ctx.fillText((gainPct >= 0 ? '+' : '') + P().fmtNum(gainPct, 2) + ' %', boxX + 8, boxY + 7);
       ctx.fillStyle = cssVar('--muted'); ctx.font = '400 9.5px DM Mono,monospace';
-      ctx.fillText(xirr !== null ? 'XIRR: ' + P().fmtXIRR(xirr) : years < 1 ? 'Held < 1yr' : 'CAGR: ' + P().fmtCAGR(cagr), boxX + 8, boxY + 23);
+      ctx.fillText(years < 1 ? 'Held < 1yr' : 'CAGR: ' + P().fmtCAGR(cagr), boxX + 8, boxY + 23);
       ctx.fillStyle = cssVar('--dim'); ctx.font = '400 8.5px DM Mono,monospace';
       ctx.fillText(P().fmtNum(years, 1) + ' yr · L' + (i + 1) + ' · ' + window.App.State.getPortfolioData().settings.currency, boxX + 8, boxY + 38);
     });
@@ -952,12 +946,17 @@ window.App.PortfolioUI = (() => {
     const posFees  = pos.txs.reduce((s, t) => s + (+(t.fees  || 0)), 0);
     const posTaxes = pos.txs.reduce((s, t) => s + (+(t.taxes || 0)), 0);
     const hasFT    = posFees > 0 || posTaxes > 0;
+    // Effective Buy Average is only meaningful when there have been sells
+    const hasSells = pos.txs.some(t => t.type === 'SELL');
     const kpis = [
-      { label: 'Current Price',  value: P().fmtCompact(pos.curDisp),   sub: settings.currency + ' · ' + pos.cls },
-      { label: 'Total Shares',   value: P().fmtQty(pos.shares),         sub: pos.openLots.length + ' open lot' + (pos.openLots.length !== 1 ? 's' : '') },
-      { label: 'Current Value',  value: P().fmtValue(pos.value),        sub: 'Cost: ' + P().fmtValue(pos.costDisp) },
-      { label: 'Unrealised P&L', value: (pos.unrealized >= 0 ? '+' : '') + P().fmtValue(pos.unrealized), sub: P().fmtPct(pos.unrealizedPct), vc: gainColor },
-      { label: 'Realised P&L',   value: (pos.realized >= 0 ? '+' : '') + P().fmtValue(pos.realized), sub: 'closed lots', vc: pos.realized >= 0 ? 'var(--green)' : 'var(--red)' },
+      { label: 'Current Price',     value: P().fmtCompact(pos.curDisp),    sub: settings.currency + ' · ' + pos.cls },
+      { label: 'Total Shares',      value: P().fmtQty(pos.shares),          sub: pos.openLots.length + ' open lot' + (pos.openLots.length !== 1 ? 's' : '') },
+      { label: 'Current Value',     value: P().fmtValue(pos.value),         sub: 'Cost: ' + P().fmtValue(pos.costDisp) },
+      { label: 'Unrealised P&L',    value: (pos.unrealized >= 0 ? '+' : '') + P().fmtValue(pos.unrealized), sub: P().fmtPct(pos.unrealizedPct), vc: gainColor },
+      { label: 'Realised P&L',      value: (pos.realized >= 0 ? '+' : '') + P().fmtValue(pos.realized), sub: 'closed lots', vc: pos.realized >= 0 ? 'var(--green)' : 'var(--red)' },
+      // Average price metrics
+      { label: 'Open Lots Avg',     value: P().fmtCompact(pos.avgCostDisp),     sub: 'Break-even on current holdings' },
+      ...(hasSells ? [{ label: 'Effective Buy Avg', value: P().fmtCompact(pos.effectiveBuyAvg), sub: 'True cost after all trades', vc: pos.effectiveBuyAvg > pos.avgCostDisp ? 'var(--amber)' : 'var(--text)' }] : []),
       ...(hasFT ? [{ label: 'Fees · Taxes', value: posFees > 0 ? '−' + P().fmtValue(posFees) : '—', sub: posTaxes > 0 ? 'Tax: −' + P().fmtValue(posTaxes) : 'No taxes', vc: 'var(--amber)' }] : []),
     ];
     el('drw-kpis').innerHTML = kpis.map(k =>
@@ -1029,10 +1028,10 @@ window.App.PortfolioUI = (() => {
         case 'price':  va = buyA;                                     vb = buyB;      break;
         case 'total':  va = +a.qty * buyA;                            vb = +b.qty * buyB; break;
         case 'fees':   va = +(a.fees||0) + +(a.taxes||0);            vb = +(b.fees||0) + +(b.taxes||0); break;
-        case 'pnl':    va = a.type==='BUY' ? (pos.curDisp-buyA)*+a.qty : -Infinity;
-                       vb = b.type==='BUY' ? (pos.curDisp-buyB)*+b.qty : -Infinity; break;
-        case 'pnlpct': va = a.type==='BUY' && buyA>0 ? (pos.curDisp-buyA)/buyA : -Infinity;
-                       vb = b.type==='BUY' && buyB>0 ? (pos.curDisp-buyB)/buyB : -Infinity; break;
+        case 'pnl':    va = a.type==='BUY' ? (pos.curDisp-buyA)*+a.qty : (pos.sellGainMap?.get(a.id) ?? -Infinity);
+                       vb = b.type==='BUY' ? (pos.curDisp-buyB)*+b.qty : (pos.sellGainMap?.get(b.id) ?? -Infinity); break;
+        case 'pnlpct': va = a.type==='BUY' && buyA>0 ? (pos.curDisp-buyA)/buyA : (pos.sellGainMap?.has(a.id) && buyA>0 ? pos.sellGainMap.get(a.id)/(+a.qty*buyA) : -Infinity);
+                       vb = b.type==='BUY' && buyB>0 ? (pos.curDisp-buyB)/buyB : (pos.sellGainMap?.has(b.id) && buyB>0 ? pos.sellGainMap.get(b.id)/(+b.qty*buyB) : -Infinity); break;
         default:       va = a.date; vb = b.date;
       }
       return va < vb ? -dir : va > vb ? dir : 0;
@@ -1040,20 +1039,35 @@ window.App.PortfolioUI = (() => {
 
     el('drw-txs').innerHTML = sorted.map((tx, i) => {
       const isBuy     = tx.type === 'BUY';
-      const buyPriceD = P().eurToDisplay(tx.price, tx.date);
-      const pnl       = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : null;
-      const pnlPct    = isBuy && buyPriceD > 0 ? ((pos.curDisp - buyPriceD) / buyPriceD) * 100 : null;
+      const txPriceD  = P().eurToDisplay(tx.price, tx.date);
       const fees      = +(tx.fees || 0) + +(tx.taxes || 0);
+
+      // BUY: unrealised vs current price  |  SELL: FIFO-matched realised P&L
+      let pnl = null, pnlPct = null, pnlLabel = '';
+      if (isBuy) {
+        pnl      = (pos.curDisp - txPriceD) * tx.qty;
+        pnlPct   = txPriceD > 0 ? ((pos.curDisp - txPriceD) / txPriceD) * 100 : null;
+        pnlLabel = 'Unrealised';
+      } else if (pos.sellGainMap && pos.sellGainMap.has(tx.id)) {
+        pnl      = pos.sellGainMap.get(tx.id);
+        pnlPct   = txPriceD > 0 ? (pnl / (+tx.qty * txPriceD)) * 100 : null;
+        pnlLabel = 'Realised';
+      }
+
+      const pnlColor = pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)';
+      const pnlStr   = pnl === null ? '—' : (pnl >= 0 ? '+' : '') + P().fmtValue(pnl);
+      const pnlPctStr = pnlPct === null ? '—' : P().fmtPct(pnlPct);
+
       return `<tr>
         <td><span class="lot-num" style="background:${color}22;color:${color}">${i + 1}</span></td>
         <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
         <td style="text-align:left;color:var(--text2)">${P().fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${tx.notes}</div>` : ''}</td>
         <td>${P().fmtQty(tx.qty)}</td>
-        <td>${P().fmtCompact(buyPriceD)}</td>
-        <td>${P().fmtValue(tx.qty * buyPriceD)}</td>
+        <td>${P().fmtCompact(txPriceD)}</td>
+        <td>${P().fmtValue(tx.qty * txPriceD)}</td>
         <td style="color:var(--amber);font-size:10px">${fees > 0 ? '−' + P().fmtValue(fees) : '—'}</td>
-        <td style="color:${pnl === null ? 'var(--muted)' : pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl === null ? '—' : (pnl >= 0 ? '+' : '') + P().fmtValue(pnl)}</td>
-        <td style="color:${pnlPct === null ? 'var(--muted)' : pnlPct >= 0 ? 'var(--green)' : 'var(--red)'}">${pnlPct === null ? '—' : P().fmtPct(pnlPct)}</td>
+        <td style="color:${pnlColor}">${pnlStr}${pnlLabel ? `<div style="font-size:9px;opacity:.6">${pnlLabel}</div>` : ''}</td>
+        <td style="color:${pnlColor}">${pnlPctStr}</td>
         <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
       </tr>`;
     }).join('');
@@ -1075,8 +1089,7 @@ window.App.PortfolioUI = (() => {
       const gain       = lotValue - lot.costDisp;
       const gainPct    = lot.costDisp > 0 ? (gain / lot.costDisp) * 100 : 0;
       const lotCagr    = P().calcCagr(lot.costDisp, lotValue, lot.avgYears);
-      const lotXirrVal = lotXIRR(lot, pos.curDisp);
-      return { lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr, lotXirrVal };
+      return { lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr };
     });
 
     enriched.sort((a, b) => {
@@ -1090,15 +1103,13 @@ window.App.PortfolioUI = (() => {
         case 'gain':    va = a.gain;        vb = b.gain;        break;
         case 'gainpct': va = a.gainPct;     vb = b.gainPct;     break;
         case 'cagr':    va = a.lotCagr ?? -Infinity; vb = b.lotCagr ?? -Infinity; break;
-        case 'xirr':    va = a.lotXirrVal ?? -Infinity; vb = b.lotXirrVal ?? -Infinity; break;
         default:        va = a.lot.date;    vb = b.lot.date;
       }
       return va < vb ? -dir : va > vb ? dir : 0;
     });
 
-    el('drw-fifo-body').innerHTML = enriched.map(({ lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr, lotXirrVal }) => {
-      const lotXirrColor = lotXirrVal === null ? 'var(--muted)' : lotXirrVal >= 0 ? 'var(--green)' : 'var(--red)';
-      const lotColor     = P().LOT_COLORS[origIdx % P().LOT_COLORS.length];
+    el('drw-fifo-body').innerHTML = enriched.map(({ lot, origIdx, buyPriceD, lotValue, gain, gainPct, lotCagr }) => {
+      const lotColor = P().LOT_COLORS[origIdx % P().LOT_COLORS.length];
       return `<tr>
         <td><span class="lot-num" style="background:${lotColor}22;color:${lotColor}">${origIdx + 1}</span></td>
         <td style="text-align:left;color:var(--text2)">${P().fmtDate(lot.date)}</td>
@@ -1109,7 +1120,6 @@ window.App.PortfolioUI = (() => {
         <td style="color:${gain >= 0 ? 'var(--green)' : 'var(--red)'}">${gain >= 0 ? '+' : ''}${P().fmtValue(gain)}</td>
         <td><span class="pill ${gain >= 0 ? 'g' : 'r'}">${P().fmtPct(gainPct)}</span></td>
         <td style="color:${lotCagr === null ? 'var(--muted)' : lotCagr >= 0 ? 'var(--green)' : 'var(--red)'}">${P().fmtCAGR(lotCagr)}</td>
-        <td style="color:${lotXirrColor}">${P().fmtXIRR(lotXirrVal)}</td>
       </tr>`;
     }).join('');
 
@@ -1156,28 +1166,37 @@ window.App.PortfolioUI = (() => {
 
     // ── Transactions sheet
     let csv = 'All Transactions\n';
-    csv += `#,Type,Date,Qty,Price (${currency}),Total (${currency}),Fees/Tax,P&L,P&L %\n`;
+    csv += `#,Type,Date,Qty,Price (${currency}),Total (${currency}),Fees,P&L,P&L %,P&L Type\n`;
     [...pos.txs].sort((a, b) => b.date.localeCompare(a.date)).forEach((tx, i) => {
       const isBuy     = tx.type === 'BUY';
-      const buyPriceD = P().eurToDisplay(tx.price, tx.date);
-      const pnl       = isBuy ? (pos.curDisp - buyPriceD) * tx.qty : '';
-      const pnlPct    = isBuy && buyPriceD > 0 ? (((pos.curDisp - buyPriceD) / buyPriceD) * 100).toFixed(2) + '%' : '';
-      const fees      = +(tx.fees || 0) + +(tx.taxes || 0);
-      csv += `${i + 1},${tx.type},${tx.date},${tx.qty},${buyPriceD.toFixed(4)},${(tx.qty * buyPriceD).toFixed(2)},${fees > 0 ? fees.toFixed(2) : ''},${pnl !== '' ? pnl.toFixed(2) : ''},${pnlPct}\n`;
+      const txPriceD  = P().eurToDisplay(tx.price, tx.date);
+      let pnl = '', pnlPct = '', pnlType = '';
+      if (isBuy) {
+        const rawPnl = (pos.curDisp - txPriceD) * tx.qty;
+        pnl     = rawPnl.toFixed(2);
+        pnlPct  = txPriceD > 0 ? (((pos.curDisp - txPriceD) / txPriceD) * 100).toFixed(2) + '%' : '';
+        pnlType = 'Unrealised';
+      } else if (pos.sellGainMap && pos.sellGainMap.has(tx.id)) {
+        const rawPnl = pos.sellGainMap.get(tx.id);
+        pnl     = rawPnl.toFixed(2);
+        pnlPct  = txPriceD > 0 ? ((rawPnl / (+tx.qty * txPriceD)) * 100).toFixed(2) + '%' : '';
+        pnlType = 'Realised (FIFO)';
+      }
+      const fees = +(tx.fees || 0) + +(tx.taxes || 0);
+      csv += `${i + 1},${tx.type},${tx.date},${tx.qty},${txPriceD.toFixed(4)},${(tx.qty * txPriceD).toFixed(2)},${fees > 0 ? fees.toFixed(2) : ''},${pnl},${pnlPct},${pnlType}\n`;
     });
 
     // ── Open Lots sheet
     if (pos.openLots.length > 0) {
       csv += `\nOpen Lots (FIFO)\n`;
-      csv += `#,Date,Qty,Buy Price (${currency}),Cost,Value,Gain,Gain %,CAGR,XIRR\n`;
+      csv += `#,Date,Qty,Buy Price (${currency}),Cost,Value,Gain,Gain %,CAGR\n`;
       pos.openLots.forEach((lot, i) => {
         const buyPriceD = P().eurToDisplay(lot.priceEUR, lot.date);
         const lotValue  = lot.qty * pos.curDisp;
         const gain      = lotValue - lot.costDisp;
         const gainPct   = lot.costDisp > 0 ? (gain / lot.costDisp) * 100 : 0;
         const lotCagr   = P().calcCagr(lot.costDisp, lotValue, lot.avgYears);
-        const lotXirr   = lotXIRR(lot, pos.curDisp);
-        csv += `${i + 1},${lot.date},${lot.qty},${buyPriceD.toFixed(4)},${lot.costDisp.toFixed(2)},${lotValue.toFixed(2)},${gain.toFixed(2)},${gainPct.toFixed(2)}%,${lotCagr !== null ? (lotCagr * 100).toFixed(2) + '%' : ''},${lotXirr !== null ? (lotXirr * 100).toFixed(2) + '%' : ''}\n`;
+        csv += `${i + 1},${lot.date},${lot.qty},${buyPriceD.toFixed(4)},${lot.costDisp.toFixed(2)},${lotValue.toFixed(2)},${gain.toFixed(2)},${gainPct.toFixed(2)}%,${lotCagr !== null ? lotCagr.toFixed(2) + '%' : '< 1yr'}\n`;
       });
     }
 
