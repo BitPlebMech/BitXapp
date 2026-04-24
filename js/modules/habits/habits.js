@@ -277,7 +277,7 @@ window.App.Habits = (() => {
   window.App.Shell?.registerModule({
     id: 'habits',
     label: 'Habits',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    icon: `<svg viewBox="0 0 264 264" fill="none" stroke-width="42" stroke-linecap="round" width="28" height="28"><path d="M132 42 A90 90 0 0 1 222 132" stroke="#3A86FF"/><path d="M222 132 A90 90 0 0 1 132 222" stroke="#2ECC71"/><path d="M132 222 A90 90 0 0 1 42 132" stroke="#FFBE0B"/><path d="M42 132 A90 90 0 0 1 132 42" stroke="#FF5F1F"/></svg>`,
     init,
   });
 
