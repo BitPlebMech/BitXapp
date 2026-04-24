@@ -1389,7 +1389,18 @@
 .ember-review-goal-note {
   font-size: 11px;
   color: var(--muted);
-  margin-top: 16px;
+  margin-top: 4px;
+}
+
+/* Daily review list (Phase 1 scrollable style) */
+.ember-review-daily-header {
+  padding: 0 0 20px;
+}
+
+.ember-review-daily-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 /* All caught up */

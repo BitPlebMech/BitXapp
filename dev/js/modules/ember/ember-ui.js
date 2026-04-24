@@ -440,216 +440,48 @@ window.App.EmberUI = (() => {
     const wrap = el('ember-review-content');
     if (!wrap) return;
 
-    const streak = window.App.Ember.getStreak();
-    const allHighlights = window.App.Ember.getHighlights();
+    const highlights = window.App.Ember.getDailyReview();
+    const sources    = window.App.Ember.getSources();
 
-    if (allHighlights.length === 0) {
+    if (highlights.length === 0) {
       wrap.innerHTML = _emptyState(
-        '🔥',
-        'Nothing to review yet',
-        'Import some highlights to start your daily review',
+        '📖',
+        'No highlights yet',
+        'Import some books to see your daily digest here',
       );
       return;
     }
 
-    if (!_reviewSessionActive) {
-      // Pre-session: show streak + queue info + start button
-      const queue = window.App.Ember.getReviewQueue();
-      _renderReviewStart(wrap, streak, queue);
-    } else if (_reviewIndex >= _reviewQueue.length) {
-      // Session complete
-      _renderReviewComplete(wrap, streak);
-    } else {
-      // Active session — show current card
-      _renderReviewCard(wrap, streak);
-    }
-  }
-
-  /* ── Review: Pre-session (start screen) ────────────────────── */
-
-  function _renderReviewStart(wrap, streak, queue) {
     const today = new Date().toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    // Calculate next review date if queue is empty
-    let nextReviewMsg = '';
-    if (queue.length === 0) {
-      const allHls = window.App.Ember.getHighlights();
-      const withDates = allHls
-        .filter(h => h.srData && h.srData.nextReview)
-        .map(h => h.srData.nextReview)
-        .sort();
-      if (withDates.length > 0) {
-        const next = new Date(withDates[0]);
-        nextReviewMsg = `Next review: ${next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
-      }
-    }
+    const cards = highlights.map((hl, i) => {
+      const src    = sources.find(s => s.id === hl.sourceId);
+      const accent = src ? _spineColor(src) : SPINE_PALETTE[i % SPINE_PALETTE.length];
 
-    const settings = window.App.State.getEmberSettings();
-    const goal     = settings.dailyGoal || 10;
+      return `
+        <div class="ember-review-single-card" style="border-left-color:${accent}">
+          <blockquote class="ember-review-single-text">${_esc(hl.text)}</blockquote>
+          <div class="ember-review-single-meta">
+            ${src ? `<span class="ember-review-single-book" style="color:${accent}">${_esc(src.title)}</span>` : ''}
+            ${src?.author ? `<span class="ember-review-single-author">— ${_esc(src.author)}</span>` : ''}
+            ${hl.page     ? `<span class="ember-review-single-loc">p.${hl.page}</span>` :
+              hl.location ? `<span class="ember-review-single-loc">loc.${hl.location}</span>` : ''}
+          </div>
+          ${_buildCategoryBadge(hl.category)}
+        </div>`;
+    }).join('');
 
     wrap.innerHTML = `
-      ${_buildStreakWidget(streak)}
-
-      <div class="ember-review-start">
+      <div class="ember-review-daily-header">
         <div class="ember-review-start-date">${_esc(today)}</div>
-
-        ${queue.length === 0 ? `
-          <div class="ember-review-caught-up">
-            <div class="ember-review-caught-icon">✅</div>
-            <div class="ember-review-caught-title">All caught up!</div>
-            <div class="ember-review-caught-sub">You have no highlights due for review today.</div>
-            ${nextReviewMsg ? `<div class="ember-review-next-date">${_esc(nextReviewMsg)}</div>` : ''}
-          </div>
-        ` : `
-          <div class="ember-review-queue-info">
-            <div class="ember-review-queue-count">${queue.length}</div>
-            <div class="ember-review-queue-label">highlight${queue.length !== 1 ? 's' : ''} to review</div>
-          </div>
-          <button class="ember-review-start-btn" id="ember-review-start-btn">
-            Start Review Session
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                 stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
-        `}
-
-        <div class="ember-review-goal-note">Daily goal: ${goal} cards · ${streak.totalReviewDays || 0} total review days</div>
-      </div>`;
-
-    el('ember-review-start-btn')?.addEventListener('click', () => {
-      _reviewQueue         = window.App.Ember.getReviewQueue();
-      _reviewIndex         = 0;
-      _reviewSessionActive = true;
-      _renderReview();
-    });
-  }
-
-  /* ── Review: Active session card ─────────────────────────────── */
-
-  function _renderReviewCard(wrap, streak) {
-    const hl      = _reviewQueue[_reviewIndex];
-    const sources = window.App.Ember.getSources();
-    const src     = sources.find(s => s.id === hl.sourceId);
-    const accent  = src ? _spineColor(src) : 'var(--amber)';
-    const srData  = hl.srData;
-    const total   = _reviewQueue.length;
-    const current = _reviewIndex + 1;
-    const pct     = Math.round((current / total) * 100);
-
-    // Interval previews for each rating
-    const againPreview = window.App.Ember.getIntervalPreview(srData, 0);
-    const hardPreview  = window.App.Ember.getIntervalPreview(srData, 3);
-    const goodPreview  = window.App.Ember.getIntervalPreview(srData, 4);
-    const easyPreview  = window.App.Ember.getIntervalPreview(srData, 5);
-
-    const efDisplay  = srData ? srData.easeFactor.toFixed(2) : '2.50';
-    const repsDisplay = srData ? (srData.repetitions || 0) : 0;
-    const revDisplay  = srData ? (srData.totalReviews || 0) : 0;
-
-    wrap.innerHTML = `
-      ${_buildStreakWidget(streak, true)}
-
-      <!-- Progress -->
-      <div class="ember-review-progress-wrap">
-        <div class="ember-review-progress-label">
-          <span class="ember-review-progress-pos">${current} / ${total}</span>
-          <span class="ember-review-progress-pct">${pct}%</span>
-        </div>
-        <div class="ember-review-progress-track">
-          <div class="ember-review-progress-fill" style="width:${pct}%;background:${accent}"></div>
-        </div>
+        <div class="ember-review-goal-note">${highlights.length} highlights for today</div>
       </div>
 
-      <!-- Highlight card -->
-      <div class="ember-review-single-card" style="border-left-color:${accent}">
-        <blockquote class="ember-review-single-text">${_esc(hl.text)}</blockquote>
-        <div class="ember-review-single-meta">
-          ${src ? `<span class="ember-review-single-book" style="color:${accent}">${_esc(src.title)}</span>` : ''}
-          ${src ? `<span class="ember-review-single-author">— ${_esc(src.author)}</span>` : ''}
-          ${hl.page     ? `<span class="ember-review-single-loc">p.${hl.page}</span>` :
-            hl.location ? `<span class="ember-review-single-loc">loc.${hl.location}</span>` : ''}
-        </div>
-        ${_buildCategoryBadge(hl.category)}
-      </div>
-
-      <!-- Rating buttons -->
-      <div class="ember-rating-row">
-        <button class="ember-rating-btn ember-rating-again" data-quality="0">
-          <span class="ember-rating-label">Again</span>
-          <span class="ember-rating-interval">${_esc(againPreview)}</span>
-        </button>
-        <button class="ember-rating-btn ember-rating-hard" data-quality="3">
-          <span class="ember-rating-label">Hard</span>
-          <span class="ember-rating-interval">${_esc(hardPreview)}</span>
-        </button>
-        <button class="ember-rating-btn ember-rating-good" data-quality="4">
-          <span class="ember-rating-label">Good</span>
-          <span class="ember-rating-interval">${_esc(goodPreview)}</span>
-        </button>
-        <button class="ember-rating-btn ember-rating-easy" data-quality="5">
-          <span class="ember-rating-label">Easy</span>
-          <span class="ember-rating-interval">${_esc(easyPreview)}</span>
-        </button>
-      </div>
-
-      <!-- Mini stats -->
-      <div class="ember-review-mini-stats">
-        <div class="ember-mini-stat">
-          <span class="ember-mini-stat-val">${revDisplay}</span>
-          <span class="ember-mini-stat-lbl">total reviews</span>
-        </div>
-        <div class="ember-mini-stat">
-          <span class="ember-mini-stat-val">${repsDisplay}</span>
-          <span class="ember-mini-stat-lbl">streak</span>
-        </div>
-        <div class="ember-mini-stat">
-          <span class="ember-mini-stat-val">${efDisplay}</span>
-          <span class="ember-mini-stat-lbl">ease factor</span>
-        </div>
+      <div class="ember-review-daily-list">
+        ${cards}
       </div>`;
-
-    // Bind rating buttons
-    wrap.querySelectorAll('.ember-rating-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const quality = parseInt(btn.dataset.quality, 10);
-        window.App.Ember.submitReview(hl.id, quality);
-        _reviewIndex++;
-        // Re-fetch updated streak before re-rendering
-        _renderReview();
-      });
-    });
-  }
-
-  /* ── Review: Session complete ─────────────────────────────────── */
-
-  function _renderReviewComplete(wrap, streak) {
-    const reviewed = _reviewQueue.length;
-
-    wrap.innerHTML = `
-      ${_buildStreakWidget(streak)}
-
-      <div class="ember-review-complete">
-        <div class="ember-review-complete-icon">🎉</div>
-        <div class="ember-review-complete-title">Session Complete!</div>
-        <div class="ember-review-complete-sub">
-          You reviewed <strong>${reviewed}</strong> highlight${reviewed !== 1 ? 's' : ''} in this session.
-        </div>
-        <button class="ember-review-start-btn" id="ember-review-again-btn"
-                style="margin-top:20px">
-          Back to Library
-        </button>
-      </div>`;
-
-    el('ember-review-again-btn')?.addEventListener('click', () => {
-      _reviewSessionActive = false;
-      _reviewQueue         = [];
-      _reviewIndex         = 0;
-      _activeTab           = 'library';
-      renderActiveTab();
-    });
   }
 
   /* ── Streak Widget ─────────────────────────────────────────────── */
