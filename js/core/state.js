@@ -65,7 +65,22 @@ window.App.State = (() => {
     },
     ember: {
       sources: [],    // [{ id, title, author, format, importedAt, highlightCount }]
-      highlights: [], // [{ id, sourceId, text, chapter, location, page, color, hash, addedAt }]
+      highlights: [], // [{ id, sourceId, text, chapter, location, page, color, hash, addedAt, category, srData }]
+      settings: {
+        email: '',
+        emailEnabled: false,
+        emailFrequency: 'daily',  // 'daily' | 'weekdays' | 'weekly'
+        emailTime: '08:00',
+        emailJSConfig: { serviceId: '', templateId: '', publicKey: '' },
+        dailyGoal: 10,
+      },
+      streak: {
+        currentStreak: 0,
+        longestStreak: 0,
+        lastReviewDate: null,     // YYYY-MM-DD
+        totalReviewDays: 0,
+        reviewHistory: [],        // [{ date: 'YYYY-MM-DD', count: number }]
+      },
     },
     gist: {
       token: '',
@@ -282,6 +297,41 @@ window.App.State = (() => {
     _save();
   }
 
+  /** Returns ember settings object. Lazy-initialises if missing (backward compat). */
+  function getEmberSettings() {
+    _ensure();
+    if (!_state.ember.settings) {
+      _state.ember.settings = JSON.parse(JSON.stringify(DEFAULT_STATE.ember.settings));
+    }
+    if (!_state.ember.settings.emailJSConfig) {
+      _state.ember.settings.emailJSConfig = { serviceId: '', templateId: '', publicKey: '' };
+    }
+    return _state.ember.settings;
+  }
+
+  /** Persist ember settings. */
+  function setEmberSettings(settings) {
+    _ensure();
+    _state.ember.settings = { ...settings };
+    _save();
+  }
+
+  /** Returns ember streak object. Lazy-initialises if missing (backward compat). */
+  function getEmberStreak() {
+    _ensure();
+    if (!_state.ember.streak) {
+      _state.ember.streak = JSON.parse(JSON.stringify(DEFAULT_STATE.ember.streak));
+    }
+    return _state.ember.streak;
+  }
+
+  /** Persist ember streak data. */
+  function setEmberStreak(streakData) {
+    _ensure();
+    _state.ember.streak = { ...streakData };
+    _save();
+  }
+
   // ─── Gist credential namespace ──────────────────────────────────
 
   function getGistCredentials() {
@@ -353,6 +403,10 @@ window.App.State = (() => {
     // Ember
     getEmberData,
     setEmberData,
+    getEmberSettings,
+    setEmberSettings,
+    getEmberStreak,
+    setEmberStreak,
     // Gist credentials
     getGistCredentials,
     setGistCredentials,

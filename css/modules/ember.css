@@ -1037,6 +1037,833 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   PHASE 2  —  CATEGORY SYSTEM
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Category filter tabs (Library tab) ─────────────────────────── */
+
+.ember-cat-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid var(--b1);
+  padding-bottom: 0;
+}
+
+.ember-cat-tab {
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.ember-cat-tab:hover {
+  color: var(--text);
+  background: var(--surf2);
+}
+
+.ember-cat-tab.active {
+  color: var(--amber, #f59e0b);
+  border-bottom-color: var(--amber, #f59e0b);
+  font-weight: 700;
+}
+
+/* ── Category badge (on highlight cards) ──────────────────────── */
+
+.ember-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.ember-cat-badge-general {
+  background: rgba(59,130,246,0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59,130,246,0.25);
+}
+
+.ember-cat-badge-academic {
+  background: rgba(139,92,246,0.12);
+  color: #8b5cf6;
+  border: 1px solid rgba(139,92,246,0.25);
+}
+
+/* ── Import wizard category selection step ──────────────────────── */
+
+.ember-cat-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.ember-cat-select {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ember-cat-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface, rgba(255,255,255,0.04));
+  border: 2px solid var(--b1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.ember-cat-option:hover {
+  border-color: var(--amber, #f59e0b);
+  background: rgba(245,158,11,0.05);
+}
+
+.ember-cat-option.selected {
+  border-color: var(--amber, #f59e0b);
+  background: rgba(245,158,11,0.08);
+}
+
+.ember-cat-option-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ember-cat-option-body {}
+
+.ember-cat-option-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.ember-cat-option-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Preview category badge */
+.ember-preview-cat-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.ember-preview-cat-badge.general {
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.3);
+  color: #3b82f6;
+}
+
+.ember-preview-cat-badge.academic {
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.3);
+  color: #8b5cf6;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PHASE 2  —  SPACED REPETITION REVIEW MODE
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Update highlight text size (Phase 2: 18px in Library/Books) */
+.ember-hl-text {
+  font-size: 18px !important;
+  line-height: 1.75 !important;
+}
+
+/* ── Streak Widget ──────────────────────────────────────────────── */
+
+@keyframes ember-flicker {
+  0%   { transform: scale(1) rotate(-2deg); }
+  25%  { transform: scale(1.06) rotate(1deg); }
+  50%  { transform: scale(0.97) rotate(-1deg); }
+  75%  { transform: scale(1.04) rotate(2deg); }
+  100% { transform: scale(1) rotate(-2deg); }
+}
+
+@keyframes ember-flicker-intense {
+  0%   { transform: scale(1) rotate(-3deg); }
+  20%  { transform: scale(1.12) rotate(2deg); }
+  40%  { transform: scale(0.94) rotate(-2deg); }
+  60%  { transform: scale(1.1) rotate(3deg); }
+  80%  { transform: scale(0.96) rotate(-1deg); }
+  100% { transform: scale(1) rotate(-3deg); }
+}
+
+.ember-flame {
+  font-size: 48px;
+  line-height: 1;
+  display: inline-block;
+  animation: ember-flicker 2s ease-in-out infinite;
+}
+
+.ember-flame-intense {
+  animation: ember-flicker-intense 0.9s ease-in-out infinite;
+}
+
+.ember-streak-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, rgba(232,106,74,0.2), rgba(209,127,232,0.2));
+  border: 1px solid rgba(232,106,74,0.35);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 20px rgba(232,106,74,0.12);
+}
+
+.ember-streak-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ember-streak-count {
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.ember-streak-day-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ember-streak-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(245,158,11,0.2);
+  border: 1px solid rgba(245,158,11,0.4);
+  color: var(--amber, #f59e0b);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.ember-streak-right {
+  display: flex;
+  gap: 20px;
+}
+
+.ember-streak-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.ember-streak-stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.ember-streak-stat-lbl {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Compact streak (shown during active review session) */
+.ember-streak-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(232,106,74,0.1);
+  border: 1px solid rgba(232,106,74,0.25);
+  border-radius: 20px;
+  margin-bottom: 14px;
+  width: fit-content;
+}
+
+.ember-streak-compact .ember-flame,
+.ember-streak-compact .ember-flame-intense {
+  font-size: 18px;
+}
+
+.ember-streak-compact-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ember-streak-compact-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ember-streak-compact .ember-streak-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+/* ── Review pre-session (start screen) ─────────────────────────── */
+
+.ember-review-start {
+  text-align: center;
+  padding: 10px 0 30px;
+}
+
+.ember-review-start-date {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.ember-review-queue-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ember-review-queue-count {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.ember-review-queue-label {
+  font-size: 16px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.ember-review-start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--amber, #f59e0b);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+  font-family: inherit;
+}
+
+.ember-review-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+  filter: brightness(1.05);
+}
+
+.ember-review-goal-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 16px;
+}
+
+/* All caught up */
+.ember-review-caught-up {
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ember-review-caught-icon { font-size: 40px; }
+
+.ember-review-caught-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ember-review-caught-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ember-review-next-date {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--surface, rgba(255,255,255,0.04));
+  border: 1px solid var(--b1);
+  margin-top: 6px;
+}
+
+/* ── Review progress ────────────────────────────────────────────── */
+
+.ember-review-progress-wrap {
+  margin-bottom: 18px;
+}
+
+.ember-review-progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ember-review-progress-pos {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ember-review-progress-pct {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ember-review-progress-track {
+  height: 6px;
+  background: var(--b1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ember-review-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Single review card ─────────────────────────────────────────── */
+
+.ember-review-single-card {
+  background: var(--surf);
+  border: 1px solid var(--b1);
+  border-left: 5px solid var(--amber, #f59e0b);
+  border-radius: 12px;
+  padding: 24px 24px 20px;
+  margin-bottom: 18px;
+}
+
+.ember-review-single-text {
+  margin: 0 0 16px;
+  font-size: 22px;
+  line-height: 1.75;
+  color: var(--text);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.ember-review-single-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.ember-review-single-book {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ember-review-single-author {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.ember-review-single-loc {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface, rgba(255,255,255,0.05));
+  border: 1px solid var(--b1);
+}
+
+/* ── Rating buttons ─────────────────────────────────────────────── */
+
+.ember-rating-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ember-rating-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  background: var(--surf);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+  font-family: inherit;
+}
+
+.ember-rating-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  filter: brightness(1.1);
+}
+
+.ember-rating-btn:active {
+  transform: translateY(0);
+}
+
+.ember-rating-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ember-rating-interval {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ember-rating-again {
+  border-color: rgba(239,68,68,0.4);
+  background: rgba(239,68,68,0.06);
+}
+
+.ember-rating-again .ember-rating-label { color: #ef4444; }
+
+.ember-rating-hard {
+  border-color: rgba(251,146,60,0.4);
+  background: rgba(251,146,60,0.06);
+}
+
+.ember-rating-hard .ember-rating-label { color: #fb923c; }
+
+.ember-rating-good {
+  border-color: rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.06);
+}
+
+.ember-rating-good .ember-rating-label { color: #22c55e; }
+
+.ember-rating-easy {
+  border-color: rgba(59,130,246,0.4);
+  background: rgba(59,130,246,0.06);
+}
+
+.ember-rating-easy .ember-rating-label { color: #3b82f6; }
+
+/* ── Mini stats (shown below rating buttons) ────────────────────── */
+
+.ember-review-mini-stats {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--b1);
+}
+
+.ember-mini-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ember-mini-stat-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.ember-mini-stat-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Session complete screen ────────────────────────────────────── */
+
+.ember-review-complete {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.ember-review-complete-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.ember-review-complete-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.ember-review-complete-sub {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PHASE 2  —  SETTINGS TAB
+   ════════════════════════════════════════════════════════════════════ */
+
+.ember-settings {
+  max-width: 620px;
+}
+
+.ember-settings-section {
+  background: var(--surf);
+  border: 1px solid var(--b1);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+
+.ember-settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+
+.ember-settings-info {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 10px 14px;
+  background: var(--surface, rgba(255,255,255,0.04));
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.ember-settings-info code {
+  font-family: monospace;
+  background: var(--b1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.ember-settings-row {
+  margin-bottom: 12px;
+}
+
+.ember-settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ember-settings-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 5px;
+}
+
+.ember-settings-hint {
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.ember-settings-inp {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--surface, rgba(255,255,255,0.06));
+  border: 1px solid var(--b1);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.ember-settings-inp:focus {
+  outline: none;
+  border-color: var(--amber, #f59e0b);
+}
+
+.ember-settings-inp-sm {
+  width: 80px;
+}
+
+.ember-settings-sel {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--surface, rgba(255,255,255,0.06));
+  border: 1px solid var(--b1);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ember-settings-sel:focus { outline: none; border-color: var(--amber, #f59e0b); }
+
+/* Toggle switch */
+.ember-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.ember-toggle input { opacity: 0; width: 0; height: 0; }
+
+.ember-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--b2);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ember-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.ember-toggle input:checked + .ember-toggle-slider {
+  background: var(--amber, #f59e0b);
+}
+
+.ember-toggle input:checked + .ember-toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.ember-settings-test-btn {
+  padding: 8px 16px;
+  background: var(--surface, rgba(255,255,255,0.06));
+  border: 1px solid var(--b1);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+  margin-top: 4px;
+}
+
+.ember-settings-test-btn:hover:not(:disabled) {
+  background: var(--surf2);
+  border-color: var(--b2);
+}
+
+.ember-settings-test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ember-settings-test-result {
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+.ember-test-success { color: var(--green, #22c55e); }
+.ember-test-error   { color: var(--red, #ef4444); }
+
+.ember-settings-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.ember-settings-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  background: var(--amber, #f59e0b);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+  font-family: inherit;
+}
+
+.ember-settings-save-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ember-settings-danger-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 8px;
+  color: var(--red, #ef4444);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.ember-settings-danger-btn:hover {
+  background: rgba(239,68,68,0.08);
+  border-color: var(--red, #ef4444);
+}
+
+/* ════════════════════════════════════════════════════════════════════
    LIGHT THEME OVERRIDES
    ════════════════════════════════════════════════════════════════════ */
 
@@ -1079,6 +1906,34 @@
   background: #f3f4f6;
 }
 
+[data-theme="light"] .ember-streak-widget {
+  background: linear-gradient(135deg, rgba(232,106,74,0.1), rgba(209,127,232,0.1));
+  border-color: rgba(232,106,74,0.25);
+}
+
+[data-theme="light"] .ember-review-single-card {
+  background: #fff;
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .ember-cat-option {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .ember-settings-section {
+  background: #fff;
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .ember-settings-inp,
+[data-theme="light"] .ember-settings-sel {
+  background: #fff;
+  border-color: #d1d5db;
+}
+
+[data-theme="light"] .ember-rating-btn { background: #fff; }
+
 /* ════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════════ */
@@ -1119,5 +1974,32 @@
 @media (max-width: 420px) {
   .ember-books-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .ember-cat-select {
+    flex-direction: column;
+  }
+
+  .ember-rating-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ember-review-single-text {
+    font-size: 18px;
+  }
+
+  .ember-streak-widget {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .ember-cat-tabs {
+    flex-wrap: wrap;
+  }
+
+  .ember-settings-actions {
+    flex-direction: column;
   }
 }

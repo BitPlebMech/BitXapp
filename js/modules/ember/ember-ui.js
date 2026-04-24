@@ -5,15 +5,24 @@
  * EMBER / UI  —  All DOM rendering for the Ember module
  * ═══════════════════════════════════════════════════════════════════
  *
- * Three tabs:
+ * Four tabs:
  *   • Books    — master/detail: book grid → click → highlights pane
- *   • Library  — full searchable highlight list with book filter
- *   • Review   — date-seeded daily 10 (same set all day, like Readwise)
+ *   • Library  — full searchable highlight list with category + book filter
+ *   • Review   — SM-2 spaced repetition review mode with streak widget
+ *   • Settings — email automation, EmailJS credentials, review settings
  *
  * Import wizard (3 steps):
- *   Step 1 — Drag-drop / file picker
+ *   Step 1 — Category selection + Drag-drop / file picker
  *   Step 2 — Parse preview (count, samples, duplicate info)
  *   Step 3 — Success confirmation (auto-closes after 2 s)
+ *
+ * Phase 2 additions:
+ *   • Category filter tabs in Library
+ *   • Debounced search (no focus loss)
+ *   • Category badges on highlight cards
+ *   • Streak widget with flame animation
+ *   • SM-2 single-card review mode with rating buttons
+ *   • Settings panel with EmailJS configuration
  *
  * RULES
  *  • No business logic here — only rendering and event binding.
@@ -44,12 +53,20 @@ window.App.EmberUI = (() => {
   ];
 
   /* ── UI state ─────────────────────────────────────────────────── */
-  let _activeTab        = 'books';
-  let _selectedSourceId = null;  // which book is open in the detail pane
-  let _librarySearch    = '';
-  let _libraryFilter    = 'all'; // 'all' or a sourceId
-  let _pendingParsed    = null;  // parser output waiting for confirmation
-  let _gistStatusTimer  = null;
+  let _activeTab              = 'books';
+  let _selectedSourceId       = null;    // which book is open in the detail pane
+  let _librarySearch          = '';
+  let _libraryFilter          = 'all';   // 'all' or a sourceId
+  let _libraryCategoryFilter  = 'all';   // 'all' | 'general' | 'academic'
+  let _pendingParsed          = null;    // parser output waiting for confirmation
+  let _pendingCategory        = null;    // category selected in import wizard
+  let _gistStatusTimer        = null;
+  let _searchDebounceTimer    = null;    // for debounced search
+
+  // Review session state
+  let _reviewQueue            = [];
+  let _reviewIndex            = 0;
+  let _reviewSessionActive    = false;
 
   /* ═══════════════════════════════════════════════════════════════
      INIT
@@ -72,18 +89,21 @@ window.App.EmberUI = (() => {
 
   function renderActiveTab() {
     // Update tab button states
-    ['books', 'library', 'review'].forEach(tab => {
+    ['books', 'library', 'review', 'settings'].forEach(tab => {
       el(`ember-tab-${tab}`)?.classList.toggle('active', tab === _activeTab);
     });
 
     // Show/hide panes
-    el('ember-pane-books').style.display   = _activeTab === 'books'   ? '' : 'none';
-    el('ember-pane-library').style.display = _activeTab === 'library' ? '' : 'none';
-    el('ember-pane-review').style.display  = _activeTab === 'review'  ? '' : 'none';
+    el('ember-pane-books').style.display    = _activeTab === 'books'    ? '' : 'none';
+    el('ember-pane-library').style.display  = _activeTab === 'library'  ? '' : 'none';
+    el('ember-pane-review').style.display   = _activeTab === 'review'   ? '' : 'none';
+    const settingsPane = el('ember-pane-settings');
+    if (settingsPane) settingsPane.style.display = _activeTab === 'settings' ? '' : 'none';
 
-    if (_activeTab === 'books')   _renderBooks();
-    if (_activeTab === 'library') _renderLibrary();
-    if (_activeTab === 'review')  _renderReview();
+    if (_activeTab === 'books')    _renderBooks();
+    if (_activeTab === 'library')  _renderLibrary();
+    if (_activeTab === 'review')   _renderReview();
+    if (_activeTab === 'settings') _renderSettings();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -104,10 +124,16 @@ window.App.EmberUI = (() => {
     el('ember-import-btn')?.addEventListener('click', () => openImportWizard());
     el('ember-gist-save')?.addEventListener('click', () => window.App.Ember.triggerGistSave());
 
-    ['books', 'library', 'review'].forEach(tab => {
+    ['books', 'library', 'review', 'settings'].forEach(tab => {
       el(`ember-tab-${tab}`)?.addEventListener('click', () => {
         _activeTab = tab;
-        if (tab !== 'books') _selectedSourceId = null; // reset detail when leaving
+        if (tab !== 'books') _selectedSourceId = null;
+        // Reset review session when leaving review tab
+        if (tab !== 'review') {
+          _reviewSessionActive = false;
+          _reviewQueue         = [];
+          _reviewIndex         = 0;
+        }
         renderActiveTab();
       });
     });
@@ -157,7 +183,6 @@ window.App.EmberUI = (() => {
     const wrap = el('ember-books-content');
     wrap.innerHTML = `<div class="ember-books-grid">${sources.map(_buildBookCard).join('')}</div>`;
 
-    // Card click → open detail
     wrap.querySelectorAll('.ember-book-card').forEach(card => {
       card.addEventListener('click', e => {
         if (e.target.closest('.ember-book-del')) return;
@@ -166,7 +191,6 @@ window.App.EmberUI = (() => {
       });
     });
 
-    // Delete button
     wrap.querySelectorAll('.ember-book-del').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -174,7 +198,6 @@ window.App.EmberUI = (() => {
         _confirmDeleteSource(sources.find(s => s.id === sid));
       });
     });
-
   }
 
   function _buildBookCard(source) {
@@ -219,7 +242,6 @@ window.App.EmberUI = (() => {
     const highlights = window.App.Ember.getHighlights(sourceId);
     const wrap       = el('ember-books-content');
 
-    // Group by chapter
     const byChapter = {};
     for (const hl of highlights) {
       const ch = hl.chapter || '—';
@@ -229,8 +251,6 @@ window.App.EmberUI = (() => {
 
     wrap.innerHTML = `
       <div class="ember-detail-layout">
-
-        <!-- Left sidebar: book list -->
         <aside class="ember-detail-sidebar">
           <button class="ember-back-btn" id="ember-detail-back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -250,8 +270,6 @@ window.App.EmberUI = (() => {
               </div>`).join('')}
           </div>
         </aside>
-
-        <!-- Right main: highlights -->
         <main class="ember-detail-main">
           <div class="ember-detail-header">
             <div class="ember-detail-book-info">
@@ -260,7 +278,6 @@ window.App.EmberUI = (() => {
             </div>
             <div class="ember-detail-count-pill">${highlights.length} highlight${highlights.length !== 1 ? 's' : ''}</div>
           </div>
-
           <div class="ember-detail-highlights">
             ${Object.entries(byChapter).map(([chapter, hls]) => `
               <div class="ember-chapter-group">
@@ -271,13 +288,11 @@ window.App.EmberUI = (() => {
         </main>
       </div>`;
 
-    // Back button
     el('ember-detail-back')?.addEventListener('click', () => {
       _selectedSourceId = null;
       _renderBooksGrid(sources);
     });
 
-    // Sidebar source switching
     wrap.querySelectorAll('.ember-sidebar-item').forEach(item => {
       item.addEventListener('click', () => {
         _selectedSourceId = item.dataset.sid;
@@ -285,7 +300,6 @@ window.App.EmberUI = (() => {
       });
     });
 
-    // Delete highlight buttons
     _bindHighlightDelete(wrap);
   }
 
@@ -294,9 +308,9 @@ window.App.EmberUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function _renderLibrary() {
-    const sources      = window.App.Ember.getSources();
+    const sources       = window.App.Ember.getSources();
     const allHighlights = window.App.Ember.getHighlights();
-    const wrap         = el('ember-library-content');
+    const wrap          = el('ember-library-content');
     if (!wrap) return;
 
     if (allHighlights.length === 0) {
@@ -311,20 +325,17 @@ window.App.EmberUI = (() => {
       return;
     }
 
-    // Apply filters
-    let filtered = allHighlights;
-    if (_libraryFilter !== 'all') {
-      filtered = filtered.filter(h => h.sourceId === _libraryFilter);
-    }
-    if (_librarySearch.trim()) {
-      const q = _librarySearch.toLowerCase();
-      filtered = filtered.filter(h =>
-        h.text.toLowerCase().includes(q) ||
-        (h.chapter || '').toLowerCase().includes(q),
-      );
-    }
-
+    // Render the full controls + category tabs on first render only
+    // (search updates will only update the list, preserving input focus)
     wrap.innerHTML = `
+      <!-- Category filter tabs -->
+      <div class="ember-cat-tabs" id="ember-cat-tabs">
+        <button class="ember-cat-tab ${_libraryCategoryFilter === 'all' ? 'active' : ''}" data-cat="all">All Books</button>
+        <button class="ember-cat-tab ${_libraryCategoryFilter === 'general' ? 'active' : ''}" data-cat="general">📚 General Reading</button>
+        <button class="ember-cat-tab ${_libraryCategoryFilter === 'academic' ? 'active' : ''}" data-cat="academic">🎓 Academic</button>
+      </div>
+
+      <!-- Search + book filter row -->
       <div class="ember-library-controls">
         <div class="ember-search-wrap">
           <svg class="ember-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -340,49 +351,99 @@ window.App.EmberUI = (() => {
             `<option value="${s.id}" ${_libraryFilter === s.id ? 'selected' : ''}>${_esc(s.title)}</option>`
           ).join('')}
         </select>
-        <span class="ember-result-count">${filtered.length} highlight${filtered.length !== 1 ? 's' : ''}</span>
+        <span class="ember-result-count" id="ember-result-count"></span>
       </div>
 
-      <div class="ember-library-list" id="ember-lib-list">
-        ${filtered.length === 0
-          ? `<div class="ember-no-results">No highlights match your search</div>`
-          : filtered.map(hl => {
-              const src = sources.find(s => s.id === hl.sourceId);
-              return _buildHighlightCard(hl, src);
-            }).join('')
-        }
-      </div>`;
+      <div class="ember-library-list" id="ember-lib-list"></div>`;
 
-    // Bind search input
-    el('ember-lib-search')?.addEventListener('input', e => {
-      _librarySearch = e.target.value;
-      _renderLibrary();
+    // Render the highlights list (reused by debounced search too)
+    _updateLibraryList(sources, allHighlights);
+
+    // Bind category tabs
+    wrap.querySelectorAll('.ember-cat-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _libraryCategoryFilter = btn.dataset.cat;
+        wrap.querySelectorAll('.ember-cat-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === _libraryCategoryFilter));
+        _updateLibraryList(sources, allHighlights);
+      });
     });
 
-    // Bind filter select
+    // Bind search with debounce (preserves focus)
+    const searchInput = el('ember-lib-search');
+    searchInput?.addEventListener('input', e => {
+      _librarySearch = e.target.value;
+      clearTimeout(_searchDebounceTimer);
+      _searchDebounceTimer = setTimeout(() => {
+        _updateLibraryList(sources, allHighlights);
+      }, 300);
+    });
+
+    // Bind book filter select
     el('ember-lib-filter')?.addEventListener('change', e => {
       _libraryFilter = e.target.value;
-      _renderLibrary();
+      _updateLibraryList(sources, allHighlights);
     });
 
     _bindHighlightDelete(wrap);
   }
 
+  /**
+   * Update only the highlights list and count (without re-rendering controls).
+   * Called on search/filter change to preserve input focus.
+   */
+  function _updateLibraryList(sources, allHighlights) {
+    let filtered = allHighlights;
+
+    // Apply category filter
+    if (_libraryCategoryFilter !== 'all') {
+      filtered = filtered.filter(h => (h.category || 'general') === _libraryCategoryFilter);
+    }
+
+    // Apply book filter
+    if (_libraryFilter !== 'all') {
+      filtered = filtered.filter(h => h.sourceId === _libraryFilter);
+    }
+
+    // Apply search
+    const q = _librarySearch.trim().toLowerCase();
+    if (q) {
+      filtered = filtered.filter(h =>
+        h.text.toLowerCase().includes(q) ||
+        (h.chapter || '').toLowerCase().includes(q),
+      );
+    }
+
+    const listEl  = el('ember-lib-list');
+    const countEl = el('ember-result-count');
+    if (countEl) {
+      countEl.textContent = `${filtered.length} highlight${filtered.length !== 1 ? 's' : ''}`;
+    }
+    if (!listEl) return;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `<div class="ember-no-results">No highlights match your search</div>`;
+    } else {
+      listEl.innerHTML = filtered.map(hl => {
+        const src = sources.find(s => s.id === hl.sourceId);
+        return _buildHighlightCard(hl, src);
+      }).join('');
+    }
+
+    _bindHighlightDelete(listEl);
+  }
+
   /* ═══════════════════════════════════════════════════════════════
-     REVIEW TAB
+     REVIEW TAB  —  SM-2 Spaced Repetition Mode  (Phase 2)
      ═══════════════════════════════════════════════════════════════ */
 
   function _renderReview() {
-    const wrap   = el('ember-review-content');
+    const wrap = el('ember-review-content');
     if (!wrap) return;
 
-    const hls    = window.App.Ember.getDailyReview();
-    const sources = window.App.Ember.getSources();
-    const today  = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    });
+    const streak = window.App.Ember.getStreak();
+    const allHighlights = window.App.Ember.getHighlights();
 
-    if (hls.length === 0) {
+    if (allHighlights.length === 0) {
       wrap.innerHTML = _emptyState(
         '🔥',
         'Nothing to review yet',
@@ -391,34 +452,455 @@ window.App.EmberUI = (() => {
       return;
     }
 
+    if (!_reviewSessionActive) {
+      // Pre-session: show streak + queue info + start button
+      const queue = window.App.Ember.getReviewQueue();
+      _renderReviewStart(wrap, streak, queue);
+    } else if (_reviewIndex >= _reviewQueue.length) {
+      // Session complete
+      _renderReviewComplete(wrap, streak);
+    } else {
+      // Active session — show current card
+      _renderReviewCard(wrap, streak);
+    }
+  }
+
+  /* ── Review: Pre-session (start screen) ────────────────────── */
+
+  function _renderReviewStart(wrap, streak, queue) {
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    // Calculate next review date if queue is empty
+    let nextReviewMsg = '';
+    if (queue.length === 0) {
+      const allHls = window.App.Ember.getHighlights();
+      const withDates = allHls
+        .filter(h => h.srData && h.srData.nextReview)
+        .map(h => h.srData.nextReview)
+        .sort();
+      if (withDates.length > 0) {
+        const next = new Date(withDates[0]);
+        nextReviewMsg = `Next review: ${next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+      }
+    }
+
+    const settings = window.App.State.getEmberSettings();
+    const goal     = settings.dailyGoal || 10;
+
     wrap.innerHTML = `
-      <div class="ember-review-header">
-        <div class="ember-review-flame">🔥</div>
-        <div>
-          <div class="ember-review-date">${today}</div>
-          <div class="ember-review-subtitle">Your ${hls.length} highlights for today</div>
+      ${_buildStreakWidget(streak)}
+
+      <div class="ember-review-start">
+        <div class="ember-review-start-date">${_esc(today)}</div>
+
+        ${queue.length === 0 ? `
+          <div class="ember-review-caught-up">
+            <div class="ember-review-caught-icon">✅</div>
+            <div class="ember-review-caught-title">All caught up!</div>
+            <div class="ember-review-caught-sub">You have no highlights due for review today.</div>
+            ${nextReviewMsg ? `<div class="ember-review-next-date">${_esc(nextReviewMsg)}</div>` : ''}
+          </div>
+        ` : `
+          <div class="ember-review-queue-info">
+            <div class="ember-review-queue-count">${queue.length}</div>
+            <div class="ember-review-queue-label">highlight${queue.length !== 1 ? 's' : ''} to review</div>
+          </div>
+          <button class="ember-review-start-btn" id="ember-review-start-btn">
+            Start Review Session
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        `}
+
+        <div class="ember-review-goal-note">Daily goal: ${goal} cards · ${streak.totalReviewDays || 0} total review days</div>
+      </div>`;
+
+    el('ember-review-start-btn')?.addEventListener('click', () => {
+      _reviewQueue         = window.App.Ember.getReviewQueue();
+      _reviewIndex         = 0;
+      _reviewSessionActive = true;
+      _renderReview();
+    });
+  }
+
+  /* ── Review: Active session card ─────────────────────────────── */
+
+  function _renderReviewCard(wrap, streak) {
+    const hl      = _reviewQueue[_reviewIndex];
+    const sources = window.App.Ember.getSources();
+    const src     = sources.find(s => s.id === hl.sourceId);
+    const accent  = src ? _spineColor(src) : 'var(--amber)';
+    const srData  = hl.srData;
+    const total   = _reviewQueue.length;
+    const current = _reviewIndex + 1;
+    const pct     = Math.round((current / total) * 100);
+
+    // Interval previews for each rating
+    const againPreview = window.App.Ember.getIntervalPreview(srData, 0);
+    const hardPreview  = window.App.Ember.getIntervalPreview(srData, 3);
+    const goodPreview  = window.App.Ember.getIntervalPreview(srData, 4);
+    const easyPreview  = window.App.Ember.getIntervalPreview(srData, 5);
+
+    const efDisplay  = srData ? srData.easeFactor.toFixed(2) : '2.50';
+    const repsDisplay = srData ? (srData.repetitions || 0) : 0;
+    const revDisplay  = srData ? (srData.totalReviews || 0) : 0;
+
+    wrap.innerHTML = `
+      ${_buildStreakWidget(streak, true)}
+
+      <!-- Progress -->
+      <div class="ember-review-progress-wrap">
+        <div class="ember-review-progress-label">
+          <span class="ember-review-progress-pos">${current} / ${total}</span>
+          <span class="ember-review-progress-pct">${pct}%</span>
+        </div>
+        <div class="ember-review-progress-track">
+          <div class="ember-review-progress-fill" style="width:${pct}%;background:${accent}"></div>
         </div>
       </div>
-      <div class="ember-review-list">
-        ${hls.map((hl, i) => {
-          const src = sources.find(s => s.id === hl.sourceId);
-          const bookColor = src ? _spineColor(src) : 'var(--amber)';
-          return `
-            <div class="ember-review-card" style="--book-color:${bookColor}">
-              <div class="ember-review-num" style="background:${bookColor}">${i + 1}</div>
-              <div class="ember-review-body">
-                <blockquote class="ember-review-text">${_esc(hl.text)}</blockquote>
-                <div class="ember-review-meta">
-                  ${src ? `<span class="ember-review-book">${_esc(src.title)}</span>` : ''}
-                  ${hl.chapter ? `<span class="ember-review-chapter">· ${_esc(hl.chapter)}</span>` : ''}
-                  ${hl.page     ? `<span class="ember-review-loc">p.${hl.page}</span>`     :
-                    hl.location ? `<span class="ember-review-loc">loc.${hl.location}</span>` : ''}
-                </div>
-              </div>
-              <div class="ember-color-pip" style="background:${bookColor}"></div>
-            </div>`;
-        }).join('')}
+
+      <!-- Highlight card -->
+      <div class="ember-review-single-card" style="border-left-color:${accent}">
+        <blockquote class="ember-review-single-text">${_esc(hl.text)}</blockquote>
+        <div class="ember-review-single-meta">
+          ${src ? `<span class="ember-review-single-book" style="color:${accent}">${_esc(src.title)}</span>` : ''}
+          ${src ? `<span class="ember-review-single-author">— ${_esc(src.author)}</span>` : ''}
+          ${hl.page     ? `<span class="ember-review-single-loc">p.${hl.page}</span>` :
+            hl.location ? `<span class="ember-review-single-loc">loc.${hl.location}</span>` : ''}
+        </div>
+        ${_buildCategoryBadge(hl.category)}
+      </div>
+
+      <!-- Rating buttons -->
+      <div class="ember-rating-row">
+        <button class="ember-rating-btn ember-rating-again" data-quality="0">
+          <span class="ember-rating-label">Again</span>
+          <span class="ember-rating-interval">${_esc(againPreview)}</span>
+        </button>
+        <button class="ember-rating-btn ember-rating-hard" data-quality="3">
+          <span class="ember-rating-label">Hard</span>
+          <span class="ember-rating-interval">${_esc(hardPreview)}</span>
+        </button>
+        <button class="ember-rating-btn ember-rating-good" data-quality="4">
+          <span class="ember-rating-label">Good</span>
+          <span class="ember-rating-interval">${_esc(goodPreview)}</span>
+        </button>
+        <button class="ember-rating-btn ember-rating-easy" data-quality="5">
+          <span class="ember-rating-label">Easy</span>
+          <span class="ember-rating-interval">${_esc(easyPreview)}</span>
+        </button>
+      </div>
+
+      <!-- Mini stats -->
+      <div class="ember-review-mini-stats">
+        <div class="ember-mini-stat">
+          <span class="ember-mini-stat-val">${revDisplay}</span>
+          <span class="ember-mini-stat-lbl">total reviews</span>
+        </div>
+        <div class="ember-mini-stat">
+          <span class="ember-mini-stat-val">${repsDisplay}</span>
+          <span class="ember-mini-stat-lbl">streak</span>
+        </div>
+        <div class="ember-mini-stat">
+          <span class="ember-mini-stat-val">${efDisplay}</span>
+          <span class="ember-mini-stat-lbl">ease factor</span>
+        </div>
       </div>`;
+
+    // Bind rating buttons
+    wrap.querySelectorAll('.ember-rating-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const quality = parseInt(btn.dataset.quality, 10);
+        window.App.Ember.submitReview(hl.id, quality);
+        _reviewIndex++;
+        // Re-fetch updated streak before re-rendering
+        _renderReview();
+      });
+    });
+  }
+
+  /* ── Review: Session complete ─────────────────────────────────── */
+
+  function _renderReviewComplete(wrap, streak) {
+    const reviewed = _reviewQueue.length;
+
+    wrap.innerHTML = `
+      ${_buildStreakWidget(streak)}
+
+      <div class="ember-review-complete">
+        <div class="ember-review-complete-icon">🎉</div>
+        <div class="ember-review-complete-title">Session Complete!</div>
+        <div class="ember-review-complete-sub">
+          You reviewed <strong>${reviewed}</strong> highlight${reviewed !== 1 ? 's' : ''} in this session.
+        </div>
+        <button class="ember-review-start-btn" id="ember-review-again-btn"
+                style="margin-top:20px">
+          Back to Library
+        </button>
+      </div>`;
+
+    el('ember-review-again-btn')?.addEventListener('click', () => {
+      _reviewSessionActive = false;
+      _reviewQueue         = [];
+      _reviewIndex         = 0;
+      _activeTab           = 'library';
+      renderActiveTab();
+    });
+  }
+
+  /* ── Streak Widget ─────────────────────────────────────────────── */
+
+  /**
+   * Build the streak widget HTML.
+   * @param {object} streak  — streak data from App.Ember.getStreak()
+   * @param {boolean} compact — smaller version when in active review session
+   */
+  function _buildStreakWidget(streak, compact = false) {
+    const current = streak.currentStreak || 0;
+    const longest = streak.longestStreak || 0;
+    const days    = streak.totalReviewDays || 0;
+
+    const intense = current >= 7;
+    const flameClass = `ember-flame${intense ? ' ember-flame-intense' : ''}`;
+
+    // Milestone badge
+    let badge = '';
+    if (current >= 100) badge = '<div class="ember-streak-badge">👑 Legend!</div>';
+    else if (current >= 30) badge = '<div class="ember-streak-badge">⭐ Streak Master!</div>';
+    else if (current >= 7)  badge = '<div class="ember-streak-badge">🔥 You\'re on fire!</div>';
+
+    if (compact) {
+      return `
+        <div class="ember-streak-compact">
+          <span class="${flameClass}">🔥</span>
+          <span class="ember-streak-compact-count">${current}</span>
+          <span class="ember-streak-compact-label">day streak</span>
+          ${badge}
+        </div>`;
+    }
+
+    return `
+      <div class="ember-streak-widget">
+        <div class="ember-streak-left">
+          <div class="${flameClass}">🔥</div>
+          <div class="ember-streak-count">${current}</div>
+          <div class="ember-streak-day-label">day streak</div>
+          ${badge}
+        </div>
+        <div class="ember-streak-right">
+          <div class="ember-streak-stat">
+            <span class="ember-streak-stat-val">${longest}</span>
+            <span class="ember-streak-stat-lbl">longest</span>
+          </div>
+          <div class="ember-streak-stat">
+            <span class="ember-streak-stat-val">${days}</span>
+            <span class="ember-streak-stat-lbl">total days</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SETTINGS TAB  (Phase 2)
+     ═══════════════════════════════════════════════════════════════ */
+
+  function _renderSettings() {
+    const wrap = el('ember-settings-content');
+    if (!wrap) return;
+
+    const s = window.App.Ember.getSettings();
+    const cfg = s.emailJSConfig || {};
+
+    wrap.innerHTML = `
+      <div class="ember-settings">
+
+        <!-- Email Configuration -->
+        <div class="ember-settings-section">
+          <div class="ember-settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            Email Automation
+          </div>
+          <div class="ember-settings-info">
+            Receive a daily digest of 10 General Reading highlights in your inbox.
+            Academic highlights are excluded from email.
+          </div>
+
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Email Address</label>
+            <input type="email" class="ember-settings-inp" id="es-email"
+                   value="${_esc(s.email || '')}" placeholder="you@example.com">
+          </div>
+
+          <div class="ember-settings-row ember-settings-toggle-row">
+            <label class="ember-settings-label">Enable Email Automation</label>
+            <label class="ember-toggle">
+              <input type="checkbox" id="es-email-enabled" ${s.emailEnabled ? 'checked' : ''}>
+              <span class="ember-toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Frequency</label>
+            <select class="ember-settings-sel" id="es-frequency">
+              <option value="daily"    ${s.emailFrequency === 'daily'    ? 'selected' : ''}>Daily</option>
+              <option value="weekdays" ${s.emailFrequency === 'weekdays' ? 'selected' : ''}>Weekdays (Mon–Fri)</option>
+              <option value="weekly"   ${s.emailFrequency === 'weekly'   ? 'selected' : ''}>Weekly (Mondays)</option>
+            </select>
+          </div>
+
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Delivery Time <span class="ember-settings-hint">(approximate — requires app to be open)</span></label>
+            <input type="time" class="ember-settings-inp" id="es-time"
+                   value="${_esc(s.emailTime || '08:00')}">
+          </div>
+
+          <button class="ember-settings-test-btn" id="es-test-btn">
+            Send Test Email
+          </button>
+          <div class="ember-settings-test-result" id="es-test-result"></div>
+        </div>
+
+        <!-- EmailJS Credentials -->
+        <div class="ember-settings-section">
+          <div class="ember-settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            EmailJS Credentials
+          </div>
+          <div class="ember-settings-info">
+            Create a free account at <strong>emailjs.com</strong> (200 emails/month free).
+            Set up an email template with variables: <code>{{to_email}}</code>,
+            <code>{{subject}}</code>, and <code>{{email_content}}</code> (mark as HTML).
+          </div>
+
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Service ID</label>
+            <input type="text" class="ember-settings-inp" id="es-service-id"
+                   value="${_esc(cfg.serviceId || '')}" placeholder="service_xxxxxxx" autocomplete="off">
+          </div>
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Template ID</label>
+            <input type="text" class="ember-settings-inp" id="es-template-id"
+                   value="${_esc(cfg.templateId || '')}" placeholder="template_xxxxxxx" autocomplete="off">
+          </div>
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Public Key</label>
+            <input type="text" class="ember-settings-inp" id="es-public-key"
+                   value="${_esc(cfg.publicKey || '')}" placeholder="xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Review Settings -->
+        <div class="ember-settings-section">
+          <div class="ember-settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            Review Settings
+          </div>
+
+          <div class="ember-settings-row">
+            <label class="ember-settings-label">Daily Review Goal <span class="ember-settings-hint">(5–50 highlights)</span></label>
+            <input type="number" class="ember-settings-inp ember-settings-inp-sm" id="es-daily-goal"
+                   value="${s.dailyGoal || 10}" min="5" max="50">
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="ember-settings-actions">
+          <button class="ember-settings-save-btn" id="es-save-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+            </svg>
+            Save Settings
+          </button>
+
+          <button class="ember-settings-danger-btn" id="es-reset-streak-btn">
+            Reset Review Streak
+          </button>
+        </div>
+
+      </div>`;
+
+    // Bind save
+    el('es-save-btn')?.addEventListener('click', () => _saveSettings());
+
+    // Bind reset streak
+    el('es-reset-streak-btn')?.addEventListener('click', () => {
+      if (confirm('Reset your current review streak to 0?\n\nThis cannot be undone.')) {
+        window.App.Ember.resetStreak();
+        if (_activeTab === 'settings') _renderSettings();
+      }
+    });
+
+    // Bind test email
+    el('es-test-btn')?.addEventListener('click', async () => {
+      const btn    = el('es-test-btn');
+      const result = el('es-test-result');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      if (result) { result.textContent = ''; result.className = 'ember-settings-test-result'; }
+
+      try {
+        // Save current settings first
+        _saveSettings(false);
+        await window.App.Ember.sendDailyEmail(true);
+        if (result) {
+          result.textContent = '✓ Test email sent successfully! Check your inbox.';
+          result.classList.add('ember-test-success');
+        }
+      } catch (e) {
+        if (result) {
+          // EmailJS rejects with { status, text } — not a standard Error object
+          const msg = e.message || e.text || (typeof e === 'string' ? e : JSON.stringify(e));
+          result.textContent = '✗ ' + (msg || 'Unknown error — check browser console for details');
+          result.classList.add('ember-test-error');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Test Email';
+      }
+    });
+  }
+
+  function _saveSettings(showToast = true) {
+    const email     = el('es-email')?.value.trim()  || '';
+    const enabled   = el('es-email-enabled')?.checked || false;
+    const frequency = el('es-frequency')?.value || 'daily';
+    const time      = el('es-time')?.value || '08:00';
+    const serviceId = el('es-service-id')?.value.trim() || '';
+    const templateId = el('es-template-id')?.value.trim() || '';
+    const publicKey = el('es-public-key')?.value.trim() || '';
+    const dailyGoal = parseInt(el('es-daily-goal')?.value || '10', 10);
+
+    const settings = {
+      email,
+      emailEnabled: enabled,
+      emailFrequency: frequency,
+      emailTime: time,
+      emailJSConfig: { serviceId, templateId, publicKey },
+      dailyGoal: Math.max(5, Math.min(50, dailyGoal || 10)),
+    };
+
+    if (showToast) {
+      window.App.Ember.saveSettings(settings);
+    } else {
+      window.App.State.setEmberSettings(settings);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -426,16 +908,12 @@ window.App.EmberUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   /**
-   * Renders a single highlight card.
+   * Build a single highlight card with category badge.
    * @param {object} hl      — highlight object
-   * @param {object} [source] — source object; when provided shows book title and
-   *                            uses the book's unique spine colour for the accent strip.
+   * @param {object} [source] — source object
    */
   function _buildHighlightCard(hl, source = null) {
-    // Always use the book's spine colour when we have it; fall back to hl.color hex
-    const accentColor = source
-      ? _spineColor(source)
-      : _hlColorHex(hl.color);
+    const accentColor = source ? _spineColor(source) : _hlColorHex(hl.color);
 
     const chapterLine = hl.chapter && !source
       ? `<div class="ember-hl-chapter">${_esc(hl.chapter)}</div>`
@@ -454,7 +932,10 @@ window.App.EmberUI = (() => {
         <div class="ember-hl-body">
           ${chapterLine}${sourceTag}
           <div class="ember-hl-text">${_esc(hl.text)}</div>
-          ${metaItems ? `<div class="ember-hl-foot">${metaItems}</div>` : ''}
+          <div class="ember-hl-foot">
+            ${metaItems}
+            ${_buildCategoryBadge(hl.category)}
+          </div>
         </div>
         <button class="ember-hl-del" data-hl-id="${hl.id}" title="Delete highlight">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -465,7 +946,16 @@ window.App.EmberUI = (() => {
       </div>`;
   }
 
-  /** Hex fallback for when no source object is available (edge case). */
+  /** Build a small category badge span. */
+  function _buildCategoryBadge(category) {
+    if (!category) return '';
+    const isAcademic = category === 'academic';
+    const cls  = isAcademic ? 'ember-cat-badge-academic' : 'ember-cat-badge-general';
+    const icon = isAcademic ? '🎓' : '📚';
+    const label = isAcademic ? 'academic' : 'general';
+    return `<span class="ember-cat-badge ${cls}">${icon} ${label}</span>`;
+  }
+
   function _hlColorHex(color) {
     const map = { yellow: '#f59e0b', blue: '#60a5fa', orange: '#fb923c', pink: '#f472b6' };
     return map[color] || 'var(--b2)';
@@ -476,7 +966,7 @@ window.App.EmberUI = (() => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         window.App.Ember.deleteHighlight(btn.dataset.hlId);
-        render(); // re-render stats + tab
+        render();
       });
     });
   }
@@ -486,26 +976,33 @@ window.App.EmberUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function openImportWizard() {
-    _pendingParsed = null;
-    // Reset file input so same file can be re-selected
+    _pendingParsed   = null;
+    _pendingCategory = null;
+
     const fi = el('ember-file-input');
     if (fi) fi.value = '';
-    // Reset dropzone
+
     const dropzone = el('ember-dropzone');
     if (dropzone) {
       dropzone.classList.remove('has-file', 'dragover');
       const nameEl = el('ember-dropzone-name');
       if (nameEl) nameEl.textContent = '';
     }
+
+    // Reset category selection UI
+    document.querySelectorAll('.ember-cat-option').forEach(opt => opt.classList.remove('selected'));
+
     const errEl = el('ember-parse-error');
     if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+
     _showStep(1);
     el('ember-import-ov').classList.add('active');
   }
 
   function _closeImportWizard() {
     el('ember-import-ov').classList.remove('active');
-    _pendingParsed = null;
+    _pendingParsed   = null;
+    _pendingCategory = null;
   }
 
   function _showStep(step) {
@@ -516,7 +1013,6 @@ window.App.EmberUI = (() => {
       if (pane) pane.style.display = i === step ? '' : 'none';
     });
 
-    // Footer button visibility per step
     const cancelBtn  = el('ember-import-cancel');
     const backBtn    = el('ember-import-back');
     const confirmBtn = el('ember-import-confirm');
@@ -529,17 +1025,30 @@ window.App.EmberUI = (() => {
   function _bindImportWizard() {
     el('ember-import-close')?.addEventListener('click', _closeImportWizard);
 
-    // Click overlay backdrop to close
     el('ember-import-ov')?.addEventListener('click', e => {
       if (e.target === el('ember-import-ov')) _closeImportWizard();
     });
 
+    // Category option clicks
+    document.querySelectorAll('.ember-cat-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('.ember-cat-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        _pendingCategory = opt.dataset.cat;
+
+        // Clear any "select category" error
+        const errEl = el('ember-parse-error');
+        if (errEl && errEl.textContent.includes('category')) {
+          errEl.style.display = 'none';
+        }
+      });
+    });
+
     // Drag-drop zone
-    const dropzone = el('ember-dropzone');
+    const dropzone  = el('ember-dropzone');
     const fileInput = el('ember-file-input');
 
     dropzone?.addEventListener('click', () => fileInput?.click());
-
     dropzone?.addEventListener('dragover', e => {
       e.preventDefault();
       dropzone.classList.add('dragover');
@@ -566,7 +1075,15 @@ window.App.EmberUI = (() => {
     const errEl = el('ember-parse-error');
     if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
 
-    // Update drop zone to show file name
+    // Require category selection before proceeding
+    if (!_pendingCategory) {
+      if (errEl) {
+        errEl.textContent = 'Please select a category (General Reading or Academic Reading) before uploading.';
+        errEl.style.display = '';
+      }
+      return;
+    }
+
     const dropzone = el('ember-dropzone');
     if (dropzone) {
       const nameEl = el('ember-dropzone-name') || dropzone.querySelector('.ember-dropzone-name');
@@ -603,12 +1120,12 @@ window.App.EmberUI = (() => {
     if (!previewEl) return;
 
     const existingHashes = new Set(window.App.Ember.getHighlights().map(h => h.hash));
-    const totalFound = parsed.reduce((n, p) => n + p.highlights.length, 0);
-    const newCount   = parsed.reduce((n, p) => n + p.highlights.filter(h => !existingHashes.has(h.hash)).length, 0);
-    const skipCount  = totalFound - newCount;
+    const totalFound  = parsed.reduce((n, p) => n + p.highlights.length, 0);
+    const newCount    = parsed.reduce((n, p) => n + p.highlights.filter(h => !existingHashes.has(h.hash)).length, 0);
+    const skipCount   = totalFound - newCount;
 
-    // Sample highlights (up to 3 from first source)
     const samples = parsed[0]?.highlights.slice(0, 3) || [];
+    const catLabel = _pendingCategory === 'academic' ? '🎓 Academic Reading' : '📚 General Reading';
 
     previewEl.innerHTML = `
       <div class="ember-preview-books">
@@ -624,6 +1141,7 @@ window.App.EmberUI = (() => {
       <div class="ember-preview-summary">
         <span class="ember-preview-new-badge">${newCount} new</span>
         ${skipCount > 0 ? `<span class="ember-preview-skip-badge">${skipCount} duplicates (will skip)</span>` : ''}
+        <span class="ember-preview-cat-badge ${_pendingCategory === 'academic' ? 'academic' : 'general'}">${catLabel}</span>
       </div>
 
       ${samples.length > 0 ? `
@@ -634,7 +1152,6 @@ window.App.EmberUI = (() => {
           `).join('')}
         </div>` : ''}`;
 
-    // Update confirm button
     const confirmBtn = el('ember-import-confirm');
     if (confirmBtn) {
       confirmBtn.disabled = newCount === 0;
@@ -647,8 +1164,9 @@ window.App.EmberUI = (() => {
   function _confirmImport() {
     if (!_pendingParsed) return;
 
-    const result = window.App.Ember.importParsed(_pendingParsed);
-    _pendingParsed = null;
+    const result = window.App.Ember.importParsed(_pendingParsed, _pendingCategory || 'general');
+    _pendingParsed   = null;
+    _pendingCategory = null;
     _showStep(3);
 
     const resultEl = el('ember-import-result');
@@ -664,7 +1182,6 @@ window.App.EmberUI = (() => {
         </div>`;
     }
 
-    // Auto-close and refresh UI
     setTimeout(() => {
       _closeImportWizard();
       render();
@@ -678,7 +1195,6 @@ window.App.EmberUI = (() => {
   function _confirmDeleteSource(source) {
     if (!source) return;
     const n = source.highlightCount;
-    // Use browser confirm (same pattern as Portfolio module for now)
     if (confirm(`Delete "${source.title}" and all ${n} highlight${n !== 1 ? 's' : ''}?\n\nThis cannot be undone.`)) {
       _selectedSourceId = null;
       window.App.Ember.deleteSource(source.id);
@@ -689,7 +1205,6 @@ window.App.EmberUI = (() => {
      SHARED HELPERS
      ═══════════════════════════════════════════════════════════════ */
 
-  /** Escape HTML entities to prevent XSS via injected highlight text. */
   function _esc(str) {
     if (str == null) return '';
     return String(str)
@@ -699,15 +1214,8 @@ window.App.EmberUI = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  /**
-   * Spine colour for a book card.
-   * Uses the colour assigned at import time (source.color).
-   * Falls back to a deterministic title-hash pick for legacy sources
-   * that were imported before the colour-assignment feature existed.
-   */
   function _spineColor(source) {
     if (source.color) return source.color;
-    // Legacy fallback — title-hash
     let h = 0;
     const t = source.title || '';
     for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;

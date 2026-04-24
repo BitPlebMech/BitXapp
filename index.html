@@ -400,7 +400,23 @@
                  stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
             </svg>
-            Daily Review
+            Review
+          </button>
+          <button class="tab-btn" id="ember-tab-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                       a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                       A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                       l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                       A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                       l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                       a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                       l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                       a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            Settings
           </button>
         </nav>
 
@@ -413,6 +429,9 @@
         </div>
         <div id="ember-pane-review"  style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
           <div id="ember-review-content"></div>
+        </div>
+        <div id="ember-pane-settings" style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-settings-content"></div>
         </div>
 
       </div><!-- #mod-ember -->
@@ -881,6 +900,26 @@
 
     <!-- Step 1: Upload -->
     <div class="ember-import-body" id="ember-istep-content-1">
+
+      <!-- Category selection (required before upload) -->
+      <div class="ember-cat-step-label">Choose a category for this book:</div>
+      <div class="ember-cat-select" id="ember-cat-select">
+        <div class="ember-cat-option" data-cat="general" id="ember-cat-general">
+          <div class="ember-cat-option-icon">📚</div>
+          <div class="ember-cat-option-body">
+            <div class="ember-cat-option-name">General Reading</div>
+            <div class="ember-cat-option-desc">Fiction, self-help, business, biographies</div>
+          </div>
+        </div>
+        <div class="ember-cat-option" data-cat="academic" id="ember-cat-academic">
+          <div class="ember-cat-option-icon">🎓</div>
+          <div class="ember-cat-option-body">
+            <div class="ember-cat-option-name">Academic Reading</div>
+            <div class="ember-cat-option-desc">Textbooks, research papers, technical docs</div>
+          </div>
+        </div>
+      </div>
+
       <div class="ember-dropzone" id="ember-dropzone">
         <div class="ember-dropzone-icon">📄</div>
         <div class="ember-dropzone-label">Drop your Kindle file here</div>
@@ -890,8 +929,7 @@
       <input type="file" id="ember-file-input" accept=".txt,.html,.htm" style="display:none">
       <div class="ember-format-note">
         <strong>Kindle TXT</strong> — <code>My Clippings.txt</code> from your device<br>
-        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website<br>
-        <span style="opacity:.6">PDF annotations coming in Phase 2</span>
+        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website
       </div>
       <div class="ember-parse-error" id="ember-parse-error" style="display:none"></div>
     </div>
@@ -963,6 +1001,9 @@
        3. Portfolio data  → portfolio business logic  → portfolio UI
        4. App entry point: App.Shell.init() triggers everything
      ════════════════════════════════════════════════════════════════════ -->
+
+<!-- EmailJS SDK — required for Ember email automation -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
 <!-- Core layer -->
 <script src="js/core/state.js"></script>

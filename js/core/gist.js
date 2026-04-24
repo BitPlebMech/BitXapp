@@ -27,7 +27,8 @@ window.App = window.App || {};
 
 window.App.Gist = (() => {
 
-  const FILENAME = 'portfolio-data.json';
+  const FILENAME       = 'portfolio-data.json';
+  const EMBER_FILENAME = 'ember-highlights.json';
 
   /* ── Helpers ──────────────────────────────────────────────────── */
 
@@ -141,8 +142,90 @@ window.App.Gist = (() => {
     return parsed;
   }
 
+  /**
+   * Save Ember-specific data to a dedicated `ember-highlights.json` file
+   * within the same Gist (creates a new file alongside portfolio-data.json).
+   *
+   * @param {{ highlights, settings, streak }} emberData
+   * @param {string} token  - GitHub PAT (gist scope)
+   * @param {string} [id]   - Existing Gist ID; omit to create new
+   * @returns {Promise<{ id: string, url: string }>}
+   */
+  async function saveEmberData(emberData, token, id) {
+    if (!token) throw new Error('GitHub token is required');
+
+    const payload = {
+      highlights: emberData.highlights || [],
+      settings:   emberData.settings   || {},
+      streak:     emberData.streak     || {},
+      metadata: {
+        version:  '2.0',
+        lastSync: new Date().toISOString(),
+      },
+    };
+
+    const body = {
+      description: 'Ember Highlights — saved ' + new Date().toISOString(),
+      public: false,
+      files: {
+        [EMBER_FILENAME]: {
+          content: JSON.stringify(payload, null, 2),
+        },
+      },
+    };
+
+    const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
+    const method = id ? 'PATCH' : 'POST';
+
+    const resp = await fetch(url, {
+      method,
+      headers: _headers(token),
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    return { id: data.id, url: data.html_url };
+  }
+
+  /**
+   * Load Ember data from `ember-highlights.json` in a Gist.
+   * Returns null if the file does not exist yet (first save).
+   *
+   * @param {string} token - GitHub PAT
+   * @param {string} id    - Gist ID
+   * @returns {Promise<object|null>}
+   */
+  async function loadEmberData(token, id) {
+    if (!token) throw new Error('GitHub token is required');
+    if (!id)    throw new Error('Gist ID is required');
+
+    const resp = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: _headers(token),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const raw  = data.files?.[EMBER_FILENAME]?.content;
+    if (!raw) return null; // File doesn't exist yet
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      throw new Error('Ember Gist file is not valid JSON');
+    }
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
-  return { save, load };
+  return { save, load, saveEmberData, loadEmberData };
 
 })();
