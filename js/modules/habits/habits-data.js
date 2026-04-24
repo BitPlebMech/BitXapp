@@ -34,8 +34,9 @@ window.App.Habits.Data = (() => {
 
   /* ── Utility ──────────────────────────────────────────────────── */
 
+  // Delegate to centralised App.Utils.generateId (js/core/utils.js)
   function _genId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    return window.App.Utils?.generateId('h') ?? (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
   }
 
   /** Return today as ISO date string YYYY-MM-DD */

@@ -53,8 +53,9 @@ window.App.Ember.Data = (() => {
 
   /* ── ID generator ─────────────────────────────────────────────── */
 
+  // Delegate to centralised App.Utils.generateId (js/core/utils.js)
   function genId(prefix = 'id') {
-    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    return window.App.Utils?.generateId(prefix) ?? `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
   }
 
   /* ═══════════════════════════════════════════════════════════════
