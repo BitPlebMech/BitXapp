@@ -30,6 +30,84 @@ window.App.Gist = (() => {
   const FILENAME       = 'portfolio-data.json';
   const EMBER_FILENAME = 'ember-highlights.json';
 
+  /* ── Portfolio-specific save/load ─────────────────────────────── */
+
+  /**
+   * Save only portfolio-namespace data to portfolio-data.json.
+   * Writes: { portfolio, gist (credentials scrubbed), _saved }
+   *
+   * @param {{ portfolio: object, gist: object }} portfolioPayload
+   * @param {string} token  - GitHub PAT (gist scope)
+   * @param {string} [id]   - Existing Gist ID; omit to create new
+   * @returns {Promise<{ id: string, url: string }>}
+   */
+  async function savePortfolioData(portfolioPayload, token, id) {
+    if (!token) throw new Error('GitHub token is required');
+
+    const safe = _scrubToken(portfolioPayload);
+    const body = {
+      description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
+      public: false,
+      files: {
+        [FILENAME]: {
+          content: JSON.stringify({ ...safe, _saved: new Date().toISOString() }, null, 2),
+        },
+      },
+    };
+
+    const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
+    const method = id ? 'PATCH' : 'POST';
+
+    const resp = await fetch(url, {
+      method,
+      headers: _headers(token),
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    return { id: data.id, url: data.html_url };
+  }
+
+  /**
+   * Load portfolio data from portfolio-data.json in a Gist.
+   * Supports both new slim format { portfolio, gist } and old full-blob format.
+   *
+   * @param {string} token - GitHub PAT
+   * @param {string} id    - Gist ID
+   * @returns {Promise<object>} Parsed JSON payload
+   */
+  async function loadPortfolioData(token, id) {
+    if (!token) throw new Error('GitHub token is required');
+    if (!id)    throw new Error('Gist ID is required');
+
+    const resp = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: _headers(token),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const raw  = data.files?.[FILENAME]?.content;
+    if (!raw) throw new Error(`"${FILENAME}" not found in this Gist`);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      throw new Error('Gist file is not valid JSON');
+    }
+
+    return parsed;
+  }
+
   /* ── Helpers ──────────────────────────────────────────────────── */
 
   function _headers(token) {
@@ -226,6 +304,6 @@ window.App.Gist = (() => {
 
   /* ── Exports ──────────────────────────────────────────────────── */
 
-  return { save, load, saveEmberData, loadEmberData };
+  return { save, load, savePortfolioData, loadPortfolioData, saveEmberData, loadEmberData };
 
 })();

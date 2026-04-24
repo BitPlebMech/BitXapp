@@ -729,7 +729,7 @@ window.App.Ember = (() => {
         streak:     window.App.State.getEmberStreak(),
       };
 
-      // Save Ember-specific file
+      // Save Ember-specific file only — portfolio-data.json is managed by Portfolio module
       const result = await window.App.Gist.saveEmberData(
         emberData,
         creds.token,
@@ -742,13 +742,6 @@ window.App.Ember = (() => {
           lastSync: new Date().toISOString(),
         });
       }
-
-      // Also save full unified state for Portfolio compatibility
-      await window.App.Gist.save(
-        window.App.State.getAll(),
-        creds.token,
-        result.id || creds.id,
-      );
 
       window.App.EmberUI?.setGistStatus('Saved ✓');
       _toast('Ember data saved to Gist', 'success');

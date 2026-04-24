@@ -1377,21 +1377,6 @@ window.App.PortfolioUI = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SETTINGS PANEL
-     ═══════════════════════════════════════════════════════════════ */
-
-  function openSettings() {
-    P().syncSettingsUI();
-    el('settings-panel')?.classList.add('open');
-    el('sp-ov')?.classList.add('open');
-  }
-
-  function closeSettings() {
-    el('settings-panel')?.classList.remove('open');
-    el('sp-ov')?.classList.remove('open');
-  }
-
-  /* ═══════════════════════════════════════════════════════════════
      CSV IMPORT WIZARD
      ═══════════════════════════════════════════════════════════════ */
 
@@ -1651,7 +1636,6 @@ window.App.PortfolioUI = (() => {
   function setupEventListeners() {
     // Header
     el('h-refresh')?.addEventListener('click', () => P().refreshPrices(true));
-    el('h-settings-btn')?.addEventListener('click', openSettings);
     el('h-gist-save')?.addEventListener('click', () => P().triggerGistSave(false));
     el('h-signout-btn')?.addEventListener('click', () => P().signOut());
     el('theme-toggle')?.addEventListener('click', P().toggleTheme);
@@ -1750,32 +1734,9 @@ window.App.PortfolioUI = (() => {
       sortDrawer(th.dataset.sort, th.dataset.col);
     });
 
-    // Settings overlay click-outside
-    el('sp-ov')?.addEventListener('click', closeSettings);
-
     // Confirm dialog
     el('cd-confirm')?.addEventListener('click', P().confirmDo);
     document.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', P().confirmCancel));
-
-    // Settings panel
-    el('settings-close')?.addEventListener('click', closeSettings);
-    el('sp-save')?.addEventListener('click', P().applySettings);
-    el('gist-load-btn')?.addEventListener('click', P().gistLoad);
-    el('gist-clear-btn')?.addEventListener('click', P().gistClearCredentials);
-    el('sp-export')?.addEventListener('click', P().exportData);
-    el('sp-export-csv')?.addEventListener('click', P().exportPortfolioCSV);
-    el('sp-import')?.addEventListener('click', P().triggerImport);
-    el('sp-clear-cache')?.addEventListener('click', P().clearPriceCache);
-    el('sp-undo-delete')?.addEventListener('click', P().undoDelete);
-    el('sp-reset')?.addEventListener('click', () => P().confirmAction(
-      'Factory Reset', 'Delete ALL transactions and reset to defaults?', '⚠️', 'Reset',
-      () => { window.App.State.resetAll(); render(); P().toast('All data cleared', 'info'); }
-    ));
-
-    // Import file input
-    el('import-file')?.addEventListener('change', function() {
-      if (this.files[0]) P().importData(this.files[0]);
-    });
 
     // Credentials popup
     el('cred-save-btn')?.addEventListener('click', P().saveCredentials);
@@ -1787,8 +1748,7 @@ window.App.PortfolioUI = (() => {
       if (e.key === 'Escape') {
         if (el('modal-box')?.classList.contains('open'))    closeModal();
         else if (el('csv-box')?.classList.contains('open')) closeCsvImport();
-        else if (el('drw')?.classList.contains('open')) closeDrawer();
-        else if (el('settings-panel')?.classList.contains('open')) closeSettings();
+        else if (el('drw')?.classList.contains('open'))     closeDrawer();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); openModal(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); P().refreshPrices(true); }
@@ -1798,8 +1758,7 @@ window.App.PortfolioUI = (() => {
   /* ── Expose escape handler for app-shell ─────────────────────── */
   function handleEscape() {
     if (el('modal-box')?.classList.contains('open'))    closeModal();
-    else if (el('drw')?.classList.contains('open')) closeDrawer();
-    else if (el('settings-panel')?.classList.contains('open')) closeSettings();
+    else if (el('drw')?.classList.contains('open'))     closeDrawer();
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */
@@ -1829,9 +1788,6 @@ window.App.PortfolioUI = (() => {
     submitTransaction,
     // Tab
     showTab,
-    // Settings
-    openSettings,
-    closeSettings,
     // CSV wizard
     openCsvImport,
     closeCsvImport,

@@ -59,17 +59,14 @@ window.App.Habits = (() => {
     const today = _today();
     const checkedToday = checked.has(today);
 
-    // Current streak: walk back from today (or yesterday)
+    // Current streak: walk back from today (or yesterday if not checked today)
+    // Using a while-loop avoids off-by-one: each iteration = one confirmed day.
     let current = 0;
-    let startFrom = checkedToday ? 0 : 1;  // 0 = today, 1 = yesterday
+    let dayOffset = checkedToday ? 0 : 1;  // Start from today or yesterday
 
-    for (let i = startFrom; i < 365; i++) {
-      const date = _daysAgo(i);
-      if (checked.has(date)) {
-        current++;
-      } else {
-        break;
-      }
+    while (dayOffset < 365 && checked.has(_daysAgo(dayOffset))) {
+      current++;
+      dayOffset++;
     }
 
     // Longest streak: scan all dates

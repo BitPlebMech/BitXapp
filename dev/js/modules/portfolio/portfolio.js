@@ -146,10 +146,13 @@ window.App.Portfolio = (() => {
     const info    = window.App.State.storageInfo();
     const txCount = _state().transactions.length;
     const posCount = new Set(_state().transactions.map(t => t.ticker)).size;
-    const target  = el('sp-storage');
-    if (target) {
-      target.innerHTML = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${info}</strong> in localStorage`;
-    }
+    const txt = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${info}</strong> in localStorage`;
+    // Write to both old ID (backward compat if still in DOM) and new Settings module IDs
+    const targets = ['sp-storage', 'stg-storage'];
+    targets.forEach(id => {
+      const t = el(id);
+      if (t) t.innerHTML = txt;
+    });
   }
 
   function updateGistSaveIndicator() {
@@ -300,20 +303,22 @@ window.App.Portfolio = (() => {
       combined.textContent = `${fxText}  •  Updated ${tsText}`;
     }
 
-    const chips = el('sp-fx-chips');
-    if (chips) {
-      const lastDate = Object.keys(s.fxDaily.USD).sort().at(-1) || '—';
-      chips.innerHTML = `
-        <div class="fx-chip"><span><span class="src">EUR → USD</span></span><strong>1 EUR = ${fmtNum(fxLatest.USD, 4)} USD</strong></div>
-        <div class="fx-chip"><span><span class="src">EUR → INR</span></span><strong>1 EUR = ₹${fmtNum(fxLatest.INR, 2)}</strong></div>
-        <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>
-        <div class="fx-chip" style="flex-direction:column;align-items:flex-start;gap:2px">
-          <span class="src">Historical coverage</span>
-          <span style="color:${allOK?'var(--green)':hasHist?'var(--amber)':'var(--red)'};font-size:10px">
-            ${allOK ? `${histCount} daily rates` : hasHist ? `${histCount} cached days` : '❌ No data — CAGR/XIRR inaccurate'}
-          </span>
-        </div>`;
-    }
+    const lastDate   = Object.keys(s.fxDaily.USD).sort().at(-1) || '—';
+    const chipsHtml  = `
+      <div class="fx-chip"><span><span class="src">EUR → USD</span></span><strong>1 EUR = ${fmtNum(fxLatest.USD, 4)} USD</strong></div>
+      <div class="fx-chip"><span><span class="src">EUR → INR</span></span><strong>1 EUR = ₹${fmtNum(fxLatest.INR, 2)}</strong></div>
+      <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>
+      <div class="fx-chip" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <span class="src">Historical coverage</span>
+        <span style="color:${allOK?'var(--green)':hasHist?'var(--amber)':'var(--red)'};font-size:10px">
+          ${allOK ? `${histCount} daily rates` : hasHist ? `${histCount} cached days` : '❌ No data — CAGR/XIRR inaccurate'}
+        </span>
+      </div>`;
+    // Write to both old settings panel ID and new Settings module ID
+    ['sp-fx-chips', 'stg-fx-chips'].forEach(id => {
+      const chips = el(id);
+      if (chips) chips.innerHTML = chipsHtml;
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -979,7 +984,8 @@ window.App.Portfolio = (() => {
   }
 
   function triggerImport() {
-    const inp = el('import-file');
+    // Try new Settings module file input first, fall back to old id
+    const inp = el('stg-import-portfolio-file') || el('import-file');
     if (inp) { inp.value = ''; inp.click(); }
   }
 
@@ -1018,11 +1024,14 @@ window.App.Portfolio = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function setGistStatus(text, ok = null) {
-    const el_ = el('gist-status');
-    if (el_) {
-      el_.textContent = text;
-      el_.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--muted)';
-    }
+    // Write to new Settings module status line (and old ID for any lingering refs)
+    ['gist-status', 'stg-gist-status'].forEach(id => {
+      const el_ = el(id);
+      if (el_) {
+        el_.textContent = text;
+        el_.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--muted)';
+      }
+    });
   }
 
   function _gistCreds() {
@@ -1055,9 +1064,12 @@ window.App.Portfolio = (() => {
   async function _performGistSave(token, id, silent = false) {
     if (!silent) setGistStatus('Saving…');
     try {
-      // Save the full unified state — Gist stores everything
-      const payload = window.App.State.getAll();
-      const result  = await window.App.Gist.save(payload, token, id);
+      // Save only portfolio namespace — ember-highlights.json is managed by Ember module
+      const payload = {
+        portfolio: window.App.State.getPortfolioData(),
+        gist:      window.App.State.getGistCredentials(),
+      };
+      const result  = await window.App.Gist.savePortfolioData(payload, token, id);
 
       if (!id) {
         // First save — store the new Gist ID in the canonical credential namespace
@@ -1086,7 +1098,7 @@ window.App.Portfolio = (() => {
     if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
     setGistStatus('Loading…');
     try {
-      const parsed = await window.App.Gist.load(token, id);
+      const parsed = await window.App.Gist.loadPortfolioData(token, id);
       if (!Array.isArray(parsed.transactions) && !parsed.portfolio?.transactions) {
         throw new Error('Invalid portfolio format in Gist');
       }
@@ -1372,10 +1384,17 @@ window.App.Portfolio = (() => {
      MODULE INIT
      ═══════════════════════════════════════════════════════════════ */
 
+  function _syncCurrencyUI() {
+    const currency = _settings().currency || 'EUR';
+    const dropdown = document.getElementById('h-currency');
+    if (dropdown) dropdown.value = currency;
+  }
+
   function init() {
     seedSampleData();
     applyTheme();
     syncSettingsUI();
+    _syncCurrencyUI();   // Sync saved currency to header dropdown
     updateStorageStatus();
     updateSourceBadge();
 
