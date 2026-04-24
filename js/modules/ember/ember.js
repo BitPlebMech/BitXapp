@@ -209,20 +209,31 @@ window.App.Ember = (() => {
     const highlights = _data().highlights;
     if (highlights.length === 0) return [];
 
-    const now  = new Date();
-    const seed = now.getFullYear() * 10000
-               + (now.getMonth() + 1) * 100
-               + now.getDate();
+    // 1. Stable sort by id so order is reproducible regardless of insertion order
+    const sorted = [...highlights].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-    const shuffled = [...highlights];
-    let s = seed >>> 0;
-    for (let i = shuffled.length - 1; i > 0; i--) {
+    // 2. Shuffle once with a fixed seed so the deck stays constant between days
+    //    (changes only when new highlights are imported — which is fine).
+    const FIXED_SEED = 0xD15EA5E;
+    let s = FIXED_SEED >>> 0;
+    for (let i = sorted.length - 1; i > 0; i--) {
       s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
       const j = s % (i + 1);
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
     }
 
-    return shuffled.slice(0, Math.min(10, shuffled.length));
+    // 3. Day-based window: advances by `count` each day, wraps around
+    //    so every highlight cycles through before anything repeats.
+    const n        = sorted.length;
+    const count    = Math.min(10, n);
+    const dayNum   = Math.floor(Date.now() / 86400000); // UTC days since epoch
+    const startIdx = (dayNum * count) % n;
+
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      result.push(sorted[(startIdx + i) % n]);
+    }
+    return result;
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -603,15 +614,41 @@ window.App.Ember = (() => {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    const emailHtml = _buildEmailHtml(highlights);
+    // Build per-slot plain-text variables for 10 slots.
+    // EmailJS HTML-escapes {{variable}} content so we send plain text only —
+    // the template itself provides all the HTML structure.
+    const ACCENT_COLORS = [
+      '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+      '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+    ];
+    const sources = getSources();
 
-    await emailjs.send(config.serviceId, config.templateId, {
-      to_email:        settings.email,
-      subject:         `🔥 Ember — ${highlights.length} highlights for ${dateStr}`,
-      date_string:     dateStr,
+    const params = {
+      to_email:         settings.email,
+      subject:          `🔥 Ember — ${highlights.length} highlights for ${dateStr}`,
+      date_string:      dateStr,
       highlights_count: String(highlights.length),
-      email_content:   emailHtml,
-    });
+    };
+
+    for (let i = 1; i <= 10; i++) {
+      const hl = highlights[i - 1];
+      if (hl) {
+        const src = sources.find(s => s.id === hl.sourceId);
+        params[`h${i}_text`]   = hl.text   || '';
+        params[`h${i}_book`]   = src?.title  || 'Unknown Book';
+        params[`h${i}_author`] = src?.author ? ` — ${src.author}` : '';
+        params[`h${i}_color`]  = ACCENT_COLORS[(i - 1) % ACCENT_COLORS.length];
+        params[`h${i}_show`]   = 'block';
+      } else {
+        params[`h${i}_text`]   = '';
+        params[`h${i}_book`]   = '';
+        params[`h${i}_author`] = '';
+        params[`h${i}_color`]  = '#cccccc';
+        params[`h${i}_show`]   = 'none';
+      }
+    }
+
+    await emailjs.send(config.serviceId, config.templateId, params);
   }
 
   /**
@@ -786,13 +823,7 @@ window.App.Ember = (() => {
   window.App.Shell.registerModule({
     id:    'ember',
     label: 'Ember',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-               width="22" height="22">
-             <path d="M12 22c5 0 9-4 9-9 0-3-1.5-5.5-4-7.5C15 7 13.5 9 12 9
-                      c-2 0-3-2-3-2C6.5 9 4 12.5 4 16c0 3.3 2.7 6 6 6z"/>
-             <path d="M9.5 14.5c.5 1.5 2.5 2 3 .5" opacity="0.55"/>
-           </svg>`,
+    icon: `<svg viewBox="0 0 264 264" fill="none" stroke="#FF6A00" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" width="28" height="28" shape-rendering="geometricPrecision"><path d="M132 242c49.5 0 88-38.5 88-88 0-33.3-19.8-63.8-49.5-85.8-2.2 28.6-18.7 47.3-36.3 52.8 6.6-30.8-7.7-60.5-24.2-77-3.3 24.2-16.5 44-33 58.3-19.8 17.6-33 42.9-33 62.7 0 42.9 34.1 77 88 77"/><ellipse cx="105" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/><ellipse cx="159" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/><path d="M98 192c14 20 54 18 68 0" stroke="#FF5F1F" fill="none"/></svg>`,
     init,
   });
 
