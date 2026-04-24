@@ -48,8 +48,11 @@ window.App.Shell = (() => {
     const nav = el('sidebar-nav');
     if (!nav) return;
 
-    // Generate sidebar in the same .sb-icon / .sb-icon-btn format as the reference app
-    nav.innerHTML = _modules.map(mod => `
+    // Separate regular modules from the settings module (pinned to bottom)
+    const regularMods  = _modules.filter(m => m.id !== 'settings');
+    const settingsMod  = _modules.find(m => m.id === 'settings');
+
+    const modHtml = regularMods.map(mod => `
       <div
         id="sb-${mod.id}"
         class="sb-icon${mod.soon ? ' sb-soon' : ''}"
@@ -59,32 +62,29 @@ window.App.Shell = (() => {
         <div class="sb-icon-lbl">${mod.label}</div>
         <span class="sb-tip">${mod.label}${mod.soon ? ' <span style="opacity:.55;font-size:9px;text-transform:uppercase;letter-spacing:.06em">soon</span>' : ''}</span>
       </div>
-    `).join('') + `
-      <div class="sb-spacer"></div>
-      <div class="sb-icon" id="sb-gist-save" title="Save to Gist">
-        <div class="sb-icon-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-          </svg>
-          <div class="sb-gist-dot gist-unsaved-dot" style="display:none"></div>
-        </div>
-        <div class="sb-icon-lbl">Gist Sync</div>
-        <span class="sb-tip">Save to GitHub Gist</span>
-      </div>
-    `;
+    `).join('');
 
-    // Attach click handlers to non-soon module icons
+    const settingsHtml = settingsMod ? `
+      <div class="sb-divider"></div>
+      <div
+        id="sb-settings"
+        class="sb-icon"
+        data-module="settings"
+      >
+        <div class="sb-icon-btn">${settingsMod.icon}</div>
+        <div class="sb-icon-lbl">Settings</div>
+        <span class="sb-tip">Settings</span>
+      </div>
+    ` : '';
+
+    nav.innerHTML = modHtml + `<div class="sb-spacer"></div>` + settingsHtml;
+
+    // Attach click handlers to all non-soon module icons
     nav.querySelectorAll('.sb-icon[data-module]').forEach(icon => {
       if (!icon.classList.contains('sb-soon')) {
         icon.addEventListener('click', () => switchModule(icon.dataset.module));
       }
     });
-
-    const gistBtn = el('sb-gist-save');
-    if (gistBtn) {
-      // Shell owns the sidebar Gist save — works for every module automatically.
-      gistBtn.addEventListener('click', () => triggerGistSave());
-    }
   }
 
   function _capitalise(str) {
@@ -245,7 +245,13 @@ window.App.Shell = (() => {
    * (status indicators, silent mode); this handles everything else.
    * ─────────────────────────────────────────────────────────────── */
 
+  let _gistSaveInProgress = false;
+
   async function triggerGistSave() {
+    if (_gistSaveInProgress) {
+      toast('Save already in progress…', 'info');
+      return;
+    }
     const creds = window.App.State.getGistCredentials();
     if (!creds.token) {
       toast('Add your GitHub token in Settings → Gist Sync', 'error');
@@ -264,17 +270,31 @@ window.App.Shell = (() => {
   }
 
   async function _doGistSave(token, id) {
+    _gistSaveInProgress = true;
     try {
       toast('Saving to Gist…', 'info');
-      const result = await window.App.Gist.save(window.App.State.getAll(), token, id);
+      // Save portfolio and ember data to their respective files
+      const portfolioPayload = {
+        portfolio: window.App.State.getPortfolioData(),
+        gist:      window.App.State.getGistCredentials(),
+      };
+      const emberData = window.App.State.getEmberData?.() || {};
+      const emberPayload = {
+        highlights: emberData.highlights || [],
+        settings:   window.App.State.getEmberSettings?.() || {},
+        streak:     window.App.State.getEmberStreak?.()   || {},
+      };
+      const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
+      await window.App.Gist.saveEmberData(emberPayload, token, result.id || id);
       if (!id) {
-        // First save — persist the new Gist ID so future saves update the same Gist
         window.App.State.setGistCredentials({ id: result.id });
       }
       window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
       toast('Saved to GitHub Gist ✓', 'success');
     } catch (e) {
       toast('Gist save failed: ' + e.message, 'error');
+    } finally {
+      _gistSaveInProgress = false;
     }
   }
 

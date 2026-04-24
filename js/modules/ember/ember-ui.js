@@ -88,22 +88,19 @@ window.App.EmberUI = (() => {
   }
 
   function renderActiveTab() {
-    // Update tab button states
-    ['books', 'library', 'review', 'settings'].forEach(tab => {
+    // Update tab button states (settings tab removed — now lives in sidebar Settings module)
+    ['books', 'library', 'review'].forEach(tab => {
       el(`ember-tab-${tab}`)?.classList.toggle('active', tab === _activeTab);
     });
 
     // Show/hide panes
-    el('ember-pane-books').style.display    = _activeTab === 'books'    ? '' : 'none';
-    el('ember-pane-library').style.display  = _activeTab === 'library'  ? '' : 'none';
-    el('ember-pane-review').style.display   = _activeTab === 'review'   ? '' : 'none';
-    const settingsPane = el('ember-pane-settings');
-    if (settingsPane) settingsPane.style.display = _activeTab === 'settings' ? '' : 'none';
+    el('ember-pane-books').style.display   = _activeTab === 'books'   ? '' : 'none';
+    el('ember-pane-library').style.display = _activeTab === 'library' ? '' : 'none';
+    el('ember-pane-review').style.display  = _activeTab === 'review'  ? '' : 'none';
 
-    if (_activeTab === 'books')    _renderBooks();
-    if (_activeTab === 'library')  _renderLibrary();
-    if (_activeTab === 'review')   _renderReview();
-    if (_activeTab === 'settings') _renderSettings();
+    if (_activeTab === 'books')   _renderBooks();
+    if (_activeTab === 'library') _renderLibrary();
+    if (_activeTab === 'review')  _renderReview();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -124,7 +121,7 @@ window.App.EmberUI = (() => {
     el('ember-import-btn')?.addEventListener('click', () => openImportWizard());
     el('ember-gist-save')?.addEventListener('click', () => window.App.Ember.triggerGistSave());
 
-    ['books', 'library', 'review', 'settings'].forEach(tab => {
+    ['books', 'library', 'review'].forEach(tab => {
       el(`ember-tab-${tab}`)?.addEventListener('click', () => {
         _activeTab = tab;
         if (tab !== 'books') _selectedSourceId = null;
@@ -1074,12 +1071,30 @@ window.App.EmberUI = (() => {
 
   /* ── Exports ──────────────────────────────────────────────────── */
 
+  /**
+   * Render the Ember settings form into an arbitrary container element.
+   * Called by the unified Settings module so the form appears there
+   * instead of in a dedicated Ember tab.
+   *
+   * @param {HTMLElement} container
+   */
+  function renderSettingsInto(container) {
+    if (!container) return;
+    // Temporarily point ember-settings-content to the provided container,
+    // then call the existing renderer which writes into that ID.
+    const prev = container.id;
+    container.id = 'ember-settings-content';
+    _renderSettings();
+    container.id = prev;
+  }
+
   return {
     init,
     render,
     renderActiveTab,
     setGistStatus,
     openImportWizard,
+    renderSettingsInto,
   };
 
 })();

@@ -111,10 +111,10 @@
    Applied when <html data-theme="light"> — overrides every :root value.
    ═══════════════════════════════════════════════════════════════════════ */
 [data-theme="light"] {
-  --bg:    #f0f4fb;
+  --bg:    #f5f7fa;    /* Softer neutral gray — less eye strain than the blue-tinted #f0f4fb */
   --surf:  #ffffff;
-  --surf2: #f7f9fe;
-  --surf3: #eef2fa;
+  --surf2: #f9fafb;    /* Warmer than before, better contrast against --bg */
+  --surf3: #f3f4f6;    /* More neutral, less blue-cast */
   --b1:    rgba(0,0,0,0.07);
   --b2:    rgba(0,0,0,0.12);
   --text:  #0c1a2e;
@@ -938,13 +938,14 @@ body::after {
 }
 .sp-sec-title svg { width: 12px; height: 12px; flex-shrink: 0; }
 
-/* Action buttons used in settings panel */
+/* Action buttons — compact, auto width by default */
 .abtn {
   font-family: var(--font-ui); font-size: 11px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
-  border-radius: 7px; padding: 8px 14px; cursor: pointer;
-  display: flex; align-items: center; gap: 6px;
-  transition: all 0.15s; white-space: nowrap; width: 100%;
+  border-radius: 7px; padding: 7px 13px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.15s; white-space: nowrap; width: auto;
+  background: transparent; border: 1px solid var(--b2); color: var(--muted);
 }
 .abtn svg { width: 12px; height: 12px; flex-shrink: 0; }
 
@@ -1307,11 +1308,44 @@ body::after {
 }
 .toast.show { opacity: 1; }
 
-/* Old-style class variants (kept for backward compat) */
-.toast.success, .toast.toast-success { background: rgba(12,18,32,0.95); border: 1px solid rgba(34,214,133,0.3);  color: var(--green); }
-.toast.error,   .toast.toast-error   { background: rgba(12,18,32,0.95); border: 1px solid rgba(255,68,68,0.3);   color: var(--red); }
-.toast.info,    .toast.toast-info    { background: rgba(12,18,32,0.95); border: 1px solid rgba(79,142,247,0.3);  color: var(--blue); }
-.toast.warn,    .toast.toast-warn    { background: rgba(12,18,32,0.95); border: 1px solid rgba(245,158,11,0.3);  color: var(--amber); }
+/* Dark mode toast variants — tinted backgrounds for better visual distinction */
+.toast.success, .toast.toast-success { background: rgba(34,214,133,0.12);  border: 1px solid rgba(34,214,133,0.4);  color: var(--green); }
+.toast.error,   .toast.toast-error   { background: rgba(255,68,68,0.12);   border: 1px solid rgba(255,68,68,0.4);   color: var(--red); }
+.toast.info,    .toast.toast-info    { background: rgba(79,142,247,0.12);   border: 1px solid rgba(79,142,247,0.4);  color: var(--blue); }
+.toast.warn,    .toast.toast-warn    { background: rgba(245,158,11,0.12);   border: 1px solid rgba(245,158,11,0.4);  color: var(--amber); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — DISABLED & FOCUS STATES
+   Global rules so every interactive element behaves consistently.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Disabled elements */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Focus ring — keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* Remove focus ring for mouse users (already handled per-component) */
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    UTILITY CLASSES
@@ -1572,6 +1606,90 @@ html, body { height: 100%; overflow: hidden; }
 }
 .an-tbl tbody td:first-child { text-align: left; color: var(--text); font-weight: 800; font-family: var(--font-ui); font-size: 13px; }
 .an-tbl tbody tr:last-child td { border-bottom: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SETTINGS MODULE — Unified scrollable settings page
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar divider — separates Settings from regular modules */
+.sb-divider {
+  width: 28px; height: 1px;
+  background: var(--b2); margin: 4px auto;
+  flex-shrink: 0;
+}
+
+/* Scrollable body — constrained width, left-aligned */
+.stg-scroll {
+  flex: 1; overflow-y: auto;
+  padding: 20px 28px 80px;
+  display: flex; flex-direction: column; gap: 0;
+  scrollbar-width: thin; scrollbar-color: var(--b2) transparent;
+}
+
+/* Each section */
+.stg-sec {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 20px 0 22px;
+  max-width: 620px;
+  border-bottom: 1px solid var(--b1);
+}
+.stg-sec:last-child { border-bottom: none; }
+
+/* Section header — small caps label, same style as sp-sec-title */
+.stg-sec-hdr {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+  padding-bottom: 8px; border-bottom: 0.5px solid var(--b1);
+  margin-bottom: 2px;
+}
+.stg-sec-hdr svg {
+  flex-shrink: 0; opacity: 0.7;
+  width: 12px; height: 12px;
+}
+
+/* Sub-section label within a section */
+.stg-subsec-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  padding-top: 6px; padding-bottom: 2px;
+  border-top: 0.5px solid var(--b1); margin-top: 2px;
+}
+
+/* Info / description box — compact */
+.stg-info {
+  font-size: 11.5px; line-height: 1.6; color: var(--muted);
+  background: var(--surf2); border: 0.5px solid var(--b1);
+  border-radius: 7px; padding: 10px 12px;
+}
+.stg-info strong { color: var(--text2); }
+.stg-info a { color: var(--blue); text-decoration: none; }
+.stg-info a:hover { text-decoration: underline; }
+.stg-info code {
+  font-family: var(--font-mono); font-size: 10.5px;
+  background: var(--surf3); border-radius: 3px; padding: 1px 5px;
+  border: 0.5px solid var(--b1);
+}
+
+/* Row wrapper */
+.stg-row { display: flex; flex-direction: column; gap: 6px; }
+.stg-two-col { flex-direction: row; gap: 12px; flex-wrap: wrap; }
+.stg-two-col .fgrp { flex: 1; min-width: 160px; }
+
+/* Button group — inline wrapping row of compact buttons */
+.stg-btns {
+  flex-direction: row !important; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+
+/* Status line */
+.stg-status-line {
+  font-size: 10.5px; color: var(--muted);
+  min-height: 14px; font-family: var(--font-mono);
+}
+
+/* Light theme */
+[data-theme="light"] .stg-info { background: #f0f4fe; border-color: rgba(0,0,0,0.06); }
+[data-theme="light"] .stg-info code { background: #e4eaf8; }
 
 /* Light theme adjustments */
 [data-theme="light"] .sidebar         { background: #f7f9fe; box-shadow: 2px 0 16px rgba(0,0,0,0.08); }
