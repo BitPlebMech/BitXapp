@@ -37,19 +37,11 @@ window.App.Ember = (() => {
   // Preserve ember-data.js sub-module reference
   const _existing = window.App.Ember;
 
-  /* ── Spine colour palette ─────────────────────────────────────── */
+  /* ── Spine colour palette — sourced from js/core/theme-tokens.js ─ */
 
-  const SPINE_PALETTE = [
-    '#E86A4A', // coral
-    '#4AB5E8', // sky blue
-    '#A8C97F', // sage green
-    '#9B7FE8', // lavender
-    '#E8A14A', // amber orange
-    '#4AE8C9', // teal
-    '#E87F9B', // rose
-    '#7FA8E8', // periwinkle
-    '#5BD178', // mint green
-    '#D17FE8', // purple
+  const SPINE_PALETTE = window.App.ThemeTokens?.SPINE_PALETTE || [
+    '#E86A4A', '#4AB5E8', '#A8C97F', '#9B7FE8', '#E8A14A',
+    '#4AE8C9', '#E87F9B', '#7FA8E8', '#5BD178', '#D17FE8',
   ];
 
   /* ── State accessors ──────────────────────────────────────────── */
