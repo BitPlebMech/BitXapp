@@ -120,6 +120,7 @@ window.App.EmberUI = (() => {
   function _bindHeader() {
     el('ember-import-btn')?.addEventListener('click', () => openImportWizard());
     el('ember-gist-save')?.addEventListener('click', () => window.App.Ember.triggerGistSave());
+    el('ember-gist-load')?.addEventListener('click', () => window.App.Ember.triggerGistLoad());
 
     ['books', 'library', 'review'].forEach(tab => {
       el(`ember-tab-${tab}`)?.addEventListener('click', () => {

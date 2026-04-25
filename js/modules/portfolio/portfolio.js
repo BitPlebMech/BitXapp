@@ -1078,13 +1078,19 @@ window.App.Portfolio = (() => {
     if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
     setGistStatus('Loading…');
     try {
-      const parsed = await window.App.Gist.loadPortfolioData(token, id);
+      // Load both files in parallel — ember-highlights.json may not exist yet (null = skip)
+      const [parsed, emberParsed] = await Promise.all([
+        window.App.Gist.loadPortfolioData(token, id),
+        window.App.Gist.loadEmberData(token, id).catch(() => null),
+      ]);
       if (!Array.isArray(parsed.transactions) && !parsed.portfolio?.transactions) {
         throw new Error('Invalid portfolio format in Gist');
       }
-      const txCount = parsed.transactions?.length || parsed.portfolio?.transactions?.length || 0;
+      const txCount    = parsed.transactions?.length || parsed.portfolio?.transactions?.length || 0;
+      const hlCount    = emberParsed?.highlights?.length || 0;
+      const emberLabel = hlCount ? ` + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '';
       confirmAction('Load from Gist?',
-        `Replace current data with ${txCount} transactions from Gist?`,
+        `Replace current data with ${txCount} transactions${emberLabel} from Gist?`,
         '☁️', 'Load',
         () => {
           // BUG-01/02 fix: read from canonical credential namespace before overwriting state
@@ -1106,11 +1112,27 @@ window.App.Portfolio = (() => {
             _save(s);
           }
 
+          // BUG-EMBER-LOAD fix: restore Ember data from ember-highlights.json
+          // Previously only portfolio-data.json was merged — Ember highlights were lost.
+          if (emberParsed) {
+            const currentEmber = window.App.State.getEmberData?.() || {};
+            window.App.State.setEmberData?.({
+              ...currentEmber,
+              highlights: emberParsed.highlights || currentEmber.highlights || [],
+              sources:    currentEmber.sources   || [],
+            });
+            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
+            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+          }
+
           render();
           syncSettingsUI();
           applyTheme();
           setGistStatus('Loaded · ' + new Date().toLocaleTimeString(), true);
-          toast('Portfolio loaded from GitHub Gist', 'success');
+          const msg = hlCount
+            ? `Loaded from Gist — portfolio + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''} ✓`
+            : 'Portfolio loaded from GitHub Gist ✓';
+          toast(msg, 'success');
         }
       );
     } catch (e) {

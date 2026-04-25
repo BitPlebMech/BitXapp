@@ -121,6 +121,16 @@
                 <span class="gist-unsaved-dot" id="h-unsaved-dot"
                       style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
               </button>
+              <button class="hdr-btn" id="h-gist-load" title="Gist Load — portfolio-data.json">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     style="width:13px;height:13px">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Gist Load
+              </button>
               <button class="hdr-btn primary" id="h-refresh">
                 <svg class="spin-target" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -307,6 +317,26 @@
             <svg viewBox="0 0 264 264" fill="none" stroke-width="42" stroke-linecap="round" width="22" height="22"><path d="M132 42 A90 90 0 0 1 222 132" stroke="#3A86FF"/><path d="M222 132 A90 90 0 0 1 132 222" stroke="#2ECC71"/><path d="M132 222 A90 90 0 0 1 42 132" stroke="#FFBE0B"/><path d="M42 132 A90 90 0 0 1 132 42" stroke="#FF5F1F"/></svg>
             <span class="mod-header-title">Habit Tracker</span>
           </div>
+          <div class="mod-header-right" style="display:flex;align-items:center;gap:8px">
+            <button class="hdr-btn" id="habits-gist-save" title="Gist Save — habits-data.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              Gist Save
+            </button>
+            <button class="hdr-btn" id="habits-gist-load" title="Gist Load — habits-data.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Gist Load
+            </button>
+          </div>
         </div>
         <div id="habits-content" style="flex:1;overflow-y:auto;padding:20px 22px 90px">
           <!-- Populated by App.HabitsUI.render() -->
@@ -367,6 +397,16 @@
                          c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
               </svg>
               Gist Save
+            </button>
+            <button class="hdr-btn" id="ember-gist-load" title="Gist Load — ember-highlights.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Gist Load
             </button>
           </div>
         </div><!-- /.mod-header -->
@@ -651,6 +691,41 @@
                 Import Ember JSON
               </button>
               <input type="file" id="stg-import-ember-file" accept=".json" style="display:none">
+            </div>
+          </div><!-- /.stg-sec -->
+
+          <!-- ── Habits section ──────────────────────────────────────── -->
+          <div class="stg-sec">
+            <div class="stg-sec-title">
+              <svg viewBox="0 0 264 264" fill="none" stroke-width="42" stroke-linecap="round" width="16" height="16">
+                <path d="M132 42 A90 90 0 0 1 222 132" stroke="#3A86FF"/>
+                <path d="M222 132 A90 90 0 0 1 132 222" stroke="#2ECC71"/>
+                <path d="M132 222 A90 90 0 0 1 42 132" stroke="#FFBE0B"/>
+                <path d="M42 132 A90 90 0 0 1 132 42" stroke="#FF5F1F"/>
+              </svg>
+              Habits — Habit Tracker
+            </div>
+            <div class="stg-subsec-lbl">Data Management</div>
+            <div class="stg-row stg-btns">
+              <button class="abtn green" id="stg-export-habits">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export Habits JSON
+              </button>
+              <button class="abtn outline" id="stg-import-habits">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import Habits JSON
+              </button>
+              <input type="file" id="stg-import-habits-file" accept=".json" style="display:none">
             </div>
           </div><!-- /.stg-sec -->
 
