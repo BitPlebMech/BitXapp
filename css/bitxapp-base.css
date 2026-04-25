@@ -1477,7 +1477,7 @@ html, body { height: 100%; overflow: hidden; }
   color: var(--muted);
   transition: background 0.18s, color 0.18s, transform 0.15s;
 }
-.sb-icon svg { width: 24px; height: 24px; flex-shrink: 0; }
+.sb-icon svg { width: 35px; height: 35px; flex-shrink: 0; }
 .sb-icon-btn:hover               { background: var(--surf2); color: var(--text2); transform: scale(1.05); }
 .sb-icon.active .sb-icon-btn     {
   background: rgba(79,142,247,0.14); color: var(--blue);

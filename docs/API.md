@@ -1,4 +1,4 @@
-# Portfolio Terminal — Public API Reference
+# BiT PleB Dashboard — Public API Reference
 
 All modules expose their API on the `window.App` namespace. This document covers every public method across core and module layers.
 

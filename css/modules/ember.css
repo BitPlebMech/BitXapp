@@ -1037,7 +1037,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   PHASE 2  —  CATEGORY SYSTEM
+   CATEGORY SYSTEM — General / Academic filter tabs and highlight badges
    ════════════════════════════════════════════════════════════════════ */
 
 /* ── Category filter tabs (Library tab) ─────────────────────────── */
@@ -1187,12 +1187,12 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   PHASE 2  —  SPACED REPETITION REVIEW MODE
+   SPACED REPETITION REVIEW MODE — Streak widget, rating buttons, session flow
    ════════════════════════════════════════════════════════════════════ */
 
-/* Update highlight text size (Phase 2: 18px in Library/Books) */
+/* Highlight text size override — larger for comfortable reading in Library/Books */
 .ember-hl-text {
-  font-size: 18px !important;
+  font-size: 16px !important;
   line-height: 1.75 !important;
 }
 
@@ -1392,7 +1392,7 @@
   margin-top: 4px;
 }
 
-/* Daily review list (Phase 1 scrollable style) */
+/* Daily review — scrollable digest list shown in the Review tab */
 .ember-review-daily-header {
   padding: 0 0 20px;
 }
@@ -1649,7 +1649,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   PHASE 2  —  SETTINGS TAB
+   SETTINGS TAB — Email automation, EmailJS credentials, review preferences
    ════════════════════════════════════════════════════════════════════ */
 
 .ember-settings {

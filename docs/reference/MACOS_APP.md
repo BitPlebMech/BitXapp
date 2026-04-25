@@ -1,4 +1,4 @@
-# Building BiT PleB Portfolio Terminal as a Native macOS App
+# Building BiT PleB Dashboard as a Native macOS App
 
 **A Complete Prerequisites & Architecture Guide**
 
@@ -134,7 +134,7 @@ Your web app uses modules beautifully. We'll do the same in Swift. Good organiza
 
 ## What You've Built
 
-### BiT PleB Portfolio Terminal — Current Architecture
+### BiT PleB Dashboard — Current Architecture
 
 Your web app is a modular personal finance dashboard written in vanilla JavaScript with no dependencies, no build tools, and zero external libraries.
 
@@ -831,7 +831,7 @@ You will:
 
 ### When You're Ready
 
-Tell me you've completed the above, and we'll start **vibe coding** the BiT PleB Portfolio Terminal for macOS. We'll build it together, step by step, explaining every decision.
+Tell me you've completed the above, and we'll start **vibe coding** the BiT PleB Dashboard for macOS. We'll build it together, step by step, explaining every decision.
 
 ---
 
@@ -854,4 +854,4 @@ That's exactly what vibe coding is for. Learning happens through conversation, n
 
 *Document created: April 2026*  
 *For: Rohan (macOS 26)*  
-*Project: BiT PleB Portfolio Terminal — Native macOS Version*
+*Project: BiT PleB Dashboard — Native macOS Version*

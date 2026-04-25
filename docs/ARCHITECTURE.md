@@ -1,4 +1,4 @@
-# Portfolio Terminal — Architecture Guide
+# BiT PleB Dashboard — Architecture Guide
 
 **Last updated:** April 2026 | **Codebase:** ~14,000 LOC | **Grade: A**
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Portfolio Terminal is a fully client-side, single-page application. There is no build step, no server, no framework — just vanilla JS modules loaded in a specific order from `index.html`. All persistence is via `localStorage` (key `super_app_v1`), with optional cloud sync via GitHub Gist.
+BiT PleB Dashboard is a fully client-side, single-page application. There is no build step, no server, no framework — just vanilla JS modules loaded in a specific order from `index.html`. All persistence is via `localStorage` (key `super_app_v1`), with optional cloud sync via GitHub Gist.
 
 ```
 Browser

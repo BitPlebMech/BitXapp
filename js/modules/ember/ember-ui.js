@@ -16,8 +16,8 @@
  *   Step 2 — Parse preview (count, samples, duplicate info)
  *   Step 3 — Success confirmation (auto-closes after 2 s)
  *
- * Phase 2 additions:
- *   • Category filter tabs in Library
+ * UI features:
+ *   • Category filter tabs in Library (general / academic)
  *   • Debounced search (no focus loss)
  *   • Category badges on highlight cards
  *   • Streak widget with flame animation
@@ -431,7 +431,7 @@ window.App.EmberUI = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     REVIEW TAB  —  SM-2 Spaced Repetition Mode  (Phase 2)
+     REVIEW TAB  —  Daily digest list with SM-2 spaced repetition
      ═══════════════════════════════════════════════════════════════ */
 
   function _renderReview() {
@@ -535,7 +535,7 @@ window.App.EmberUI = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SETTINGS TAB  (Phase 2)
+     SETTINGS TAB  —  Email automation, EmailJS credentials, review goal
      ═══════════════════════════════════════════════════════════════ */
 
   function _renderSettings() {
