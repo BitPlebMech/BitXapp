@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Temp / scratch
+tmp/
+
+# Logs
+npm-debug.log*
+
+# Coverage output
+coverage/

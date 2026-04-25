@@ -309,6 +309,25 @@ window.App.Settings = (() => {
     reader.readAsText(file);
   }
 
+  /* ── Habits section ──────────────────────────────────────────── */
+
+  function exportHabitsJSON() {
+    if (typeof window.App.Habits?.exportJSON === 'function') {
+      window.App.Habits.exportJSON();
+    } else {
+      _toast('Habits module not loaded', 'error');
+    }
+  }
+
+  function importHabitsJSON(file) {
+    if (!file) return;
+    if (typeof window.App.Habits?.importJSON === 'function') {
+      window.App.Habits.importJSON(file);
+    } else {
+      _toast('Habits module not loaded', 'error');
+    }
+  }
+
   /* ── Appearance section ───────────────────────────────────────── */
 
   function toggleTheme() {
@@ -348,6 +367,13 @@ window.App.Settings = (() => {
     el('stg-import-ember')?.addEventListener('click', () => el('stg-import-ember-file')?.click());
     el('stg-import-ember-file')?.addEventListener('change', function() {
       if (this.files[0]) { importEmberJSON(this.files[0]); this.value = ''; }
+    });
+
+    // Habits section
+    el('stg-export-habits')?.addEventListener('click', exportHabitsJSON);
+    el('stg-import-habits')?.addEventListener('click', () => el('stg-import-habits-file')?.click());
+    el('stg-import-habits-file')?.addEventListener('change', function() {
+      if (this.files[0]) { importHabitsJSON(this.files[0]); this.value = ''; }
     });
 
   }

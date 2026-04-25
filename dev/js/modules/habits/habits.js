@@ -24,7 +24,8 @@ window.App = window.App || {};
 
 window.App.Habits = (() => {
 
-  /* Preserve Data sub-module */
+  /* Preserve Data sub-module reference set by habits-data.js */
+  const _DataRef = window.App.Habits?.Data;
   const HD = () => window.App.Habits.Data;
 
   /* ── State accessors ──────────────────────────────────────────── */
@@ -224,11 +225,88 @@ window.App.Habits = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   /**
-   * Delegate to App.Shell.triggerGistSave() — Shell owns the canonical
-   * save logic so every module gets sync for free without duplicating code.
+   * Save ONLY habits-data.json to Gist.
+   * Uses the same Gist ID as all other modules.
    */
-  function triggerGistSave() {
-    window.App.Shell.triggerGistSave();
+  async function triggerGistSave() {
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) { _toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
+    if (!creds.id)    { _toast('No Gist ID set — save from Portfolio first to create one', 'error'); return; }
+    try {
+      _toast('Saving habits to Gist…', 'info');
+      const d = _data();
+      await window.App.Gist.saveHabitsData({ habits: d.habits || [], logs: d.logs || [] }, creds.token, creds.id);
+      _toast(`Habits saved to Gist ✓ (${(d.habits||[]).length} habits)`, 'success');
+    } catch (e) {
+      _toast('Habits Gist save failed: ' + e.message, 'error');
+    }
+  }
+
+  /**
+   * Load ONLY habits-data.json from Gist and replace local habits state.
+   */
+  async function triggerGistLoad() {
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) { _toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
+    if (!creds.id)    { _toast('No Gist ID configured', 'error'); return; }
+    try {
+      _toast('Loading habits from Gist…', 'info');
+      const parsed = await window.App.Gist.loadHabitsData(creds.token, creds.id);
+      if (!parsed) { _toast('No habits-data.json found in Gist yet', 'warn'); return; }
+      window.App.Shell.confirmAction(
+        'Load habits from Gist?',
+        `Replace local habits with ${parsed.habits?.length || 0} habits and ${parsed.logs?.length || 0} log entries from Gist.`,
+        '☁️', 'Load',
+        () => {
+          window.App.State.setHabitsData({ habits: parsed.habits || [], logs: parsed.logs || [] });
+          _render();
+          _toast(`Habits loaded from Gist ✓ (${(parsed.habits||[]).length} habits)`, 'success');
+        }
+      );
+    } catch (e) {
+      _toast('Habits Gist load failed: ' + e.message, 'error');
+    }
+  }
+
+  /**
+   * Export habits data as a downloadable JSON file.
+   */
+  function exportJSON() {
+    const d = _data();
+    const blob = new Blob([JSON.stringify({ habits: d.habits, logs: d.logs }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `habits-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    _toast(`Exported ${(d.habits||[]).length} habits`, 'success');
+  }
+
+  /**
+   * Import habits from a JSON file. Replaces current data after confirmation.
+   * @param {File} file
+   */
+  function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (!Array.isArray(parsed.habits)) throw new Error('Invalid format — missing "habits" array');
+        window.App.Shell.confirmAction(
+          'Import Habits JSON?',
+          `Replace current habits with ${parsed.habits.length} habits and ${(parsed.logs||[]).length} log entries from file.`,
+          '📥', 'Import',
+          () => {
+            window.App.State.setHabitsData({ habits: parsed.habits, logs: parsed.logs || [] });
+            _render();
+            _toast(`Imported ${parsed.habits.length} habits`, 'success');
+          }
+        );
+      } catch (err) {
+        _toast('Import failed: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
   }
 
   /**
@@ -294,11 +372,17 @@ window.App.Habits = (() => {
     deleteHabit,
     // Gist
     triggerGistSave,
+    triggerGistLoad,
+    // Export / Import JSON
+    exportJSON,
+    importJSON,
     // Module interface
     init,
     // State accessors (for HabitsUI)
     getData:  _data,
     today:    _today,
+    // Re-attach Data sub-module (habits-data.js sets this before this IIFE runs)
+    Data: _DataRef,
   };
 
 })();

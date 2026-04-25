@@ -298,6 +298,10 @@ window.App.HabitsUI = (() => {
         submitAddForm();
       }
     });
+
+    // Habits header Gist buttons
+    document.getElementById('habits-gist-save')?.addEventListener('click', () => window.App.Habits.triggerGistSave());
+    document.getElementById('habits-gist-load')?.addEventListener('click', () => window.App.Habits.triggerGistLoad());
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */

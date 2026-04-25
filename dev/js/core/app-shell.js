@@ -273,28 +273,129 @@ window.App.Shell = (() => {
     _gistSaveInProgress = true;
     try {
       toast('Saving to Gist…', 'info');
-      // Save portfolio and ember data to their respective files
+
+      // 1. portfolio-data.json
       const portfolioPayload = {
         portfolio: window.App.State.getPortfolioData(),
         gist:      window.App.State.getGistCredentials(),
       };
+      const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
+      const gistId = result.id || id;
+
+      // 2. ember-highlights.json
       const emberData = window.App.State.getEmberData?.() || {};
-      const emberPayload = {
+      await window.App.Gist.saveEmberData({
         highlights: emberData.highlights || [],
         settings:   window.App.State.getEmberSettings?.() || {},
         streak:     window.App.State.getEmberStreak?.()   || {},
-      };
-      const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
-      await window.App.Gist.saveEmberData(emberPayload, token, result.id || id);
-      if (!id) {
-        window.App.State.setGistCredentials({ id: result.id });
-      }
+      }, token, gistId);
+
+      // 3. habits-data.json
+      const habitsData = window.App.State.getHabitsData?.() || {};
+      await window.App.Gist.saveHabitsData({
+        habits: habitsData.habits || [],
+        logs:   habitsData.logs   || [],
+      }, token, gistId);
+
+      if (!id) window.App.State.setGistCredentials({ id: gistId });
       window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
-      toast('Saved to GitHub Gist ✓', 'success');
+      toast('Saved to Gist ✓  (portfolio + ember + habits)', 'success');
     } catch (e) {
       toast('Gist save failed: ' + e.message, 'error');
     } finally {
       _gistSaveInProgress = false;
+    }
+  }
+
+  /* ── Gist load ────────────────────────────────────────────────────
+   *
+   * Shell-owned canonical load — fetches both portfolio-data.json and
+   * ember-highlights.json in parallel and merges all namespaces into state.
+   * Any module can call App.Shell.triggerGistLoad() to restore full state.
+   * ─────────────────────────────────────────────────────────────── */
+
+  let _gistLoadInProgress = false;
+
+  async function triggerGistLoad() {
+    if (_gistLoadInProgress) {
+      toast('Load already in progress…', 'info');
+      return;
+    }
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) {
+      toast('Add your GitHub token in Settings → Gist Sync', 'error');
+      return;
+    }
+    if (!creds.id) {
+      toast('Enter a Gist ID in Settings → Gist Sync first', 'error');
+      return;
+    }
+    _gistLoadInProgress = true;
+    try {
+      toast('Loading from Gist…', 'info');
+      // Fetch all three files in parallel — ember/habits may not exist yet (null = skip)
+      const [portfolioParsed, emberParsed, habitsParsed] = await Promise.all([
+        window.App.Gist.loadPortfolioData(creds.token, creds.id),
+        window.App.Gist.loadEmberData(creds.token, creds.id).catch(() => null),
+        window.App.Gist.loadHabitsData(creds.token, creds.id).catch(() => null),
+      ]);
+
+      const txCount     = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
+      const hlCount     = emberParsed?.highlights?.length || 0;
+      const habitCount  = habitsParsed?.habits?.length || 0;
+      const detail = [
+        `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
+        hlCount     ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}`   : '',
+        habitCount  ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`       : '',
+      ].filter(Boolean).join(' + ');
+
+      confirmAction(
+        'Load from Gist?',
+        `Replace all local data with: ${detail}. This cannot be undone.`,
+        '☁️', 'Load everything',
+        () => {
+          const { token: tok, id: gid } = window.App.State.getGistCredentials();
+
+          // Restore portfolio namespace
+          if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
+          // Always restore credentials (scrubbed before saving)
+          window.App.State.setGistCredentials({ token: tok, id: gid });
+
+          // Restore Ember from ember-highlights.json
+          if (emberParsed) {
+            const currentEmber = window.App.State.getEmberData?.() || {};
+            window.App.State.setEmberData?.({
+              ...currentEmber,
+              highlights: emberParsed.highlights || [],
+              sources:    emberParsed.sources    || [],   // ← must come from Gist, not local
+            });
+            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
+            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+          }
+
+          // Restore Habits from habits-data.json
+          if (habitsParsed) {
+            window.App.State.setHabitsData?.({
+              habits: habitsParsed.habits || [],
+              logs:   habitsParsed.logs   || [],
+            });
+          }
+
+          // Re-render active module
+          const activeId = _active;
+          if (activeId) {
+            _initialised.delete(activeId);
+            switchModule(activeId);
+          }
+
+          window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+          toast(`Loaded from Gist ✓ — ${detail}`, 'success');
+        }
+      );
+    } catch (e) {
+      toast('Gist load failed: ' + e.message, 'error');
+    } finally {
+      _gistLoadInProgress = false;
     }
   }
 
@@ -352,6 +453,7 @@ window.App.Shell = (() => {
     confirmCancel,
     // App-level Gist sync — works for every module automatically
     triggerGistSave,
+    triggerGistLoad,
     /** Returns the currently active module id */
     get active() { return _active; },
   };

@@ -27,8 +27,9 @@ window.App = window.App || {};
 
 window.App.Gist = (() => {
 
-  const FILENAME       = 'portfolio-data.json';
-  const EMBER_FILENAME = 'ember-highlights.json';
+  const FILENAME        = 'portfolio-data.json';
+  const EMBER_FILENAME  = 'ember-highlights.json';
+  const HABITS_FILENAME = 'habits-data.json';
 
   /* ── Portfolio-specific save/load ─────────────────────────────── */
 
@@ -302,8 +303,93 @@ window.App.Gist = (() => {
     }
   }
 
+  /* ── Habits-specific save/load ───────────────────────────────── */
+
+  /**
+   * Save Habits data to a dedicated `habits-data.json` file in the Gist.
+   *
+   * @param {{ habits: Array, logs: Array }} habitsData
+   * @param {string} token  - GitHub PAT (gist scope)
+   * @param {string} id     - Existing Gist ID to update
+   * @returns {Promise<{ id: string, url: string }>}
+   */
+  async function saveHabitsData(habitsData, token, id) {
+    if (!token) throw new Error('GitHub token is required');
+
+    const payload = {
+      habits: habitsData.habits || [],
+      logs:   habitsData.logs   || [],
+      metadata: {
+        version:  '1.0',
+        lastSync: new Date().toISOString(),
+      },
+    };
+
+    const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
+    const method = id ? 'PATCH' : 'POST';
+
+    const resp = await fetch(url, {
+      method,
+      headers: _headers(token),
+      body: JSON.stringify({
+        description: 'Habits Data — saved ' + new Date().toISOString(),
+        public: false,
+        files: {
+          [HABITS_FILENAME]: {
+            content: JSON.stringify(payload, null, 2),
+          },
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    return { id: data.id, url: data.html_url };
+  }
+
+  /**
+   * Load Habits data from `habits-data.json` in a Gist.
+   * Returns null if the file does not exist yet (first save).
+   *
+   * @param {string} token - GitHub PAT
+   * @param {string} id    - Gist ID
+   * @returns {Promise<object|null>}
+   */
+  async function loadHabitsData(token, id) {
+    if (!token) throw new Error('GitHub token is required');
+    if (!id)    throw new Error('Gist ID is required');
+
+    const resp = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: _headers(token),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const raw  = data.files?.[HABITS_FILENAME]?.content;
+    if (!raw) return null; // File doesn't exist yet — first save
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      throw new Error('Habits Gist file is not valid JSON');
+    }
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
-  return { save, load, savePortfolioData, loadPortfolioData, saveEmberData, loadEmberData };
+  return {
+    save, load,
+    savePortfolioData, loadPortfolioData,
+    saveEmberData,     loadEmberData,
+    saveHabitsData,    loadHabitsData,
+  };
 
 })();

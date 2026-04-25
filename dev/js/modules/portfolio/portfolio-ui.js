@@ -1637,6 +1637,7 @@ window.App.PortfolioUI = (() => {
     // Header
     el('h-refresh')?.addEventListener('click', () => P().refreshPrices(true));
     el('h-gist-save')?.addEventListener('click', () => P().triggerGistSave(false));
+    el('h-gist-load')?.addEventListener('click', () => P().gistLoad());
     el('h-signout-btn')?.addEventListener('click', () => P().signOut());
     el('theme-toggle')?.addEventListener('click', P().toggleTheme);
     el('h-currency')?.addEventListener('change', function() {
