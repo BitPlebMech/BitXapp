@@ -234,11 +234,12 @@ window.App.Gist = (() => {
     if (!token) throw new Error('GitHub token is required');
 
     const payload = {
+      sources:    emberData.sources    || [],   // ← books; was missing, caused empty Books tab
       highlights: emberData.highlights || [],
       settings:   emberData.settings   || {},
       streak:     emberData.streak     || {},
       metadata: {
-        version:  '2.0',
+        version:  '2.1',
         lastSync: new Date().toISOString(),
       },
     };

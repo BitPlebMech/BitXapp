@@ -736,16 +736,11 @@ window.App.Ember = (() => {
   /**
    * Trigger a Gist save — prompts for credentials if not stored.
    * Phase 2: saves to ember-highlights.json (separate file).
-   * Also saves full unified state for backward compat.
    */
   function triggerGistSave() {
     const creds = window.App.State.getGistCredentials();
     if (!creds.token) {
-      if (typeof window.App.Portfolio?.openCredentialsPopup === 'function') {
-        window.App.Portfolio.openCredentialsPopup(() => _performGistSave());
-      } else {
-        _toast('No Gist credentials — configure them in Portfolio Settings', 'warn');
-      }
+      window.App.Shell.toast('Add your GitHub token in Settings → Gist Sync', 'warn');
       return;
     }
     _performGistSave();
@@ -757,6 +752,7 @@ window.App.Ember = (() => {
     try {
       const d        = _data();
       const emberData = {
+        sources:    d.sources,             // ← books
         highlights: d.highlights,
         settings:   window.App.State.getEmberSettings(),
         streak:     window.App.State.getEmberStreak(),
@@ -787,6 +783,11 @@ window.App.Ember = (() => {
   /**
    * Load ONLY ember-highlights.json from Gist and replace local Ember state.
    * Does NOT touch portfolio-data.json or habits-data.json.
+   *
+   * Handles legacy Gist files (saved before sources were included):
+   * if sources is empty but highlights reference sourceIds, synthetic source
+   * records are reconstructed from the highlight metadata so the Books tab
+   * is never left blank after a load.
    */
   async function triggerGistLoad() {
     const creds = window.App.State.getGistCredentials();
@@ -796,19 +797,54 @@ window.App.Ember = (() => {
       _toast('Loading Ember data from Gist…', 'info');
       const parsed = await window.App.Gist.loadEmberData(creds.token, creds.id);
       if (!parsed) { _toast('No ember-highlights.json found in Gist yet', 'warn'); return; }
+
+      const highlights = parsed.highlights || [];
+      let sources      = parsed.sources    || [];
+
+      // ── Legacy recovery: Gist file was saved without sources (old bug) ──────
+      // If sources is empty but highlights exist and reference sourceIds,
+      // build synthetic source stubs so the Books tab is not left blank.
+      // A proper re-import will overwrite these stubs with full metadata.
+      if (sources.length === 0 && highlights.length > 0) {
+        const seenIds = new Map(); // sourceId → synthetic source
+        for (const hl of highlights) {
+          if (hl.sourceId && !seenIds.has(hl.sourceId)) {
+            seenIds.set(hl.sourceId, {
+              id:             hl.sourceId,
+              title:          `Book (${hl.sourceId.slice(-6)})`,
+              author:         '',
+              format:         'kindle',
+              color:          SPINE_PALETTE[seenIds.size % SPINE_PALETTE.length],
+              importedAt:     hl.addedAt || new Date().toISOString(),
+              lastImportAt:   hl.addedAt || new Date().toISOString(),
+              highlightCount: 0,
+            });
+          }
+        }
+        // Fill highlightCounts
+        for (const hl of highlights) {
+          const src = seenIds.get(hl.sourceId);
+          if (src) src.highlightCount++;
+        }
+        sources = Array.from(seenIds.values());
+      }
+
+      const srcCount = sources.length;
+      const hlCount  = highlights.length;
+
       window.App.Shell.confirmAction(
         'Load Ember data from Gist?',
-        `Replace local Ember data with ${parsed.highlights?.length || 0} highlights from Gist.`,
+        `Replace local Ember data with ${srcCount} book${srcCount !== 1 ? 's' : ''} and ${hlCount} highlight${hlCount !== 1 ? 's' : ''} from Gist. This cannot be undone.`,
         '☁️', 'Load',
         () => {
           const d = _data();
-          d.highlights = parsed.highlights || [];
-          d.sources    = parsed.sources    || [];   // ← books tab was empty without this
+          d.highlights = highlights;
+          d.sources    = sources;
           _save(d);
-          if (parsed.settings) window.App.State.setEmberSettings?.(parsed.settings);
-          if (parsed.streak)   window.App.State.setEmberStreak?.(parsed.streak);
-          if (window.App.EmberUI?.render) window.App.EmberUI.render();
-          _toast(`Ember data loaded from Gist ✓ (${(parsed.sources||[]).length} books, ${(parsed.highlights||[]).length} highlights)`, 'success');
+          if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
+          if (parsed.streak)   window.App.State.setEmberStreak(parsed.streak);
+          window.App.EmberUI.render();
+          _toast(`Ember loaded ✓ — ${srcCount} book${srcCount !== 1 ? 's' : ''}, ${hlCount} highlight${hlCount !== 1 ? 's' : ''}`, 'success');
         }
       );
     } catch (e) {
@@ -819,18 +855,12 @@ window.App.Ember = (() => {
   /* ── Toast helper ─────────────────────────────────────────────── */
 
   function _toast(msg, type = 'info') {
-    if (typeof window.App.Portfolio?.toast === 'function') {
-      window.App.Portfolio.toast(msg, type);
-      return;
+    // Always route through App.Shell — never call another module directly (MODULE_RULES §3)
+    if (typeof window.App.Shell?.toast === 'function') {
+      window.App.Shell.toast(msg, type);
+    } else {
+      console.info(`[Ember] ${msg}`);
     }
-    const wrap = document.getElementById('toast-wrap');
-    if (!wrap) { console.info(`[Ember] ${msg}`); return; }
-    const t = document.createElement('div');
-    t.className = `toast toast-${type}`;
-    t.textContent = msg;
-    wrap.appendChild(t);
-    setTimeout(() => t.classList.add('toast-exit'), 3200);
-    setTimeout(() => t.remove(), 3700);
   }
 
   /* ═══════════════════════════════════════════════════════════════

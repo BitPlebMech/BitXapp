@@ -731,6 +731,13 @@ window.App.EmberUI = (() => {
     } else {
       window.App.State.setEmberSettings(settings);
     }
+
+    // Push settings to Gist immediately so sign-out / sign-in never resets them.
+    // Fire-and-forget — only runs if credentials are already configured.
+    const creds = window.App.State.getGistCredentials();
+    if (creds.token && creds.id) {
+      window.App.Ember.triggerGistSave();
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════
