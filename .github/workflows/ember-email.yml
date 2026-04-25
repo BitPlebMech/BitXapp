@@ -1,0 +1,185 @@
+name: Ember Daily Highlights Email
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sends your Ember daily-highlights email on a cron schedule, server-side.
+# This bypasses the "app must be open" limitation of the browser-based sender.
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   EMBER_GIST_TOKEN     — GitHub PAT with "gist" scope (read-only is fine)
+#   EMBER_GIST_ID        — The Gist ID that contains ember-highlights.json
+#   EMAILJS_SERVICE_ID   — Your EmailJS Service ID  (e.g. service_xxxxxxx)
+#   EMAILJS_TEMPLATE_ID  — Your EmailJS Template ID (e.g. template_xxxxxxx)
+#   EMAILJS_PUBLIC_KEY   — Your EmailJS Public Key
+#
+# The cron below runs at 08:00 UTC daily. Adjust to match your emailTime setting
+# (remember GitHub Actions uses UTC — convert your local time accordingly).
+# ──────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 08:00 UTC daily — adjust to match your emailTime
+  workflow_dispatch:        # allow manual trigger from Actions tab for testing
+
+jobs:
+  send-highlights-email:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Send Ember daily highlights
+        env:
+          GIST_TOKEN:          ${{ secrets.EMBER_GIST_TOKEN }}
+          GIST_ID:             ${{ secrets.EMBER_GIST_ID }}
+          EMAILJS_SERVICE_ID:  ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY:  ${{ secrets.EMAILJS_PUBLIC_KEY }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, urllib.request, urllib.error, math, sys
+          from datetime import datetime, timezone
+
+          # ── 1. Load ember-highlights.json from Gist ──────────────────────────
+          gist_token = os.environ['GIST_TOKEN']
+          gist_id    = os.environ['GIST_ID']
+
+          req = urllib.request.Request(
+              f'https://api.github.com/gists/{gist_id}',
+              headers={
+                  'Authorization': f'token {gist_token}',
+                  'Accept': 'application/vnd.github.v3+json',
+                  'User-Agent': 'ember-email-action',
+              }
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  gist_data = json.loads(resp.read())
+          except urllib.error.HTTPError as e:
+              print(f'::error::Failed to fetch Gist: HTTP {e.code} {e.reason}')
+              sys.exit(1)
+
+          file_content = gist_data.get('files', {}).get('ember-highlights.json', {}).get('content')
+          if not file_content:
+              print('::warning::ember-highlights.json not found in Gist — nothing to send')
+              sys.exit(0)
+
+          ember = json.loads(file_content)
+
+          # ── 2. Check settings ─────────────────────────────────────────────────
+          settings = ember.get('settings', {})
+          if not settings.get('emailEnabled', False):
+              print('Email automation is disabled in Ember settings — skipping')
+              sys.exit(0)
+
+          recipient = settings.get('email', '').strip()
+          if not recipient:
+              print('::warning::No recipient email configured in Ember settings')
+              sys.exit(0)
+
+          frequency = settings.get('emailFrequency', 'daily')
+          now_utc   = datetime.now(timezone.utc)
+          weekday   = now_utc.weekday()  # 0=Mon … 6=Sun
+
+          if frequency == 'weekdays' and weekday >= 5:
+              print(f'Frequency is "weekdays" and today is weekend (weekday={weekday}) — skipping')
+              sys.exit(0)
+          if frequency == 'weekly' and weekday != 0:
+              print(f'Frequency is "weekly" and today is not Monday (weekday={weekday}) — skipping')
+              sys.exit(0)
+
+          # ── 3. Pick today's highlights (same algorithm as ember.js) ──────────
+          highlights = ember.get('highlights', [])
+          sources    = ember.get('sources',    [])
+          sources_by_id = {s['id']: s for s in sources}
+
+          if not highlights:
+              print('::warning::No highlights in Gist — nothing to send')
+              sys.exit(0)
+
+          # Stable sort by id (mirrors JS sort)
+          sorted_hls = sorted(highlights, key=lambda h: h.get('id', ''))
+
+          # LCG shuffle with fixed seed (mirrors getDailyReview in ember.js)
+          FIXED_SEED = 0xD15EA5E
+          s = FIXED_SEED & 0xFFFFFFFF
+          arr = sorted_hls[:]
+          for i in range(len(arr) - 1, 0, -1):
+              s = (1664525 * s + 1013904223) & 0xFFFFFFFF
+              j = s % (i + 1)
+              arr[i], arr[j] = arr[j], arr[i]
+
+          n       = len(arr)
+          count   = min(10, n)
+          # UTC days since epoch (mirrors Math.floor(Date.now() / 86400000))
+          day_num   = int(now_utc.timestamp() // 86400)
+          start_idx = (day_num * count) % n
+
+          chosen = [arr[(start_idx + i) % n] for i in range(count)]
+
+          # ── 4. Build EmailJS params (mirrors sendDailyEmail in ember.js) ─────
+          accent_colors = [
+              '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+              '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+          ]
+
+          date_str = now_utc.strftime('%A, %B %-d, %Y')
+
+          params = {
+              'to_email':         recipient,
+              'subject':          f'🔥 Ember — {len(chosen)} highlights for {date_str}',
+              'date_string':      date_str,
+              'highlights_count': str(len(chosen)),
+          }
+
+          for i in range(1, 11):
+              idx = i - 1
+              if idx < len(chosen):
+                  hl  = chosen[idx]
+                  src = sources_by_id.get(hl.get('sourceId', ''), {})
+                  params[f'h{i}_text']   = hl.get('text', '')
+                  params[f'h{i}_book']   = src.get('title', 'Unknown Book')
+                  author = src.get('author', '')
+                  params[f'h{i}_author'] = f' — {author}' if author else ''
+                  params[f'h{i}_color']  = accent_colors[idx % len(accent_colors)]
+                  params[f'h{i}_show']   = 'block'
+              else:
+                  params[f'h{i}_text']   = ''
+                  params[f'h{i}_book']   = ''
+                  params[f'h{i}_author'] = ''
+                  params[f'h{i}_color']  = '#cccccc'
+                  params[f'h{i}_show']   = 'none'
+
+          # ── 5. Call EmailJS REST API ───────────────────────────────────────────
+          # EmailJS v3 REST endpoint — identical to what the browser SDK calls.
+          service_id  = os.environ['EMAILJS_SERVICE_ID']
+          template_id = os.environ['EMAILJS_TEMPLATE_ID']
+          public_key  = os.environ['EMAILJS_PUBLIC_KEY']
+
+          payload = json.dumps({
+              'service_id':  service_id,
+              'template_id': template_id,
+              'user_id':     public_key,      # EmailJS v3 field name
+              'accessToken': public_key,      # EmailJS v4 field name (harmless if unused)
+              'template_params': params,
+          }).encode('utf-8')
+
+          ejs_req = urllib.request.Request(
+              'https://api.emailjs.com/api/v1.0/email/send',
+              data=payload,
+              headers={
+                  'Content-Type': 'application/json',
+                  'User-Agent':   'ember-email-action',
+                  'origin':       'https://bitplebmech.github.io',
+              },
+              method='POST',
+          )
+
+          try:
+              with urllib.request.urlopen(ejs_req, timeout=15) as resp:
+                  body = resp.read().decode('utf-8')
+              print(f'✅ Email sent to {recipient} ({len(chosen)} highlights)')
+              print(f'   EmailJS response: {body}')
+          except urllib.error.HTTPError as e:
+              err_body = e.read().decode('utf-8', errors='replace')
+              print(f'::error::EmailJS API error: HTTP {e.code} — {err_body}')
+              sys.exit(1)
+          PYEOF
