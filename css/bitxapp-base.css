@@ -94,9 +94,8 @@
   --blue-bg: rgba(91, 156, 255, 0.09);
 
   /* ── Typography ──────────────────────────────────────────────────── */
-  --font-ui:      'DM Sans', system-ui, sans-serif;
-  --font-mono:    'DM Mono', 'Courier New', monospace;
-  --font-reading: 'PMN Caecilia', 'Caecilia', Bitter, Georgia, serif;
+  --font-ui:   'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
 
   /* ── Spacing & Radius ────────────────────────────────────────────── */
   --radius-xs: 4px;

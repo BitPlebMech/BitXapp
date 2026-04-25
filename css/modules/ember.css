@@ -1182,9 +1182,8 @@
    SPACED REPETITION REVIEW MODE — Streak widget, rating buttons, session flow
    ════════════════════════════════════════════════════════════════════ */
 
-/* Highlight text — Caecilia slab-serif for a Kindle-like reading feel */
+/* Highlight text size — larger for comfortable reading in Library/Books */
 .ember-hl-text {
-  font-family: var(--font-reading);
   font-size: 16px;
   line-height: 1.75;
 }
@@ -1477,7 +1476,7 @@
 
 .ember-review-single-text {
   margin: 0 0 16px;
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1.75;
   color: var(--text);
   font-style: normal;
@@ -1991,7 +1990,7 @@
   }
 
   .ember-review-single-text {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .ember-streak-widget {
