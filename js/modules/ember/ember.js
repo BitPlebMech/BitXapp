@@ -803,11 +803,12 @@ window.App.Ember = (() => {
         () => {
           const d = _data();
           d.highlights = parsed.highlights || [];
+          d.sources    = parsed.sources    || [];   // ← books tab was empty without this
           _save(d);
           if (parsed.settings) window.App.State.setEmberSettings?.(parsed.settings);
           if (parsed.streak)   window.App.State.setEmberStreak?.(parsed.streak);
           if (window.App.EmberUI?.render) window.App.EmberUI.render();
-          _toast(`Ember data loaded from Gist ✓ (${(parsed.highlights||[]).length} highlights)`, 'success');
+          _toast(`Ember data loaded from Gist ✓ (${(parsed.sources||[]).length} books, ${(parsed.highlights||[]).length} highlights)`, 'success');
         }
       );
     } catch (e) {

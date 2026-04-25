@@ -1119,7 +1119,7 @@ window.App.Portfolio = (() => {
             window.App.State.setEmberData?.({
               ...currentEmber,
               highlights: emberParsed.highlights || currentEmber.highlights || [],
-              sources:    currentEmber.sources   || [],
+              sources:    emberParsed.sources    || currentEmber.sources   || [],   // ← books from Gist
             });
             if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
             if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);

@@ -367,7 +367,7 @@ window.App.Shell = (() => {
             window.App.State.setEmberData?.({
               ...currentEmber,
               highlights: emberParsed.highlights || [],
-              sources:    currentEmber.sources   || [],
+              sources:    emberParsed.sources    || [],   // ← must come from Gist, not local
             });
             if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
             if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
