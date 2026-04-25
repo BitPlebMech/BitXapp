@@ -66,44 +66,55 @@
    Change a token once → reflected everywhere.
    ═══════════════════════════════════════════════════════════════════════ */
 :root {
-  /* Background surfaces (darkest → lightest) — Aurora palette */
-  --bg:    #070b14;
-  --surf:  #0c1220;
-  --surf2: #101828;
-  --surf3: #141e30;
+  /* ── Backgrounds ─────────────────────────────────────────────────── */
+  --bg:    #06090f;
+  --surf:  #0b1120;
+  --surf2: #101928;
+  --surf3: #162034;
 
-  /* Borders — soft translucent lines */
-  --b1: rgba(255,255,255,0.06);
-  --b2: rgba(255,255,255,0.10);
+  /* ── Borders ─────────────────────────────────────────────────────── */
+  --b1: #162038;
+  --b2: #1e2f4a;
 
-  /* Text hierarchy */
-  --text:  #f0f4ff;
-  --text2: #8899bb;
-  --muted: #445577;
+  /* ── Text ────────────────────────────────────────────────────────── */
+  --text:  #e4ecff;
+  --text2: #a0b3d4;
+  --muted: #6b7fa2;
   --dim:   #3d5170;
 
-  /* Accent colours — Aurora */
-  --blue:   #4f8ef7;
+  /* ── Semantic colours ────────────────────────────────────────────── */
+  --blue:   #5b9cff;
+  --green:  #00dba8;
+  --red:    #ff3d5a;
+  --amber:  #ffaa20;
+  --purple: #a07cf8;
+  --orange: #ff9848;
   --violet: #8b5cf6;
   --teal:   #14d9c5;
-  --green:  #22d685;
-  --red:    #ff4444;
-  --amber:  #f59e0b;
-  --purple: #8b5cf6;
-  --orange: #f59e0b;
+  --blue-bg: rgba(91, 156, 255, 0.09);
 
-  /* Semi-transparent accent backgrounds */
-  --blue-bg: rgba(79,142,247,0.09);
+  /* ── Typography ──────────────────────────────────────────────────── */
+  --font-ui:      'DM Sans', system-ui, sans-serif;
+  --font-mono:    'DM Mono', 'Courier New', monospace;
+  --font-reading: 'PMN Caecilia', 'Caecilia', Bitter, Georgia, serif;
 
-  /* Typography — DM Sans UI, DM Mono for numbers */
-  --font-ui:   'DM Sans', system-ui, sans-serif;
-  --font-mono: 'DM Mono', monospace;
-
-  /* Radius scale */
-  --radius-sm: 8px;
+  /* ── Spacing & Radius ────────────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --space-xs:  6px;
+  --space-sm:  10px;
+  --space-md:  16px;
+  --space-lg:  22px;
+  --space-xl:  32px;
+
+  /* ── Shadows ─────────────────────────────────────────────────────── */
+  /* (no global shadow tokens yet) */
+
+  /* ── Transitions ─────────────────────────────────────────────────── */
+  /* (no global transition tokens yet) */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -111,24 +122,31 @@
    Applied when <html data-theme="light"> — overrides every :root value.
    ═══════════════════════════════════════════════════════════════════════ */
 [data-theme="light"] {
-  --bg:    #f5f7fa;    /* Softer neutral gray — less eye strain than the blue-tinted #f0f4fb */
+  /* ── Backgrounds ─────────────────────────────────────────────────── */
+  --bg:    #f0f4fb;
   --surf:  #ffffff;
-  --surf2: #f9fafb;    /* Warmer than before, better contrast against --bg */
-  --surf3: #f3f4f6;    /* More neutral, less blue-cast */
-  --b1:    rgba(0,0,0,0.07);
-  --b2:    rgba(0,0,0,0.12);
+  --surf2: #f7f9fe;
+  --surf3: #eef2fa;
+
+  /* ── Borders ─────────────────────────────────────────────────────── */
+  --b1: #dde5f5;
+  --b2: #c8d6ee;
+
+  /* ── Text ────────────────────────────────────────────────────────── */
   --text:  #0c1a2e;
   --text2: #4a6080;
   --muted: #6b82a0;
   --dim:   #a8bcd8;
+
+  /* ── Semantic colours ────────────────────────────────────────────── */
   --blue:   #2563eb;
-  --violet: #7c3aed;
-  --teal:   #0d9488;
   --green:  #059669;
   --red:    #dc2626;
   --amber:  #b45309;
   --purple: #7c3aed;
   --orange: #c2410c;
+  --violet: #7c3aed;
+  --teal:   #0d9488;
   --blue-bg: rgba(37,99,235,0.07);
 }
 [data-theme="light"] body::before {

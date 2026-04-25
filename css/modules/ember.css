@@ -408,14 +408,6 @@
   text-overflow: ellipsis;
 }
 
-.ember-hl-text {
-  font-size: 14.5px;
-  line-height: 1.65;
-  color: var(--text);
-  font-style: normal; /* No italic — clean reading */
-  font-weight: 400;
-}
-
 .ember-hl-foot {
   display: flex;
   align-items: center;
@@ -1190,10 +1182,11 @@
    SPACED REPETITION REVIEW MODE — Streak widget, rating buttons, session flow
    ════════════════════════════════════════════════════════════════════ */
 
-/* Highlight text size override — larger for comfortable reading in Library/Books */
+/* Highlight text — Caecilia slab-serif for a Kindle-like reading feel */
 .ember-hl-text {
-  font-size: 16px !important;
-  line-height: 1.75 !important;
+  font-family: var(--font-reading);
+  font-size: 16px;
+  line-height: 1.75;
 }
 
 /* ── Streak Widget ──────────────────────────────────────────────── */
