@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiT PleB · Portfolio Terminal</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- ── CSS load order ───────────────────────────────────────────────
+       1. Base styles — exact reference stylesheet (BitXappMod.css)
+       2. Module-specific overrides for new modules (habits, calc)
+       ──────────────────────────────────────────────────────────────── -->
+  <link rel="stylesheet" href="css/bitxapp-base.css">
+  <link rel="stylesheet" href="css/modules/habits.css">
+  <link rel="stylesheet" href="css/modules/financecalc.css">
+  <link rel="stylesheet" href="css/modules/ember.css">
+</head>
+
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     APP SHELL
+     ════════════════════════════════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- ══ TOPBAR ═══════════════════════════════════════════════════════ -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="hdr-logo">
+        <img src="./logos/logo.png" alt="BiT PleB logo">
+      </div>
+      <div class="hdr-title">BiT PleB</div>
+    </div>
+    <div class="topbar-right">
+      <button class="hdr-btn icon-only" id="h-signout-btn" title="Sign out of Gist">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+      <button class="hdr-btn icon-only theme-mode-btn" id="theme-toggle" title="Switch theme">
+        <!-- Sun: shown in dark mode → click to go light -->
+        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="width:15px;height:15px">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1"  x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22"   x2="5.64"  y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1"  y1="12" x2="3"  y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+          <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+        </svg>
+        <!-- Moon: shown in light mode → click to go dark -->
+        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="width:15px;height:15px;display:none">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div><!-- /.topbar -->
+
+  <!-- ══ BODY ROW: sidebar + main ════════════════════════════════════ -->
+  <div class="body-row">
+
+    <!-- SIDEBAR — module switcher rail -->
+    <aside class="sidebar" id="sidebar-nav">
+      <!-- Populated entirely by App.Shell._renderSidebar() on init -->
+    </aside><!-- /.sidebar -->
+
+    <!-- MAIN AREA — module panes injected / swapped by App.Shell -->
+    <div class="main-area" id="main-area">
+
+      <!-- ── Portfolio module ──────────────────────────────────────── -->
+      <div class="module-pane" id="mod-portfolio">
+        <div class="portfolio-shell">
+
+          <!-- Portfolio module sub-header -->
+          <div class="mod-header">
+            <div class="mod-header-left">
+              <svg viewBox="0 0 264 264" fill="none" stroke="#00C3AF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" shape-rendering="geometricPrecision" style="flex-shrink:0"><rect x="32" y="40" width="200" height="184" rx="36"/><path d="M78 170v-40"/><path d="M118 170v-70"/><path d="M158 170v-55"/><path d="M198 170v-85"/></svg>
+              <span class="mod-header-title">Portfolio Terminal</span>
+              <span class="status-dot" id="h-dot"></span>
+              <span id="h-status" class="mod-status-txt">Initialising…</span>
+              <span class="price-src-badge" id="h-src-badge">Simulated</span>
+            </div>
+            <div class="mod-header-right">
+              <div class="fx-pill" id="h-fx" title="ECB exchange rates — last updated"
+                   style="font-size:10px;display:flex;align-items:center;gap:6px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     style="width:10px;height:10px;flex-shrink:0">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span id="h-fx-ts-combined">FX: Loading…</span>
+              </div>
+              <div class="cur-sel">
+                <span class="cur-sel-lbl">Currency</span>
+                <select id="h-currency">
+                  <option value="EUR">€ EUR</option>
+                  <option value="USD">$ USD</option>
+                  <option value="INR">₹ INR</option>
+                </select>
+              </div>
+              <button class="hdr-btn primary" id="h-gist-save" title="Gist Save — portfolio-data.json">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                </svg>
+                Gist Save
+                <span class="gist-unsaved-dot" id="h-unsaved-dot"
+                      style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+              </button>
+              <button class="hdr-btn" id="h-gist-load" title="Gist Load — portfolio-data.json">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     style="width:13px;height:13px">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Gist Load
+              </button>
+              <button class="hdr-btn primary" id="h-refresh">
+                <svg class="spin-target" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 2v6h-6"/>
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                  <path d="M3 22v-6h6"/>
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </div><!-- /.mod-header -->
+
+          <!-- Tab navigation -->
+          <nav class="tab-nav" id="portfolio-tabs">
+            <button class="tab-btn active" data-tab="overview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              Overview
+            </button>
+            <button class="tab-btn" data-tab="positions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+              Positions
+            </button>
+            <button class="tab-btn" data-tab="history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              History
+            </button>
+          </nav>
+
+          <div class="tab-scroll">
+
+            <!-- ── Overview Tab ───────────────────────────────────── -->
+            <div id="tab-overview" class="tab-pane active">
+              <!-- KPI cards dynamically injected by renderOverview() -->
+              <div class="kpi-grid" id="ov-kpis"></div>
+              <div class="ov-charts">
+                <!-- Allocation donut -->
+                <div class="panel">
+                  <div class="alloc-tabs">
+                    <div class="alloc-tab active" id="atab-asset">By Asset</div>
+                    <div class="alloc-tab"        id="atab-class">By Class</div>
+                  </div>
+                  <div class="alloc-view active" id="aview-asset">
+                    <div class="donut-wrap">
+                      <div class="donut-svg-wrap" id="donut-asset-svg"></div>
+                      <div class="donut-legend"   id="donut-asset-leg"></div>
+                    </div>
+                  </div>
+                  <div class="alloc-view" id="aview-class">
+                    <div class="donut-wrap">
+                      <div class="donut-svg-wrap" id="donut-class-svg"></div>
+                      <div class="donut-legend"   id="donut-class-leg"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Invested vs Market Value bar chart -->
+                <div class="panel">
+                  <div class="panel-hdr">
+                    <span class="panel-title">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                      </svg>
+                      Invested vs Market Value
+                    </span>
+                  </div>
+                  <div class="ov-bar-legend">
+                    <div class="ov-bar-leg-item">
+                      <div class="ov-bar-leg-dot" style="opacity:.45;background:var(--blue)"></div>Invested
+                    </div>
+                    <div class="ov-bar-leg-item">
+                      <div class="ov-bar-leg-dot" style="opacity:.85;background:var(--blue)"></div>Market Value
+                    </div>
+                  </div>
+                  <div class="ov-bar-chart-sec" id="ov-bar-chart"></div>
+                </div>
+              </div>
+              <!-- Analytics panels (Position Metrics, Fees & Taxes, Yearly Costs) injected by renderInlineAnalytics() -->
+              <div id="ov-analytics"></div>
+            </div>
+
+            <!-- ── Positions Tab ──────────────────────────────────── -->
+            <div id="tab-positions" class="tab-pane">
+              <div class="pos-toolbar">
+                <div class="pos-left">
+                  <div class="pos-count"><strong id="pos-count">0</strong> Positions</div>
+                  <div class="cls-filters">
+                    <button class="cls-fb active" id="clf-all"   >All</button>
+                    <button class="cls-fb"        id="clf-Stock" >Stock</button>
+                    <button class="cls-fb"        id="clf-ETF"   >ETF</button>
+                    <button class="cls-fb"        id="clf-Crypto">Crypto</button>
+                    <button class="cls-fb"        id="clf-Bond"  >Bond</button>
+                    <button class="cls-fb"        id="clf-MF"    >MF</button>
+                  </div>
+                </div>
+                <div style="display:flex;gap:7px">
+                  <button class="hdr-btn" id="btn-export-csv">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Export CSV
+                  </button>
+                  <button class="hdr-btn" id="btn-import-csv">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Import CSV
+                  </button>
+                  <button class="hdr-btn primary" id="btn-add-transaction">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add Transaction
+                  </button>
+                </div>
+              </div>
+              <div class="pos-grid" id="pos-grid"></div>
+            </div>
+
+            <!-- ── History Tab ────────────────────────────────────── -->
+            <div id="tab-history" class="tab-pane">
+              <div class="hist-toolbar">
+                <input type="text" class="search-input" id="hist-search" placeholder="Search ticker…">
+                <div class="filter-btns">
+                  <button class="fbtn active" id="f-all" >All</button>
+                  <button class="fbtn"        id="f-buy" >Buy</button>
+                  <button class="fbtn"        id="f-sell">Sell</button>
+                </div>
+                <select class="sort-select" id="hist-sort">
+                  <option value="date-desc">Newest first</option>
+                  <option value="date-asc">Oldest first</option>
+                  <option value="ticker">Ticker A→Z</option>
+                  <option value="value-desc">Value ↓</option>
+                </select>
+              </div>
+              <div class="panel">
+                <div class="tbl-wrap">
+                  <table class="htbl">
+                    <thead><tr>
+                      <th>#</th><th>Date</th><th>Type</th>
+                      <th>Ticker</th><th>Class</th><th>Qty</th>
+                      <th id="hist-price-hdr">Price (EUR)</th>
+                      <th>Total</th><th>P&amp;L</th><th></th>
+                    </tr></thead>
+                    <tbody id="hist-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /.tab-scroll -->
+        </div><!-- /.portfolio-shell -->
+      </div><!-- #mod-portfolio -->
+
+      <!-- ── Habits module ─────────────────────────────────────────── -->
+      <div class="module-pane" id="mod-habits">
+        <div class="mod-header">
+          <div class="mod-header-left" style="display:flex;align-items:center;gap:10px">
+            <svg viewBox="0 0 264 264" fill="none" stroke-width="42" stroke-linecap="round" width="22" height="22"><path d="M132 42 A90 90 0 0 1 222 132" stroke="#3A86FF"/><path d="M222 132 A90 90 0 0 1 132 222" stroke="#2ECC71"/><path d="M132 222 A90 90 0 0 1 42 132" stroke="#FFBE0B"/><path d="M42 132 A90 90 0 0 1 132 42" stroke="#FF5F1F"/></svg>
+            <span class="mod-header-title">Habit Tracker</span>
+          </div>
+          <div class="mod-header-right" style="display:flex;align-items:center;gap:8px">
+            <button class="hdr-btn" id="habits-gist-save" title="Gist Save — habits-data.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              Gist Save
+            </button>
+            <button class="hdr-btn" id="habits-gist-load" title="Gist Load — habits-data.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Gist Load
+            </button>
+          </div>
+        </div>
+        <div id="habits-content" style="flex:1;overflow-y:auto;padding:20px 22px 90px">
+          <!-- Populated by App.HabitsUI.render() -->
+        </div>
+      </div>
+
+      <!-- ── Finance Calculator module (stub) ─────────────────────── -->
+      <div class="module-pane" id="mod-calc">
+        <div class="placeholder-module">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <line x1="8" y1="6" x2="16" y2="6"/>
+            <line x1="8" y1="10" x2="16" y2="10"/>
+            <line x1="8" y1="14" x2="12" y2="14"/>
+            <line x1="8" y1="18" x2="16" y2="18"/>
+          </svg>
+          <h2>Finance Calculator</h2>
+          <p>Compound interest, SIP returns, loan amortisation, and more.</p>
+          <span class="placeholder-soon-badge">Coming soon</span>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           EMBER MODULE  —  Reading Highlights
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="module-pane" id="mod-ember">
+
+        <!-- ── Module header ─────────────────────────────────────────── -->
+        <div class="mod-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="ember-flame-icon">
+              <svg viewBox="0 0 264 264" fill="none" stroke="#FF6A00" stroke-width="15.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" shape-rendering="geometricPrecision"><path d="M132 242c49.5 0 88-38.5 88-88 0-33.3-19.8-63.8-49.5-85.8-2.2 28.6-18.7 47.3-36.3 52.8 6.6-30.8-7.7-60.5-24.2-77-3.3 24.2-16.5 44-33 58.3-19.8 17.6-33 42.9-33 62.7 0 42.9 34.1 77 88 77"/><ellipse cx="105" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/><ellipse cx="159" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/><path d="M98 192c14 20 54 18 68 0" stroke="#FF5F1F" fill="none"/></svg>
+            </div>
+            <span class="ember-module-title">Ember</span>
+            <div id="ember-stats" class="ember-stats"></div>
+          </div>
+          <div class="ember-header-actions">
+            <span id="ember-gist-status" class="ember-gist-status"></span>
+            <button class="hdr-btn primary" id="ember-import-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Import
+            </button>
+            <button class="hdr-btn" id="ember-gist-save" title="Gist Save — ember-highlights.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61
+                         c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77
+                         5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0
+                         C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78
+                         c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              Gist Save
+            </button>
+            <button class="hdr-btn" id="ember-gist-load" title="Gist Load — ember-highlights.json">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   style="width:13px;height:13px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Gist Load
+            </button>
+          </div>
+        </div><!-- /.mod-header -->
+
+        <!-- ── Tab navigation ────────────────────────────────────────── -->
+        <nav class="tab-nav" id="ember-tabs">
+          <button class="tab-btn active" id="ember-tab-books">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Books
+          </button>
+          <button class="tab-btn" id="ember-tab-library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Library
+          </button>
+          <button class="tab-btn" id="ember-tab-review">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Daily
+          </button>
+        </nav>
+
+        <!-- ── Tab panes ──────────────────────────────────────────────── -->
+        <div id="ember-pane-books"   style="flex:1;overflow-y:auto;padding:20px 22px 90px">
+          <div id="ember-books-content"></div>
+        </div>
+        <div id="ember-pane-library" style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-library-content"></div>
+        </div>
+        <div id="ember-pane-review"  style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-review-content"></div>
+        </div>
+
+      </div><!-- #mod-ember -->
+
+      <!-- ══════════════════════════════════════════════════════════════
+           SETTINGS MODULE  —  Unified settings for all modules
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="module-pane" id="mod-settings">
+
+        <!-- Scrollable settings body -->
+        <div class="stg-scroll">
+
+          <!-- ── § 1  GIST SYNC ──────────────────────────────────────── -->
+          <div class="stg-sec" id="stg-sec-gist">
+            <div class="stg-sec-hdr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61
+                         c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77
+                         5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0
+                         C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78
+                         c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              GitHub Gist Sync
+            </div>
+            <div class="stg-info">
+              <strong>Shared credentials</strong> — one token + Gist ID used by both Portfolio and Ember.<br>
+              Two separate files are kept in the same Gist:
+              <code>portfolio-data.json</code> and <code>ember-highlights.json</code>.
+            </div>
+            <div class="stg-info" style="margin-top:6px">
+              <strong>First-time setup:</strong><br>
+              1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+              2. Name it "Portfolio" · tick <strong>gist</strong> scope only · Generate<br>
+              3. Paste token below → Save → click <strong>Gist Save</strong> in Portfolio or Ember header
+            </div>
+            <div class="stg-row">
+              <div class="fgrp" style="flex:1">
+                <label class="flbl">GitHub Personal Access Token</label>
+                <input type="password" class="finp" id="cfg-gist-token"
+                       placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+              </div>
+            </div>
+            <div class="stg-row">
+              <div class="fgrp" style="flex:1">
+                <label class="flbl">Gist ID <span style="font-weight:400;opacity:.5">(auto-filled on first save)</span></label>
+                <input type="text" class="finp" id="cfg-gist-id"
+                       placeholder="Paste your Gist ID here, or leave blank to create a new one">
+              </div>
+            </div>
+            <div class="stg-row stg-btns">
+              <button class="abtn green" id="stg-gist-save-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                </svg>
+                Save Credentials
+              </button>
+              <button class="abtn outline" id="stg-gist-load-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Load Portfolio from Gist
+              </button>
+              <button class="abtn red" id="stg-gist-clear-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Clear Credentials
+              </button>
+            </div>
+            <div id="stg-gist-status" class="stg-status-line"></div>
+          </div><!-- /.stg-sec -->
+
+          <!-- ── § 2  PORTFOLIO ──────────────────────────────────────── -->
+          <div class="stg-sec" id="stg-sec-portfolio">
+            <div class="stg-sec-hdr">
+              <svg viewBox="0 0 264 264" fill="none" stroke="currentColor" stroke-width="15.5"
+                   stroke-linecap="round" stroke-linejoin="round" width="14" height="14"
+                   shape-rendering="geometricPrecision">
+                <rect x="32" y="40" width="200" height="184" rx="36"/>
+                <path d="M78 170v-40"/><path d="M118 170v-70"/>
+                <path d="M158 170v-55"/><path d="M198 170v-85"/>
+              </svg>
+              Portfolio
+            </div>
+
+            <div class="stg-info">
+              <strong>Live prices work without any API key:</strong><br>
+              · <strong>Stocks &amp; ETFs</strong> — Yahoo Finance (free, automatic)<br>
+              · <strong>Crypto</strong> — CoinGecko (free, automatic)<br><br>
+              <strong>Optional — Alpha Vantage:</strong>
+              adds a second data source for stocks.
+              Get a free key at <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a>
+              (25 req/day · 5 req/min · 15-min delayed)
+            </div>
+
+            <div class="stg-row stg-two-col">
+              <div class="fgrp">
+                <label class="flbl">Display Currency</label>
+                <select class="fsel" id="cfg-currency">
+                  <option value="EUR">€ EUR</option>
+                  <option value="USD">$ USD</option>
+                  <option value="INR">₹ INR</option>
+                </select>
+              </div>
+              <div class="fgrp">
+                <label class="flbl">Price Cache Duration</label>
+                <select class="fsel" id="cfg-cache-ttl">
+                  <option value="4">4 hours (default)</option>
+                  <option value="1">1 hour</option>
+                  <option value="24">24 hours</option>
+                </select>
+              </div>
+            </div>
+            <div class="stg-row">
+              <div class="fgrp" style="flex:1">
+                <label class="flbl">Alpha Vantage API Key (optional)</label>
+                <input type="password" class="finp" id="cfg-api-key"
+                       placeholder="Optional — leave blank to use Yahoo Finance">
+              </div>
+            </div>
+            <div class="stg-row stg-btns">
+              <button class="abtn blue" id="stg-portfolio-save">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                </svg>
+                Save Settings
+              </button>
+            </div>
+
+            <div class="stg-subsec-lbl">FX Rates — ECB via frankfurter.app</div>
+            <div class="stg-info" style="font-size:11px">
+              ECB publishes rates on <strong>business days only</strong>.
+              Today's rate may show as yesterday if ECB hasn't published yet — this is normal.
+            </div>
+            <div class="fx-chips" id="stg-fx-chips">
+              <div class="fx-chip"><span>Loading…</span></div>
+            </div>
+
+            <div class="stg-subsec-lbl">Data Management</div>
+            <div class="stg-info" id="stg-storage">—</div>
+            <div class="stg-row stg-btns">
+              <button class="abtn green" id="stg-export-portfolio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export Portfolio JSON
+              </button>
+              <button class="abtn outline" id="stg-export-csv">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export CSV
+              </button>
+              <button class="abtn outline" id="stg-import-portfolio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import Portfolio JSON
+              </button>
+              <input type="file" id="stg-import-portfolio-file" accept=".json" style="display:none">
+            </div>
+            <div class="stg-row stg-btns">
+              <button class="abtn outline" id="stg-clear-cache">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 .49-5.5"/>
+                </svg>
+                Clear Price Cache
+              </button>
+              <button class="abtn outline" id="stg-undo-delete">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 14 4 9 9 4"/>
+                  <path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+                </svg>
+                Undo Last Delete
+              </button>
+              <button class="abtn red" id="stg-reset">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+                Factory Reset
+              </button>
+            </div>
+          </div><!-- /.stg-sec -->
+
+          <!-- ── § 3  EMBER ──────────────────────────────────────────── -->
+          <div class="stg-sec" id="stg-sec-ember">
+            <div class="stg-sec-hdr">
+              <svg viewBox="0 0 264 264" fill="none" stroke="currentColor" stroke-width="15.5"
+                   stroke-linecap="round" stroke-linejoin="round" width="14" height="14"
+                   shape-rendering="geometricPrecision">
+                <path d="M132 242c49.5 0 88-38.5 88-88 0-33.3-19.8-63.8-49.5-85.8-2.2 28.6-18.7 47.3-36.3 52.8
+                         6.6-30.8-7.7-60.5-24.2-77-3.3 24.2-16.5 44-33 58.3-19.8 17.6-33 42.9-33 62.7 0 42.9 34.1 77 88 77"/>
+              </svg>
+              Ember — Reading Highlights
+            </div>
+            <div id="stg-ember-settings-content">
+              <!-- Populated by EmberUI.renderSettingsInto() on Settings init -->
+            </div>
+            <div class="stg-subsec-lbl">Data Management</div>
+            <div class="stg-row stg-btns">
+              <button class="abtn green" id="stg-export-ember">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export Ember JSON
+              </button>
+              <button class="abtn outline" id="stg-import-ember">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import Ember JSON
+              </button>
+              <input type="file" id="stg-import-ember-file" accept=".json" style="display:none">
+            </div>
+          </div><!-- /.stg-sec -->
+
+          <!-- ── Habits section ──────────────────────────────────────── -->
+          <div class="stg-sec">
+            <div class="stg-sec-title">
+              <svg viewBox="0 0 264 264" fill="none" stroke-width="42" stroke-linecap="round" width="16" height="16">
+                <path d="M132 42 A90 90 0 0 1 222 132" stroke="#3A86FF"/>
+                <path d="M222 132 A90 90 0 0 1 132 222" stroke="#2ECC71"/>
+                <path d="M132 222 A90 90 0 0 1 42 132" stroke="#FFBE0B"/>
+                <path d="M42 132 A90 90 0 0 1 132 42" stroke="#FF5F1F"/>
+              </svg>
+              Habits — Habit Tracker
+            </div>
+            <div class="stg-subsec-lbl">Data Management</div>
+            <div class="stg-row stg-btns">
+              <button class="abtn green" id="stg-export-habits">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export Habits JSON
+              </button>
+              <button class="abtn outline" id="stg-import-habits">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Import Habits JSON
+              </button>
+              <input type="file" id="stg-import-habits-file" accept=".json" style="display:none">
+            </div>
+          </div><!-- /.stg-sec -->
+
+
+        </div><!-- /.stg-scroll -->
+      </div><!-- #mod-settings -->
+
+    </div><!-- /.main-area -->
+  </div><!-- /.body-row -->
+</div><!-- /.app-shell -->
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     OVERLAYS — rendered outside the shell to avoid z-index clipping
+     ════════════════════════════════════════════════════════════════════ -->
+
+<!-- Add Transaction modal -->
+<div class="modal-ov" id="modal-ov">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Add Transaction
+      </div>
+      <button class="modal-x" id="modal-x-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Quick ticker buttons -->
+      <div class="fgrp" style="margin-bottom:12px">
+        <label class="flbl">Quick Select</label>
+        <div class="quick-tickers">
+          <button class="qt-btn">AAPL</button><button class="qt-btn">MSFT</button>
+          <button class="qt-btn">NVDA</button><button class="qt-btn">GOOGL</button>
+          <button class="qt-btn">AMZN</button><button class="qt-btn">META</button>
+          <button class="qt-btn">TSLA</button><button class="qt-btn">VOO</button>
+          <button class="qt-btn">SPY</button><button class="qt-btn">BTC</button>
+          <button class="qt-btn">ETH</button>
+        </div>
+      </div>
+      <!-- BUY / SELL toggle -->
+      <div class="type-toggle">
+        <button class="type-btn is-buy" id="type-buy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+          Buy
+        </button>
+        <button class="type-btn" id="type-sell">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+            <polyline points="17 18 23 18 23 12"/>
+          </svg>
+          Sell
+        </button>
+      </div>
+      <!-- Form fields -->
+      <div class="fg">
+        <div class="fgrp fg-full">
+          <label class="flbl">Identifier</label>
+          <div class="id-type-tabs">
+            <button class="id-tab active" id="id-ticker">Ticker</button>
+            <button class="id-tab" id="id-isin">ISIN</button>
+            <button class="id-tab" id="id-wkn">WKN</button>
+          </div>
+          <div class="id-input-wrap">
+            <input type="text" class="finp" id="f-ticker" placeholder="e.g. AAPL">
+            <button class="verify-btn" id="f-verify" title="Look up ticker">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Verify
+            </button>
+          </div>
+          <div class="fhint" id="f-ticker-hint"></div>
+          <div class="company-preview" id="f-company-preview"></div>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Asset Class</label>
+          <select class="fsel" id="f-cls">
+            <option value="Stock">Stock</option>
+            <option value="ETF">ETF</option>
+            <option value="Crypto">Crypto</option>
+            <option value="Bond">Bond</option>
+            <option value="MF">Mutual Fund</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Date</label>
+          <input type="date" class="finp" id="f-date">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Quantity (Shares)</label>
+          <input type="text" inputmode="decimal" class="finp" id="f-qty" placeholder="0">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Price per Share (<span id="f-price-cur-lbl">EUR</span>)</label>
+          <input type="text" inputmode="decimal" class="finp" id="f-price" placeholder="0,00">
+        </div>
+        <div class="fgrp">
+          <label class="flbl">Estimated Total (<span id="f-cur-lbl">EUR</span>)</label>
+          <div class="finp" id="f-total-display" style="color:var(--muted);cursor:default">—</div>
+        </div>
+        <div class="fgrp fg-full">
+          <label class="flbl">Notes (optional)</label>
+          <input type="text" class="finp" id="f-notes" placeholder="e.g. Earnings dip buy">
+        </div>
+        <div class="fgrp" id="f-fees-grp">
+          <label class="flbl">Broker Fees <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
+          <input type="text" inputmode="decimal" class="finp" id="f-fees" placeholder="0">
+        </div>
+        <div class="fgrp" id="f-taxes-grp" style="display:none">
+          <label class="flbl">Capital Gains Tax <span style="font-weight:400;opacity:.6">(EUR, optional)</span></label>
+          <input type="text" inputmode="decimal" class="finp" id="f-taxes" placeholder="0">
+        </div>
+      </div>
+      <div class="fhint" id="f-hint" style="margin-top:2px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="cancel-btn" id="modal-cancel">Cancel</button>
+      <button class="submit-btn" id="f-submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Add Transaction
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Import Wizard modal -->
+<div class="modal-ov" id="csv-ov">
+  <div class="modal csv-modal" id="csv-box">
+    <div class="modal-header" style="flex-wrap:wrap;gap:10px">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Import CSV
+      </div>
+      <div class="csv-steps" id="csv-steps">
+        <div class="csv-step active" id="cstep-1">
+          <div class="csv-step-num">1</div>
+          <span class="csv-step-lbl">Upload</span>
+        </div>
+        <div class="csv-step-line" id="cline-1"></div>
+        <div class="csv-step" id="cstep-2">
+          <div class="csv-step-num">2</div>
+          <span class="csv-step-lbl">Resolve</span>
+        </div>
+        <div class="csv-step-line" id="cline-2"></div>
+        <div class="csv-step" id="cstep-3">
+          <div class="csv-step-num">3</div>
+          <span class="csv-step-lbl">Preview</span>
+        </div>
+      </div>
+      <button class="modal-x" id="csv-x-btn">✕</button>
+    </div>
+    <div class="modal-body" id="csv-body" style="min-height:200px"></div>
+    <div class="modal-foot" id="csv-foot"></div>
+  </div>
+</div>
+
+<!-- old settings side panel removed — Settings now live in mod-settings -->
+
+<!-- Position Detail Drawer -->
+<div class="drw-ov" id="drw-ov"></div>
+<div class="drw" id="drw">
+  <div class="drw-handle"></div>
+  <div class="drw-inner">
+    <div class="drw-hdr">
+      <div style="display:flex;align-items:flex-start;gap:13px">
+        <div class="drw-icon"  id="drw-icon"></div>
+        <div>
+          <div class="drw-ticker" id="drw-ticker"></div>
+          <div class="drw-full"   id="drw-full"></div>
+          <div class="drw-pills"  id="drw-pills"></div>
+        </div>
+      </div>
+      <div class="drw-hdr-btns">
+        <button class="hdr-btn icon-only" id="drw-export-csv" title="Export CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+        <button class="drw-x" id="drw-x">✕</button>
+      </div>
+    </div>
+    <div class="drw-kpis"    id="drw-kpis"></div>
+    <div class="drw-summary" id="drw-summary"></div>
+
+    <!-- Dumbbell chart -->
+    <div class="chart-sec">
+      <div class="chart-sec-hdr">
+        <div class="chart-sec-title">Buy Price vs. Current Price — Open Lots</div>
+        <div class="chart-legend">
+          <div class="cleg-item"><div class="cleg-dot" style="background:#5c6e90"></div>Buy</div>
+          <div class="cleg-item"><div class="cleg-dot" style="background:var(--orange)"></div>Current</div>
+        </div>
+      </div>
+      <div class="canvas-wrap"><canvas id="drw-dumbbell"></canvas></div>
+    </div>
+
+    <!-- Lot distribution -->
+    <div class="lot-dist-sec" id="drw-lot-dist">
+      <div class="lot-dist-lbl">Unit distribution across open lots</div>
+      <div class="lot-dist-track" id="drw-dist-track"></div>
+      <div class="lot-dist-leg"   id="drw-dist-leg"></div>
+    </div>
+
+    <!-- All transactions table -->
+    <div class="drw-sec-lbl">All Transactions</div>
+    <table class="ltbl">
+      <thead><tr>
+        <th>#</th>
+        <th class="sort-th" data-sort="txs" data-col="type" style="text-align:center">Type<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="date" style="text-align:left">Date<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="qty">Qty<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="price"><span id="drw-price-hdr">Price</span><span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="total">Total<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="fees">Fees<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="pnl">P&amp;L<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="txs" data-col="pnlpct">P&amp;L %<span class="sort-arrow"></span></th>
+        <th></th>
+      </tr></thead>
+      <tbody id="drw-txs"></tbody>
+    </table>
+
+    <!-- Open lots FIFO table -->
+    <div class="drw-sec-lbl" id="drw-fifo-lbl">Open Lots (FIFO)</div>
+    <table class="ltbl" id="drw-fifo-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th class="sort-th" data-sort="fifo" data-col="date">Date<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="qty">Qty<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="price">Buy Price<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="cost">Cost<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="value">Value<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="gain">Gain<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="gainpct">Gain %<span class="sort-arrow"></span></th>
+        <th class="sort-th" data-sort="fifo" data-col="cagr">CAGR<span class="sort-arrow"></span></th>
+      </tr></thead>
+      <tbody id="drw-fifo-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-ov" id="confirm-dialog">
+  <div class="confirm-box">
+    <div class="confirm-icon"  id="cd-icon">⚠️</div>
+    <div class="confirm-title" id="cd-title">Are you sure?</div>
+    <div class="confirm-msg"   id="cd-body"></div>
+    <div class="confirm-btns">
+      <button class="cancel-btn" id="confirm-cancel">Cancel</button>
+      <button class="abtn red"   id="cd-confirm" style="width:auto">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     EMBER — Import Highlights Wizard
+     ════════════════════════════════════════════════════════════════════ -->
+<div class="ember-import-ov" id="ember-import-ov">
+  <div class="ember-import-box" id="ember-import-box">
+
+    <!-- Header -->
+    <div class="ember-import-header">
+      <div class="ember-import-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             style="width:15px;height:15px;vertical-align:middle;margin-right:6px">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Import Highlights
+      </div>
+      <button class="ember-import-close-btn" id="ember-import-close">✕</button>
+    </div>
+
+    <!-- Step indicators -->
+    <div class="ember-import-steps">
+      <div class="ember-istep active" id="ember-istep-1">
+        <div class="ember-istep-num">1</div>
+        <span class="ember-istep-label">Upload</span>
+      </div>
+      <div class="ember-istep-connector"></div>
+      <div class="ember-istep" id="ember-istep-2">
+        <div class="ember-istep-num">2</div>
+        <span class="ember-istep-label">Preview</span>
+      </div>
+      <div class="ember-istep-connector"></div>
+      <div class="ember-istep" id="ember-istep-3">
+        <div class="ember-istep-num">3</div>
+        <span class="ember-istep-label">Done</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Upload -->
+    <div class="ember-import-body" id="ember-istep-content-1">
+
+      <!-- Category selection (required before upload) -->
+      <div class="ember-cat-step-label">Choose a category for this book:</div>
+      <div class="ember-cat-select" id="ember-cat-select">
+        <div class="ember-cat-option" data-cat="general" id="ember-cat-general">
+          <div class="ember-cat-option-icon">📚</div>
+          <div class="ember-cat-option-body">
+            <div class="ember-cat-option-name">General Reading</div>
+            <div class="ember-cat-option-desc">Fiction, self-help, business, biographies</div>
+          </div>
+        </div>
+        <div class="ember-cat-option" data-cat="academic" id="ember-cat-academic">
+          <div class="ember-cat-option-icon">🎓</div>
+          <div class="ember-cat-option-body">
+            <div class="ember-cat-option-name">Academic Reading</div>
+            <div class="ember-cat-option-desc">Textbooks, research papers, technical docs</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ember-dropzone" id="ember-dropzone">
+        <div class="ember-dropzone-icon">📄</div>
+        <div class="ember-dropzone-label">Drop your Kindle file here</div>
+        <div class="ember-dropzone-sub">or click to browse</div>
+        <div class="ember-dropzone-name" id="ember-dropzone-name"></div>
+      </div>
+      <input type="file" id="ember-file-input" accept=".txt,.html,.htm" style="display:none">
+      <div class="ember-format-note">
+        <strong>Kindle TXT</strong> — <code>My Clippings.txt</code> from your device<br>
+        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website
+      </div>
+      <div class="ember-parse-error" id="ember-parse-error" style="display:none"></div>
+    </div>
+
+    <!-- Step 2: Preview -->
+    <div class="ember-import-body" id="ember-istep-content-2" style="display:none">
+      <div id="ember-preview-content"></div>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div class="ember-import-body" id="ember-istep-content-3" style="display:none">
+      <div id="ember-import-result"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ember-import-footer">
+      <!-- Step 1 footer: just cancel -->
+      <button class="cancel-btn" id="ember-import-cancel">Cancel</button>
+      <!-- Step 2 footer: back + confirm (shown/hidden via JS) -->
+      <button class="cancel-btn" id="ember-import-back" style="display:none">← Back</button>
+      <button class="submit-btn" id="ember-import-confirm" style="display:none">Import</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Credentials popup -->
+<div class="cred-ov" id="cred-ov">
+  <div class="cred-box">
+    <div class="cred-icon">🔑</div>
+    <div class="cred-title">Connect to GitHub Gist</div>
+    <div class="cred-msg">
+      Enter your GitHub Personal Access Token and Gist ID to sync your portfolio.
+      Save both values somewhere safe — you'll need them again after a cache clear.
+    </div>
+    <form autocomplete="on" onsubmit="return false" style="width:100%">
+    <div class="fgrp">
+      <label class="flbl">GitHub Personal Access Token</label>
+      <input type="text" class="finp" id="lock-token" name="username"
+             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="username">
+    </div>
+    <div class="fgrp" style="margin-top:10px">
+      <label class="flbl">Gist ID</label>
+      <input type="password" class="finp" id="lock-gist-id" name="password"
+             placeholder="Your Gist ID" autocomplete="current-password">
+    </div>
+    </form>
+    <div id="cred-hint" style="font-size:11px;min-height:14px;margin-top:6px"></div>
+    <button class="submit-btn" id="cred-save-btn"
+            style="margin-top:16px;width:100%;justify-content:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"
+           style="width:13px;height:13px">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Save &amp; Continue
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     JAVASCRIPT  —  load order matters:
+       1. Core: state  → gist  → app-shell
+       2. Habits data  → habits business logic  → habits UI
+       3. Portfolio data  → portfolio business logic  → portfolio UI
+       4. App entry point: App.Shell.init() triggers everything
+     ════════════════════════════════════════════════════════════════════ -->
+
+<!-- EmailJS SDK — required for Ember email automation -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<!-- Core layer — shared utilities (must load before modules) -->
+<script src="js/core/constants.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/core/theme-tokens.js"></script>
+<script src="js/core/formatters.js"></script>
+<script src="js/core/pagination.js"></script>
+<script src="js/core/filters.js"></script>
+<script src="js/core/state.js"></script>
+<script src="js/core/gist.js"></script>
+<script src="js/core/app-shell.js"></script>
+
+<!-- Habits module — sidebar position 1 -->
+<script src="js/modules/habits/habits-data.js"></script>
+<script src="js/modules/habits/habits.js"></script>
+<script src="js/modules/habits/habits-ui.js"></script>
+
+<!-- Ember module — sidebar position 2 -->
+<script src="js/modules/ember/ember-data.js"></script>
+<script src="js/modules/ember/ember-ui.js"></script>
+<script src="js/modules/ember/ember.js"></script>
+
+<!-- Portfolio module — sidebar position 3 -->
+<script src="js/modules/portfolio/portfolio-data.js"></script>
+<script src="js/modules/portfolio/portfolio.js"></script>
+<script src="js/modules/portfolio/portfolio-ui.js"></script>
+
+<!-- Finance Calculator stub — sidebar position 4 (soon) -->
+<script src="js/modules/financecalc/calc.js"></script>
+
+<!-- Settings module — registers last so all other modules are available -->
+<script src="js/modules/settings/settings.js"></script>
+
+<!-- Bootstrap — must be last -->
+<script>
+  'use strict';
+  document.addEventListener('DOMContentLoaded', () => {
+    window.App.State.init();
+    window.App.Shell.init('portfolio');
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+<svg viewBox="0 0 264 264"
+     fill="none"
+     stroke="#FF6A00"
+     stroke-width="10.5"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     width="220"
+     height="220"
+     shape-rendering="geometricPrecision">
+  <!-- Flame -->
+  <path d="M132 242c49.5 0 88-38.5 88-88 0-33.3-19.8-63.8-49.5-85.8-2.2 28.6-18.7 47.3-36.3 52.8 6.6-30.8-7.7-60.5-24.2-77-3.3 24.2-16.5 44-33 58.3-19.8 17.6-33 42.9-33 62.7 0 42.9 34.1 77 88 77"/>
+  <!-- Eyes -->
+  <ellipse cx="105" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/>
+  <ellipse cx="159" cy="150" rx="8" ry="15" fill="#FF5F1F" stroke="none"/>
+  <!-- Smile -->
+  <path d="M98 192c14 20 54 18 68 0" stroke="#FF5F1F" fill="none"/>
+</svg>
