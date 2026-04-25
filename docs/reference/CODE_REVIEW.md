@@ -1,4 +1,4 @@
-# Portfolio Terminal — Code Review & Optimization Guide
+# BiT PleB Dashboard — Code Review & Optimization Guide
 
 **Date:** April 2026 | **Scope:** Full codebase | **Status:** Production-ready
 
@@ -11,7 +11,7 @@
 
 Paste this prompt to Claude:
 
-> "I'm working on BiT PleB Portfolio Terminal — a zero-dependency vanilla JS + CSS browser app. No build step. Read `docs/MODULE_RULES.md` and `docs/ARCHITECTURE.md` first, then do a code review of [file or feature]. Focus on: correctness, module isolation, state management, Gist sync safety, and UI consistency."
+> "I'm working on BiT PleB Dashboard — a zero-dependency vanilla JS + CSS browser app. No build step. Read `docs/MODULE_RULES.md` and `docs/ARCHITECTURE.md` first, then do a code review of [file or feature]. Focus on: correctness, module isolation, state management, Gist sync safety, and UI consistency."
 
 For a specific file review, also provide the file. For a full-pass review, provide all changed files since the last review.
 

@@ -1,4 +1,4 @@
-# UI Component Guide — Portfolio Terminal Modular
+# UI Component Guide — BiT PleB Dashboard
 
 > **How to use this document**
 > Find the component or feature you want to change. The "Files to provide" column tells you exactly which files to upload to Claude. The more specific you are about what's broken or what you want, the faster it gets fixed.

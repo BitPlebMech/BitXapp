@@ -1,4 +1,4 @@
-# Portfolio Terminal — Troubleshooting Guide
+# BiT PleB Dashboard — Troubleshooting Guide
 
 Common errors, root causes, and fixes. Check the browser console (F12 → Console) first.
 
