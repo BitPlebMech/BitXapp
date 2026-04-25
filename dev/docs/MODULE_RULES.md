@@ -1,4 +1,4 @@
-# Portfolio Terminal — Module Rules
+# BiT PleB Dashboard — Module Rules
 > **Read this before adding or editing any module.**
 > These rules exist because breaking them has caused real bugs (wrong Gist file, lost books tab, corrupt state).
 

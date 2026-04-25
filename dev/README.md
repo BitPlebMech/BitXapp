@@ -1,4 +1,4 @@
-# BiT PleB Portfolio Terminal
+# BiT PleB Dashboard
 
 A zero-dependency personal finance dashboard. No build step, no server, no framework — pure HTML + CSS + vanilla JavaScript.
 

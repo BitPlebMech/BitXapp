@@ -1,4 +1,4 @@
-# Portfolio Terminal — Testing Guide
+# BiT PleB Dashboard — Testing Guide
 
 ---
 

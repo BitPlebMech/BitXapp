@@ -5,15 +5,15 @@
  * EMBER MODULE  —  Business logic & state management
  * ═══════════════════════════════════════════════════════════════════
  *
- * Phase 1 responsibilities (unchanged):
+ * Core responsibilities:
  *   • CRUD for sources (books) and highlights
  *   • Import orchestration — calls ember-data.js parser, deduplicates
  *   • Daily review — date-seeded shuffle, consistent within a day
- *   • GitHub Gist sync — saves full unified state (all modules)
+ *   • GitHub Gist sync — saves Ember state to ember-highlights.json
  *   • App.Shell registration — lazy init on first sidebar click
  *
- * Phase 2 additions:
- *   • Book categorization — category field on highlights
+ * Extended features:
+ *   • Book categorization — category field on highlights (general / academic)
  *   • Spaced Repetition (SM-2 algorithm) — review queue, submitReview
  *   • Review streak tracking — daily streak, history, milestones
  *   • Email automation — EmailJS integration, daily digest generator
@@ -167,7 +167,7 @@ window.App.Ember = (() => {
           color:     hl.color     || null,
           hash:      hl.hash,
           addedAt:   hl.addedAt   || new Date().toISOString(),
-          // Phase 2 fields
+          // Categorization and spaced-repetition fields
           category:  category,
           srData:    null, // initialized lazily on first review
         };
@@ -189,13 +189,15 @@ window.App.Ember = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     DAILY REVIEW (Phase 1 — kept for backward compat)
+     DAILY REVIEW — Legacy daily review, kept for backward compatibility
+     Superseded by getReviewQueue() for the SM-2 Review tab.
      ═══════════════════════════════════════════════════════════════ */
 
   /**
    * Returns up to 10 highlights for today.
    * Uses a date-seeded LCG shuffle — same set shown all day (like Readwise).
-   * Phase 2 note: the Review tab now uses getReviewQueue() instead.
+   * The Review tab uses getReviewQueue() (SM-2) instead; this feeds the
+   * daily digest list in the Review tab's scrollable view.
    */
   function getDailyReview() {
     const highlights = _data().highlights;
@@ -229,7 +231,9 @@ window.App.Ember = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SPACED REPETITION — SM-2 ALGORITHM  (Phase 2)
+     SPACED REPETITION — SM-2 ALGORITHM
+     Computes review intervals, builds the due-highlights queue,
+     and records per-highlight review history.
      ═══════════════════════════════════════════════════════════════ */
 
   /** Default srData for a highlight that has never been reviewed. */
@@ -361,7 +365,7 @@ window.App.Ember = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     REVIEW STREAK  (Phase 2)
+     REVIEW STREAK — Daily streak tracking, history, and milestones
      ═══════════════════════════════════════════════════════════════ */
 
   function _defaultStreak() {
@@ -434,7 +438,7 @@ window.App.Ember = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SETTINGS  (Phase 2)
+     SETTINGS — Email automation config, EmailJS credentials, review goal
      ═══════════════════════════════════════════════════════════════ */
 
   function getSettings() {
@@ -447,7 +451,7 @@ window.App.Ember = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     EMAIL AUTOMATION  (Phase 2)
+     EMAIL AUTOMATION — Daily digest generator and EmailJS delivery
      ═══════════════════════════════════════════════════════════════ */
 
   /**
@@ -658,7 +662,7 @@ window.App.Ember = (() => {
 
     const params = {
       to_email:         settings.email,
-      subject:          `🔥 Ember — ${highlights.length} highlights for ${dateStr}`,
+      subject:          `Ember — ${highlights.length} highlights for ${dateStr}`,
       date_string:      dateStr,
       highlights_count: String(highlights.length),
     };
@@ -735,7 +739,7 @@ window.App.Ember = (() => {
 
   /**
    * Trigger a Gist save — prompts for credentials if not stored.
-   * Phase 2: saves to ember-highlights.json (separate file).
+   * Saves to ember-highlights.json, separate from portfolio-data.json.
    */
   function triggerGistSave() {
     const creds = window.App.State.getGistCredentials();
@@ -886,7 +890,7 @@ window.App.Ember = (() => {
       }
     }
 
-    // Phase 2 migration: assign default category to Phase 1 highlights
+    // Migration: assign default category to highlights imported before categories were added
     for (const hl of d.highlights) {
       if (!hl.category) {
         hl.category = 'general';
@@ -927,19 +931,19 @@ window.App.Ember = (() => {
     deleteHighlight,
     // Import
     importParsed,
-    // Daily review (Phase 1, kept for compat)
+    // Daily review — legacy date-seeded shuffle, kept for backward compatibility
     getDailyReview,
-    // Spaced Repetition (Phase 2)
+    // Spaced Repetition — SM-2 review queue and rating submission
     getReviewQueue,
     submitReview,
     getIntervalPreview,
-    // Streak (Phase 2)
+    // Streak — daily review streak tracking
     getStreak,
     resetStreak,
-    // Settings (Phase 2)
+    // Settings — email automation config and review preferences
     getSettings,
     saveSettings,
-    // Email (Phase 2)
+    // Email — daily digest generation and EmailJS delivery
     generateDailyDigest,
     sendDailyEmail,
     // Stats

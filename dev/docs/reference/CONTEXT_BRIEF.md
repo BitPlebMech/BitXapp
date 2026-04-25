@@ -1,4 +1,4 @@
-# Portfolio Terminal — Session Context Brief
+# BiT PleB Dashboard — Session Context Brief
 
 > **How to use:** Paste this to Claude at the start of any new session.
 > Say: *"Read docs/reference/CONTEXT_BRIEF.md before we start."*
@@ -7,7 +7,7 @@
 
 ## What This App Is
 
-**BiT PleB Portfolio Terminal** — a zero-dependency, browser-based personal finance dashboard. No backend, no build step, no framework. Pure HTML + CSS + vanilla JavaScript served from a folder. Data lives in `localStorage` (`super_app_v1`) and optionally syncs to a private GitHub Gist.
+**BiT PleB Dashboard** — a zero-dependency, browser-based personal finance dashboard. No backend, no build step, no framework. Pure HTML + CSS + vanilla JavaScript served from a folder. Data lives in `localStorage` (`super_app_v1`) and optionally syncs to a private GitHub Gist.
 
 **Open it:** just open `index.html` in a browser. For live prices, run a local server to avoid CORS:
 ```bash

@@ -47,7 +47,7 @@ window.App.Gist = (() => {
 
     const safe = _scrubToken(portfolioPayload);
     const body = {
-      description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
+      description: 'BiT PleB Dashboard — saved ' + new Date().toISOString(),
       public: false,
       files: {
         [FILENAME]: {
@@ -156,7 +156,7 @@ window.App.Gist = (() => {
 
     const safePayload = _scrubToken(payload);
     const body = {
-      description: 'Portfolio Terminal — saved ' + new Date().toISOString(),
+      description: 'BiT PleB Dashboard — saved ' + new Date().toISOString(),
       public: false,
       files: {
         [FILENAME]: {
