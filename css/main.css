@@ -1,66 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   MAIN.CSS — Design tokens, reset, app shell layout, animations
+   MAIN.CSS — App shell layout, reset, animations
+   Design tokens live exclusively in css/bitxapp-base.css.
    ═══════════════════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 
-/* ── Design Tokens ──────────────────────────────────────────────────── */
-:root {
-  --bg:    #06090f;
-  --surf:  #0b1120;
-  --surf2: #101928;
-  --surf3: #162034;
-  --b1: #162038;
-  --b2: #1e2f4a;
-  --text:  #e4ecff;
-  --text2: #a0b3d4;
-  --muted: #6b7fa2;
-  --dim:   #3d5170;
-  --blue:   #5b9cff;
-  --green:  #00dba8;
-  --red:    #ff3d5a;
-  --amber:  #ffaa20;
-  --purple: #a07cf8;
-  --orange: #ff9848;
-  --blue-bg: rgba(91, 156, 255, 0.09);
-  --font-ui:   'DM Sans', system-ui, sans-serif;
-  --font-mono: 'DM Mono', 'Courier New', monospace;
-
-  /* ── Radius scale ───────────────────────────────────────────────── */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-
-  /* ── Spacing scale ──────────────────────────────────────────────── */
-  --space-xs:  6px;
-  --space-sm:  10px;
-  --space-md:  16px;
-  --space-lg:  22px;
-  --space-xl:  32px;
-}
-
-/* ── Light Theme ────────────────────────────────────────────────────── */
-[data-theme="light"] {
-  --bg:    #f0f4fb;
-  --surf:  #ffffff;
-  --surf2: #f7f9fe;
-  --surf3: #eef2fa;
-  --b1:    #dde5f5;
-  --b2:    #c8d6ee;
-  --text:  #0c1a2e;
-  --text2: #4a6080;
-  --muted: #6b82a0;
-  --dim:   #a8bcd8;
-  --blue:   #2563eb;
-  --green:  #059669;
-  --red:    #dc2626;
-  --amber:  #b45309;
-  --purple: #7c3aed;
-  --orange: #c2410c;
-  --blue-bg: rgba(37,99,235,0.07);
-}
 [data-theme="light"] body::after {
   background: radial-gradient(ellipse 78% 44% at 50% -5%, rgba(37,99,235,0.055) 0%, transparent 68%);
 }

@@ -182,7 +182,7 @@
 .btn--danger:hover { background: var(--red); color: #fff; }
 
 .btn--success { background: rgba(0,219,168,0.09); border-color: rgba(0,219,168,0.25); color: var(--green); }
-.btn--success:hover { background: var(--green); color: #0b1120; }
+.btn--success:hover { background: var(--green); color: var(--surf); }
 
 /* Sizes */
 .btn--sm { font-size: 11px; padding: 6px 12px; }
@@ -207,7 +207,7 @@
 .abtn.red           { background: rgba(255, 61, 90, 0.09);  border: 0.5px solid rgba(255, 61, 90, 0.25);  color: var(--red); }
 .abtn.red:hover     { background: var(--red); color: #fff; }
 .abtn.green         { background: rgba(0, 219, 168, 0.09);  border: 0.5px solid rgba(0, 219, 168, 0.25);  color: var(--green); }
-.abtn.green:hover   { background: var(--green); color: #0b1120; }
+.abtn.green:hover   { background: var(--green); color: var(--surf); }
 
 /* Info box used in settings sections */
 .info-box {
@@ -602,7 +602,7 @@
 .csv-nav-btn.back:hover   { border-color: var(--muted); color: var(--text); }
 .csv-nav-btn.next         { background: rgba(91,156,255,0.09); border: 0.5px solid rgba(91,156,255,0.3); color: var(--blue); }
 .csv-nav-btn.next:hover   { background: var(--blue); color: #fff; }
-.csv-nav-btn.import       { background: var(--green); border: 1px solid var(--green); color: #0b1120; }
+.csv-nav-btn.import       { background: var(--green); border: 1px solid var(--green); color: var(--surf); }
 .csv-nav-btn.import:hover { background: #00c99a; }
 .csv-nav-btn:disabled     { opacity: 0.38; pointer-events: none; }
 .csv-nav-btn svg { width: 12px; height: 12px; }
