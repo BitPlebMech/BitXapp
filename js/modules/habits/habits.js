@@ -24,7 +24,8 @@ window.App = window.App || {};
 
 window.App.Habits = (() => {
 
-  /* Preserve Data sub-module */
+  /* Preserve Data sub-module reference set by habits-data.js */
+  const _DataRef = window.App.Habits?.Data;
   const HD = () => window.App.Habits.Data;
 
   /* ── State accessors ──────────────────────────────────────────── */
@@ -299,6 +300,8 @@ window.App.Habits = (() => {
     // State accessors (for HabitsUI)
     getData:  _data,
     today:    _today,
+    // Re-attach Data sub-module (habits-data.js sets this before this IIFE runs)
+    Data: _DataRef,
   };
 
 })();
