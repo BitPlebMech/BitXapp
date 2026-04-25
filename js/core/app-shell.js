@@ -285,6 +285,7 @@ window.App.Shell = (() => {
       // 2. ember-highlights.json
       const emberData = window.App.State.getEmberData?.() || {};
       await window.App.Gist.saveEmberData({
+        sources:    emberData.sources    || [],   // ← books
         highlights: emberData.highlights || [],
         settings:   window.App.State.getEmberSettings?.() || {},
         streak:     window.App.State.getEmberStreak?.()   || {},
@@ -363,11 +364,44 @@ window.App.Shell = (() => {
 
           // Restore Ember from ember-highlights.json
           if (emberParsed) {
+            let emberHighlights = emberParsed.highlights || [];
+            let emberSources    = emberParsed.sources    || [];
+
+            // Legacy recovery: Gist was saved before sources were included (old bug).
+            // Reconstruct synthetic stubs from sourceIds in highlights so the Books
+            // tab is not left blank after load. A re-import will overwrite stubs.
+            if (emberSources.length === 0 && emberHighlights.length > 0) {
+              const seenIds = new Map();
+              const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
+                '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+                '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+              ];
+              for (const hl of emberHighlights) {
+                if (hl.sourceId && !seenIds.has(hl.sourceId)) {
+                  seenIds.set(hl.sourceId, {
+                    id:             hl.sourceId,
+                    title:          `Book (${hl.sourceId.slice(-6)})`,
+                    author:         '',
+                    format:         'kindle',
+                    color:          palette[seenIds.size % palette.length],
+                    importedAt:     hl.addedAt || new Date().toISOString(),
+                    lastImportAt:   hl.addedAt || new Date().toISOString(),
+                    highlightCount: 0,
+                  });
+                }
+              }
+              for (const hl of emberHighlights) {
+                const src = seenIds.get(hl.sourceId);
+                if (src) src.highlightCount++;
+              }
+              emberSources = Array.from(seenIds.values());
+            }
+
             const currentEmber = window.App.State.getEmberData?.() || {};
             window.App.State.setEmberData?.({
               ...currentEmber,
-              highlights: emberParsed.highlights || [],
-              sources:    emberParsed.sources    || [],   // ← must come from Gist, not local
+              highlights: emberHighlights,
+              sources:    emberSources,
             });
             if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
             if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
@@ -381,9 +415,13 @@ window.App.Shell = (() => {
             });
           }
 
-          // Re-render active module
+          // Re-render: call each loaded module's render() directly so we do not
+          // re-run init() (which would duplicate event listeners).
+          if (window.App.EmberUI?.render)   window.App.EmberUI.render();
+          if (window.App.HabitsUI?.render)  window.App.HabitsUI.render();
+          // Re-initialise the active pane in case it is Portfolio or another module
           const activeId = _active;
-          if (activeId) {
+          if (activeId && activeId !== 'ember' && activeId !== 'habits') {
             _initialised.delete(activeId);
             switchModule(activeId);
           }

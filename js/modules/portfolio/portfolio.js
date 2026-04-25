@@ -1112,17 +1112,21 @@ window.App.Portfolio = (() => {
             _save(s);
           }
 
-          // BUG-EMBER-LOAD fix: restore Ember data from ember-highlights.json
-          // Previously only portfolio-data.json was merged — Ember highlights were lost.
+          // BUG-EMBER-LOAD fix: restore Ember data from ember-highlights.json.
+          // Only restore highlights + sources + streak here — NOT settings.
+          // Ember settings (emailEnabled, emailTime, etc.) are local preferences;
+          // overwriting them on every sign-in would reset the user's toggle state.
+          // Settings are only restored when the user explicitly runs Ember Gist Load.
           if (emberParsed) {
             const currentEmber = window.App.State.getEmberData?.() || {};
             window.App.State.setEmberData?.({
               ...currentEmber,
               highlights: emberParsed.highlights || currentEmber.highlights || [],
-              sources:    emberParsed.sources    || currentEmber.sources   || [],   // ← books from Gist
+              sources:    emberParsed.sources    || currentEmber.sources   || [],
             });
-            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+            if (emberParsed.streak) window.App.State.setEmberStreak?.(emberParsed.streak);
+            // ↑ intentionally NOT restoring emberParsed.settings here so that local
+            // preferences like emailEnabled survive sign-out / sign-in cycles.
           }
 
           render();
