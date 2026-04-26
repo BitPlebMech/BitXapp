@@ -697,7 +697,10 @@ window.App.Ember = (() => {
     if (!settings.emailEnabled || !settings.email) return;
 
     const today    = new Date().toISOString().split('T')[0];
-    const lastSent = localStorage.getItem('ember_last_email_sent');
+    // V1 fix: was localStorage.getItem('ember_last_email_sent') — a raw key outside
+    // super_app_v1, invisible to resetAll(), Gist restore, and migrations.
+    // Now stored inside ember.settings.lastEmailSentDate via App.State.
+    const lastSent = settings.lastEmailSentDate || null;
     if (lastSent === today) return; // Already sent today
 
     const now = new Date();
@@ -715,7 +718,9 @@ window.App.Ember = (() => {
 
     try {
       await sendDailyEmail();
-      localStorage.setItem('ember_last_email_sent', today);
+      // V1 fix: persist via App.State instead of raw localStorage
+      settings.lastEmailSentDate = today;
+      window.App.State.setEmberSettings(settings);
     } catch (e) {
       console.warn('[Ember] Auto-email failed:', e.message);
     }
@@ -787,6 +792,11 @@ window.App.Ember = (() => {
   /**
    * Load ONLY ember-highlights.json from Gist and replace local Ember state.
    * Does NOT touch portfolio-data.json or habits-data.json.
+   *
+   * V13 — SCOPE NOTE: this is a module-scoped restore only.
+   * For sign-in and full restores (all three modules at once) always use
+   * App.Shell.triggerGistLoad() instead — never add a UI button here that
+   * calls this function directly for a "load everything" action.
    *
    * Handles legacy Gist files (saved before sources were included):
    * if sources is empty but highlights reference sourceIds, synthetic source
@@ -951,6 +961,9 @@ window.App.Ember = (() => {
     // Gist
     triggerGistSave,
     triggerGistLoad,
+    // V14 fix: public render() so App.Shell can re-render after Gist load
+    // without reaching into the internal EmberUI sub-layer directly.
+    render: () => window.App.EmberUI?.render?.(),
     // Re-attach Data sub-module
     Data: _existing.Data,
   };

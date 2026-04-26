@@ -123,10 +123,10 @@ window.App.Portfolio = (() => {
   /* ── Storage status ───────────────────────────────────────────── */
 
   function updateStorageStatus() {
-    const info    = window.App.State.storageInfo();
+    const info    = window.App.State.storageInfo();  // now returns { kb, pct, display }
     const txCount = _state().transactions.length;
     const posCount = new Set(_state().transactions.map(t => t.ticker)).size;
-    const txt = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${info}</strong> in localStorage`;
+    const txt = `<strong>${posCount} positions</strong> · <strong>${txCount} transactions</strong> · <strong>${info.display}</strong> in localStorage`;
     // Write to both old ID (backward compat if still in DOM) and new Settings module IDs
     const targets = ['sp-storage', 'stg-storage'];
     targets.forEach(id => {
@@ -1072,7 +1072,10 @@ window.App.Portfolio = (() => {
     }
   }
 
-  async function gistLoad() {
+  // V6 fix: renamed to _gistLoad (private). No legitimate external caller remains —
+  // sign-in now uses App.Shell.triggerGistLoad() which restores all three modules.
+  // Keeping it public invited callers who would silently skip habits data.
+  async function _gistLoad() {
     const { token, id } = _gistCreds();
     if (!token) { toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
     if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
@@ -1230,8 +1233,7 @@ window.App.Portfolio = (() => {
 
     // Offer to load from Gist — use Shell's canonical loader so ALL modules
     // (portfolio, ember settings, habits) are restored in one shot.
-    // Never call the local gistLoad() here — it is portfolio-only and will
-    // silently skip data from other modules as the app scales.
+    // _gistLoad() is private and portfolio-only — never call it from here.
     confirmAction(
       'Load from Gist?',
       'Load your saved portfolio from GitHub Gist, or cancel to browse with demo data. You can load from Gist anytime via Refresh.',
@@ -1294,11 +1296,9 @@ window.App.Portfolio = (() => {
   }
 
   function toggleTheme() {
-    const s     = _state();
-    const next  = s.settings.theme === 'dark' ? 'light' : 'dark';
-    s.settings.theme = next;
-    _save(s);
-    applyTheme();
+    // V3 fix: delegate to Shell which now owns the state write and applyTheme call.
+    // applyTheme() is called after so the local icon state (sun/moon) stays in sync.
+    window.App.Shell.toggleTheme();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -1459,7 +1459,9 @@ window.App.Portfolio = (() => {
     // Export/import
     exportData, exportPortfolioCSV, exportPositionCSV, triggerImport, importData,
     // Gist
-    triggerGistSave, gistLoad, gistClearCredentials, signOut,
+    // V6 fix: gistLoad removed from exports — it is now _gistLoad() (private).
+    // Use App.Shell.triggerGistLoad() to restore all modules.
+    triggerGistSave, gistClearCredentials, signOut,
     // Credentials
     openCredentialsPopup, saveCredentials, closeCredentialsPopup,
     // Settings
