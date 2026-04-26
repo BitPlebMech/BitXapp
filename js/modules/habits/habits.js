@@ -378,6 +378,9 @@ window.App.Habits = (() => {
     importJSON,
     // Module interface
     init,
+    // V14 fix: public render() so App.Shell can re-render after Gist load
+    // without reaching into the internal HabitsUI sub-layer directly.
+    render: _render,
     // State accessors (for HabitsUI)
     getData:  _data,
     today:    _today,

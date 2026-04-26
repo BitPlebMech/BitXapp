@@ -73,6 +73,7 @@ window.App.State = (() => {
         emailTime: '08:00',
         emailJSConfig: { serviceId: '', templateId: '', publicKey: '' },
         dailyGoal: 10,
+        lastEmailSentDate: null,  // V1 fix: was stored as raw localStorage key outside super_app_v1
       },
       streak: {
         currentStreak: 0,
@@ -361,11 +362,18 @@ window.App.State = (() => {
 
   // ─── Utility ────────────────────────────────────────────────────
 
-  /** How many bytes is the current stored state? Returns human-readable string. */
+  /**
+   * How much space is the stored state using?
+   * V2/V10 fix: was two different formulas (raw.length*2 here vs Blob in settings.js).
+   * Consolidated to Blob-based UTF-8 byte count (accurate) in one place.
+   * Returns { kb, pct, display } so callers can format as needed.
+   * Callers that previously used the string return value should use .display.
+   */
   function storageInfo() {
     const raw = localStorage.getItem(STORAGE_KEY) || '';
-    const kb = (raw.length * 2 / 1024).toFixed(1);
-    return `${kb} KB`;
+    const kb  = (new Blob([raw]).size / 1024).toFixed(1);
+    const pct = ((raw.length / 5120000) * 100).toFixed(1);
+    return { kb, pct, display: `${kb} KB (~${pct}% of 5 MB)` };
   }
 
   /** Wipe all state and reset to defaults (used for factory reset). */
@@ -379,7 +387,7 @@ window.App.State = (() => {
   /** Must be called once on page load before any module accesses state. */
   function init() {
     _load();
-    console.info('[State] Loaded from localStorage (' + storageInfo() + ')');
+    console.info('[State] Loaded from localStorage (' + storageInfo().display + ')');
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */

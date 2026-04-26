@@ -1636,8 +1636,11 @@ window.App.PortfolioUI = (() => {
   function setupEventListeners() {
     // Header
     el('h-refresh')?.addEventListener('click', () => P().refreshPrices(true));
-    el('h-gist-save')?.addEventListener('click', () => P().triggerGistSave(false));
-    el('h-gist-load')?.addEventListener('click', () => P().gistLoad());
+    // V4/V11 fix: wire to Shell's canonical save/load so ALL modules are saved/loaded.
+    // Portfolio.triggerGistSave() only wrote portfolio-data.json.
+    // Portfolio.gistLoad() only restored portfolio + ember, silently omitting habits.
+    el('h-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
+    el('h-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
     el('h-signout-btn')?.addEventListener('click', () => P().signOut());
     el('theme-toggle')?.addEventListener('click', P().toggleTheme);
     el('h-currency')?.addEventListener('change', function() {

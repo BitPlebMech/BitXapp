@@ -93,6 +93,10 @@ jobs:
 
           # ── 3. Pick today's highlights (same algorithm as ember.js) ──────────
           highlights = ember.get('highlights', [])
+          # V8 fix: mirror the browser-side filter in generateDailyDigest() —
+          # only 'general' category highlights are included in the daily email.
+          # Academic highlights are intentionally excluded from the digest.
+          highlights = [h for h in highlights if h.get('category', 'general') == 'general']
           sources    = ember.get('sources',    [])
           sources_by_id = {s['id']: s for s in sources}
 
