@@ -11,13 +11,18 @@ name: Ember Daily Highlights Email
 #   EMAILJS_TEMPLATE_ID  — Your EmailJS Template ID (e.g. template_xxxxxxx)
 #   EMAILJS_PUBLIC_KEY   — Your EmailJS Public Key
 #
-# The cron below runs at 08:00 UTC daily. Adjust to match your emailTime setting
-# (remember GitHub Actions uses UTC — convert your local time accordingly).
+# Timezone: Germany (Europe/Berlin)
+#   Summer (CEST, UTC+2): 08:00 local = 06:00 UTC  → cron '0 6 * * *'
+#   Winter (CET,  UTC+1): 08:00 local = 07:00 UTC  → cron '0 7 * * *'
+#
+# This cron is set to 06:00 UTC = 08:00 CEST (summer, Apr–Oct).
+# In winter (Nov–Mar) the email will arrive at 07:00 local instead of 08:00.
+# GitHub Actions does not support named timezones — this is a known limitation.
 # ──────────────────────────────────────────────────────────────────────────────
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # 08:00 UTC daily — adjust to match your emailTime
+    - cron: '0 6 * * *'   # 06:00 UTC = 08:00 Germany summer (CEST/UTC+2)
   workflow_dispatch:        # allow manual trigger from Actions tab for testing
 
 jobs:
@@ -168,7 +173,7 @@ jobs:
               headers={
                   'Content-Type': 'application/json',
                   'User-Agent':   'ember-email-action',
-                  'origin':       'https://bitplebmech.github.io',
+                  'origin':       'https://bitplebmech.github.io/BitXapp/',
               },
               method='POST',
           )
