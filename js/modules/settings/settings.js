@@ -65,11 +65,12 @@ window.App.Settings = (() => {
   /* ── Storage info ─────────────────────────────────────────────── */
 
   function _updateStorageInfo() {
-    const raw = localStorage.getItem('super_app_v1') || '';
-    const kb  = (new Blob([raw]).size / 1024).toFixed(1);
-    const pct = ((raw.length / 5120000) * 100).toFixed(1);
-    const txt = `localStorage: ${kb} KB used (~${pct}% of 5 MB limit)`;
-    if (el('stg-storage')) el('stg-storage').textContent = txt;
+    // V2/V10 fix: was calling localStorage.getItem() directly (Rule 1 violation)
+    // and using a different byte formula than state.js. Now delegates to the
+    // single canonical implementation in App.State.storageInfo().
+    const info = window.App.State.storageInfo();
+    if (el('stg-storage'))
+      el('stg-storage').textContent = `localStorage: ${info.display} used`;
   }
 
   /* ── FX chips ─────────────────────────────────────────────────── */
@@ -121,14 +122,11 @@ window.App.Settings = (() => {
   function saveGistCredentials() {
     const token = (el('cfg-gist-token')?.value || '').trim();
     const id    = (el('cfg-gist-id')?.value    || '').trim();
+    // V12 fix: write only to the canonical gist namespace.
+    // The old legacy write to portfolio.settings.gistToken/Id is removed —
+    // state.js _load() already handles one-time migration from the legacy location
+    // for existing users, so there is no reason to keep re-injecting it there.
     window.App.State.setGistCredentials({ token, id });
-    // Also keep portfolio settings in sync (legacy compat)
-    const s = window.App.State.getPortfolioData();
-    if (s.settings) {
-      s.settings.gistToken = token;
-      s.settings.gistId    = id;
-      window.App.State.setPortfolioData(s);
-    }
     _setGistStatus('Credentials saved ✓', true);
     _toast('Gist credentials saved', 'success');
   }
@@ -188,10 +186,14 @@ window.App.Settings = (() => {
   }
 
   function exportPortfolioCSV() {
+    // ARCH-DEBT (V7): exportPortfolioCSV() requires Portfolio's internal FIFO
+    // and FX state — it cannot be replicated here without duplicating logic.
+    // Accepted temporary coupling until an App.Shell.registerAction() pattern
+    // is implemented. Portfolio must be initialised before this button is usable.
     if (typeof window.App.Portfolio?.exportPortfolioCSV === 'function') {
       window.App.Portfolio.exportPortfolioCSV();
     } else {
-      _toast('Portfolio module not ready', 'warn');
+      _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
 
@@ -235,21 +237,24 @@ window.App.Settings = (() => {
   }
 
   function clearPriceCache() {
-    if (typeof window.App.Portfolio?.clearPriceCache === 'function') {
-      window.App.Portfolio.clearPriceCache();
-    } else {
-      const s = window.App.State.getPortfolioData();
-      s.priceCache = {};
-      window.App.State.setPortfolioData(s);
-      _toast('Price cache cleared', 'info');
-    }
+    // V7 fix: promoted the fallback to the primary path — writing directly to
+    // App.State is the correct approach here (no Portfolio logic needed).
+    // The old App.Portfolio.clearPriceCache() call is removed.
+    const s = window.App.State.getPortfolioData();
+    s.priceCache = {};
+    window.App.State.setPortfolioData(s);
+    window.App.Portfolio?.render?.();  // re-render if loaded; safe no-op if not
+    _toast('Price cache cleared', 'info');
   }
 
   function undoDelete() {
+    // ARCH-DEBT (V7): undoDelete() needs Portfolio's render() and toast() context.
+    // Accepted temporary coupling until an App.Shell.registerAction() pattern
+    // is implemented. Portfolio must be initialised before this button is usable.
     if (typeof window.App.Portfolio?.undoDelete === 'function') {
       window.App.Portfolio.undoDelete();
     } else {
-      _toast('Portfolio module not ready', 'warn');
+      _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
 
@@ -334,15 +339,9 @@ window.App.Settings = (() => {
   /* ── Appearance section ───────────────────────────────────────── */
 
   function toggleTheme() {
-    if (typeof window.App.Portfolio?.toggleTheme === 'function') {
-      window.App.Portfolio.toggleTheme();
-    } else {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next    = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      const s = window.App.State.getPortfolioData();
-      if (s.settings) { s.settings.theme = next; window.App.State.setPortfolioData(s); }
-    }
+    // V3 fix: was App.Portfolio.toggleTheme() — a cross-module call (Rules 3+4).
+    // Shell now owns theme toggling; all callers use App.Shell.toggleTheme().
+    window.App.Shell.toggleTheme();
   }
 
   /* ── Event wiring ─────────────────────────────────────────────── */

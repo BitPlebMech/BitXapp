@@ -415,10 +415,13 @@ window.App.Shell = (() => {
             });
           }
 
-          // Re-render: call each loaded module's render() directly so we do not
-          // re-run init() (which would duplicate event listeners).
-          if (window.App.EmberUI?.render)   window.App.EmberUI.render();
-          if (window.App.HabitsUI?.render)  window.App.HabitsUI.render();
+          // Re-render: call each module's public render() so we do not re-run
+          // init() (which would duplicate event listeners).
+          // V14 fix: was calling App.EmberUI / App.HabitsUI directly (Shell
+          // reaching into module sub-layers). Now routes through the module's
+          // own public render() which each module added to its exports.
+          if (window.App.Ember?.render)   window.App.Ember.render();
+          if (window.App.Habits?.render)  window.App.Habits.render();
           // Re-initialise the active pane in case it is Portfolio or another module
           const activeId = _active;
           if (activeId && activeId !== 'ember' && activeId !== 'habits') {
@@ -447,6 +450,27 @@ window.App.Shell = (() => {
     const settings = window.App.State?.getPortfolioSettings?.() || {};
     const theme = settings.theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
+  }
+
+  /**
+   * Toggle between dark and light theme.
+   * V3 fix: Shell now owns toggleTheme so settings.js can call App.Shell.toggleTheme()
+   * instead of App.Portfolio.toggleTheme() (cross-module call).
+   * Theme storage stays in portfolio.settings.theme for now (V9 is the full migration).
+   */
+  function toggleTheme() {
+    const s    = window.App.State?.getPortfolioData?.() || {};
+    const next = (s.settings?.theme || 'dark') === 'dark' ? 'light' : 'dark';
+    if (s.settings) {
+      s.settings.theme = next;
+      window.App.State.setPortfolioData(s);
+    }
+    applyTheme();
+    // Sync the theme-toggle icon in the Portfolio header if it is in the DOM
+    const sun  = document.getElementById('theme-icon-sun');
+    const moon = document.getElementById('theme-icon-moon');
+    if (sun)  sun.style.display  = next === 'dark'  ? '' : 'none';
+    if (moon) moon.style.display = next === 'light' ? '' : 'none';
   }
 
   /* ── Initialisation ───────────────────────────────────────────── */
@@ -483,6 +507,7 @@ window.App.Shell = (() => {
     registerModule,
     switchModule,
     applyTheme,
+    toggleTheme,   // V3 fix: Shell owns theme toggling; settings.js calls this instead of App.Portfolio.toggleTheme()
     init,
     // App-level UI services — all modules should call these instead of each other
     toast,
