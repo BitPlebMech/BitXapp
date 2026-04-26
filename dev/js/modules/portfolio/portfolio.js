@@ -1112,11 +1112,9 @@ window.App.Portfolio = (() => {
             _save(s);
           }
 
-          // BUG-EMBER-LOAD fix: restore Ember data from ember-highlights.json.
-          // Only restore highlights + sources + streak here — NOT settings.
-          // Ember settings (emailEnabled, emailTime, etc.) are local preferences;
-          // overwriting them on every sign-in would reset the user's toggle state.
-          // Settings are only restored when the user explicitly runs Ember Gist Load.
+          // Restore Ember data from ember-highlights.json — highlights, sources,
+          // streak, AND settings (email address, EmailJS credentials, toggles).
+          // Settings come from the Gist so they are consistent across browsers/devices.
           if (emberParsed) {
             const currentEmber = window.App.State.getEmberData?.() || {};
             window.App.State.setEmberData?.({
@@ -1124,9 +1122,8 @@ window.App.Portfolio = (() => {
               highlights: emberParsed.highlights || currentEmber.highlights || [],
               sources:    emberParsed.sources    || currentEmber.sources   || [],
             });
-            if (emberParsed.streak) window.App.State.setEmberStreak?.(emberParsed.streak);
-            // ↑ intentionally NOT restoring emberParsed.settings here so that local
-            // preferences like emailEnabled survive sign-out / sign-in cycles.
+            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
           }
 
           render();
@@ -1231,12 +1228,15 @@ window.App.Portfolio = (() => {
     window.App.State.setGistCredentials({ token, id: gistId });
     el('cred-ov')?.classList.remove('open');
 
-    // Offer to load from Gist — cancelling shows demo data
+    // Offer to load from Gist — use Shell's canonical loader so ALL modules
+    // (portfolio, ember settings, habits) are restored in one shot.
+    // Never call the local gistLoad() here — it is portfolio-only and will
+    // silently skip data from other modules as the app scales.
     confirmAction(
       'Load from Gist?',
       'Load your saved portfolio from GitHub Gist, or cancel to browse with demo data. You can load from Gist anytime via Refresh.',
       '☁️', 'Load from Gist',
-      () => { gistLoad().then(() => { if (_credCallback) _credCallback(); }); }
+      () => { window.App.Shell.triggerGistLoad().then(() => { if (_credCallback) _credCallback(); }); }
     );
   }
 

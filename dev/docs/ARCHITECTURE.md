@@ -213,8 +213,8 @@ triggerGistSave()  (app-shell.js or portfolio.js)
 
 | File | Scope |
 |------|-------|
-| `css/bitxapp-base.css` | Design tokens (`--bg`, `--blue`, etc.), dark/light theme overrides, CSS reset, keyframe animations, global accessibility styles |
-| `css/main.css` | App shell layout: sidebar, panes, header, scrollbars, shared utility classes |
+| `css/bitxapp-base.css` | **Single source of truth for all design tokens** (`--bg`, `--blue`, spacing, radius, fonts, etc.), dark/light theme overrides, CSS reset, keyframe animations, global accessibility styles |
+| `css/main.css` | App shell layout: sidebar, panes, header, scrollbars, shared utility classes. No design tokens — all `var(--)` values come from `bitxapp-base.css`. |
 | `css/components.css` | Reusable UI overlays: modal, drawer, confirm dialog, toast, form inputs, CSV wizard, credentials popup |
 | `css/modules/portfolio.css` | KPI cards, overview charts, positions grid, history table, lot details, analytics |
 | `css/modules/habits.css` | Habit cards, heatmap, check-in button, add form, streak display |

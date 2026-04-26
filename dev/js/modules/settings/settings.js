@@ -134,10 +134,13 @@ window.App.Settings = (() => {
   }
 
   function loadPortfolioFromGist() {
-    if (typeof window.App.Portfolio?.gistLoad === 'function') {
-      window.App.Portfolio.gistLoad();
+    // Always use the Shell's canonical loader — it restores ALL modules
+    // (portfolio, ember settings, habits) in one shot. Never call
+    // Portfolio.gistLoad() directly; it is portfolio-only.
+    if (typeof window.App.Shell?.triggerGistLoad === 'function') {
+      window.App.Shell.triggerGistLoad();
     } else {
-      _toast('Portfolio module not ready', 'warn');
+      _toast('Shell not ready', 'warn');
     }
   }
 
