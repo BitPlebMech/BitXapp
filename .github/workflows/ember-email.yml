@@ -130,7 +130,7 @@ jobs:
 
           params = {
               'to_email':         recipient,
-              'subject':          f'🔥 Ember — {len(chosen)} highlights for {date_str}',
+              'subject':          f'Ember — {len(chosen)} highlights for {date_str}',
               'date_string':      date_str,
               'highlights_count': str(len(chosen)),
           }
