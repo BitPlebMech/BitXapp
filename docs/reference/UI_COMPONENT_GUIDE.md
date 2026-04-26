@@ -11,12 +11,12 @@
 |------|------|-----------------|
 | `index.html` | ~804 lines | All HTML structure, overlays, modals, script load order |
 | **CSS** | | |
-| `css/bitxapp-base.css` | ~1,913 lines | Design tokens, reset, layout, KPI cards, tables, drawers, modals, toasts |
+| `css/bitxapp-base.css` | ~2,031 lines | **All design tokens** (single source of truth), reset, layout, KPI cards, tables, drawers, modals, toasts |
 | `css/components.css` | ~608 lines | Generic overlays — modal, settings panel, drawer, confirm dialog, toasts, forms |
 | `css/main.css` | ~501 lines | Core shell layout, topbar, sidebar, typography, animations |
 | `css/modules/portfolio.css` | ~476 lines | Portfolio-specific: KPI grid, position cards, overview charts, analytics tables |
 | `css/modules/habits.css` | ~279 lines | Habit cards, heatmap grid, archive section |
-| `css/modules/ember.css` | ~1,123 lines | Book spines, library cards, daily review, import wizard |
+| `css/modules/ember.css` | ~2,016 lines | Book spines, library cards, daily review, import wizard |
 | `css/modules/financecalc.css` | 6 lines | Stub — placeholder only |
 | **JS — Core** | | |
 | `js/core/state.js` | ~365 lines | localStorage read/write, all namespaces (`super_app_v1`) |

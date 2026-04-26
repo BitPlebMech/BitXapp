@@ -81,6 +81,7 @@ DashBoard/
         ├── CONTEXT_BRIEF.md      ← This file
         ├── CODE_REVIEW.md        ← How to request a code review + checklist
         ├── UI_COMPONENT_GUIDE.md ← Component → file mapping
+        ├── UI_TWEAKS.md          ← Safe-to-touch colours, fonts, spacing (file + line refs)
         ├── FUTURE_IPAD_SYNC.md   ← Multi-device sync analysis
         └── MACOS_APP.md          ← Native macOS app prerequisites
 ```
