@@ -34,6 +34,51 @@ window.App.Shell = (() => {
   const _initialised = new Set();
   let _active = null;
 
+  /* ── Action registry ──────────────────────────────────────────────
+   *
+   * Modules register named actions at init time so that app-level code
+   * (Shell, Settings) can invoke module behaviour without direct coupling.
+   *
+   * Pattern:
+   *   // In module init():
+   *   App.Shell.registerAction('portfolio:exportCSV', exportPortfolioCSV);
+   *
+   *   // In settings.js or Shell:
+   *   App.Shell.runAction('portfolio:exportCSV');
+   *
+   * This replaces all window.App.Portfolio.xxx() / window.App.Habits.xxx()
+   * calls in settings.js (Rule 3 violations).
+   * ─────────────────────────────────────────────────────────────── */
+
+  const _actions = {};
+
+  /**
+   * Register a named action.  Called from each module's init().
+   * @param {string}   id  — namespaced action id, e.g. 'portfolio:exportCSV'
+   * @param {Function} fn  — the function to invoke
+   */
+  function registerAction(id, fn) {
+    if (typeof fn !== 'function') {
+      console.warn(`[Shell] registerAction: "${id}" is not a function`);
+      return;
+    }
+    _actions[id] = fn;
+  }
+
+  /**
+   * Run a registered action by id.  Fails silently with a warning if not registered.
+   * @param {string} id     — action id
+   * @param {...*}   args   — forwarded to the registered function
+   * @returns {*} return value of the action function, or undefined if not found
+   */
+  function runAction(id, ...args) {
+    if (!_actions[id]) {
+      console.warn(`[Shell] runAction: "${id}" is not registered — module may not be initialised yet`);
+      return undefined;
+    }
+    return _actions[id](...args);
+  }
+
   /* ── DOM helpers ──────────────────────────────────────────────── */
 
   function el(id) { return document.getElementById(id); }
@@ -440,6 +485,227 @@ window.App.Shell = (() => {
     }
   }
 
+  /* ── Gist load (silent) ──────────────────────────────────────────
+   *
+   * Same as triggerGistLoad() but skips the confirm dialog.
+   * Used by the sign-in flow: credentials are already entered by the user,
+   * so we load immediately without asking for confirmation.
+   * ─────────────────────────────────────────────────────────────── */
+
+  async function triggerGistLoadSilent() {
+    if (_gistLoadInProgress) {
+      toast('Load already in progress…', 'info');
+      return;
+    }
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) { toast('GitHub token is required', 'error'); return; }
+    if (!creds.id)    { toast('Gist ID is required', 'error'); return; }
+
+    _gistLoadInProgress = true;
+    try {
+      toast('Signing in…', 'info');
+
+      const [portfolioParsed, emberParsed, habitsParsed] = await Promise.all([
+        window.App.Gist.loadPortfolioData(creds.token, creds.id),
+        window.App.Gist.loadEmberData(creds.token, creds.id).catch(() => null),
+        window.App.Gist.loadHabitsData(creds.token, creds.id).catch(() => null),
+      ]);
+
+      const { token: tok, id: gid } = window.App.State.getGistCredentials();
+
+      // Restore portfolio namespace
+      if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
+      // Always restore credentials (scrubbed before saving)
+      window.App.State.setGistCredentials({ token: tok, id: gid });
+
+      // Restore Ember
+      if (emberParsed) {
+        let emberHighlights = emberParsed.highlights || [];
+        let emberSources    = emberParsed.sources    || [];
+
+        // Legacy recovery: rebuild source stubs if sources were missing from old Gist save
+        if (emberSources.length === 0 && emberHighlights.length > 0) {
+          const seenIds = new Map();
+          const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
+            '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+            '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+          ];
+          for (const hl of emberHighlights) {
+            if (hl.sourceId && !seenIds.has(hl.sourceId)) {
+              seenIds.set(hl.sourceId, {
+                id:             hl.sourceId,
+                title:          `Book (${hl.sourceId.slice(-6)})`,
+                author:         '',
+                format:         'kindle',
+                color:          palette[seenIds.size % palette.length],
+                importedAt:     hl.addedAt || new Date().toISOString(),
+                lastImportAt:   hl.addedAt || new Date().toISOString(),
+                highlightCount: 0,
+              });
+            }
+          }
+          for (const hl of emberHighlights) {
+            const src = seenIds.get(hl.sourceId);
+            if (src) src.highlightCount++;
+          }
+          emberSources = Array.from(seenIds.values());
+        }
+
+        const currentEmber = window.App.State.getEmberData?.() || {};
+        window.App.State.setEmberData?.({
+          ...currentEmber,
+          highlights: emberHighlights,
+          sources:    emberSources,
+        });
+        if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
+        if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+      }
+
+      // Restore Habits
+      if (habitsParsed) {
+        window.App.State.setHabitsData?.({
+          habits: habitsParsed.habits || [],
+          logs:   habitsParsed.logs   || [],
+        });
+      }
+
+      // Re-render all loaded modules
+      if (window.App.Ember?.render)  window.App.Ember.render();
+      if (window.App.Habits?.render) window.App.Habits.render();
+      const activeId = _active;
+      if (activeId && activeId !== 'ember' && activeId !== 'habits') {
+        _initialised.delete(activeId);
+        switchModule(activeId);
+      }
+
+      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+
+      const txCount    = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
+      const hlCount    = emberParsed?.highlights?.length || 0;
+      const habitCount = habitsParsed?.habits?.length || 0;
+      const detail = [
+        `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
+        hlCount     ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '',
+        habitCount  ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`     : '',
+      ].filter(Boolean).join(' + ');
+
+      toast(`Signed in ✓ — ${detail}`, 'success');
+    } catch (e) {
+      toast('Sign-in failed: ' + e.message, 'error');
+      throw e;
+    } finally {
+      _gistLoadInProgress = false;
+    }
+  }
+
+  /* ── Credentials / Lock screen ───────────────────────────────────
+   *
+   * App-level sign-in popup.  Owned by the Shell — not by any module.
+   * Any module that needs to gate on credentials calls
+   *   App.Shell.initLockScreen()   — show popup if no creds stored
+   *   App.Shell.openCredentialsPopup()
+   *   App.Shell.signOut()
+   * ─────────────────────────────────────────────────────────────── */
+
+  let _credCallback = null;
+
+  /**
+   * Show the credentials popup if token+id are not stored.
+   * Called once from each module that requires authentication (currently Portfolio).
+   */
+  function initLockScreen() {
+    const creds = window.App.State.getGistCredentials();
+    if (!(creds.token || '').trim() || !(creds.id || '').trim()) {
+      openCredentialsPopup(() => {});
+    }
+  }
+
+  function openCredentialsPopup(callback) {
+    _credCallback = callback;
+    const lockToken  = el('lock-token');
+    const lockGistId = el('lock-gist-id');
+    const hint       = el('cred-hint');
+    if (lockToken)   lockToken.value   = '';
+    if (lockGistId)  lockGistId.value  = '';
+    if (hint) { hint.textContent = ''; hint.style.color = 'var(--muted)'; }
+    el('cred-ov')?.classList.add('open');
+    setTimeout(() => el('lock-token')?.focus(), 80);
+  }
+
+  function saveCredentials() {
+    const token  = (el('lock-token')?.value  || '').trim();
+    const gistId = (el('lock-gist-id')?.value || '').trim();
+    const hint   = el('cred-hint');
+    if (!token)  { if (hint) { hint.textContent = 'GitHub token is required'; hint.style.color = 'var(--red)'; } return; }
+    if (!gistId) { if (hint) { hint.textContent = 'Gist ID is required';      hint.style.color = 'var(--red)'; } return; }
+
+    window.App.State.setGistCredentials({ token, id: gistId });
+    el('cred-ov')?.classList.remove('open');
+
+    // Load all Gist files silently — no confirm dialog needed, user just signed in
+    triggerGistLoadSilent().then(() => {
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    }).catch(e => {
+      toast('Sign-in failed: ' + e.message, 'error');
+    });
+  }
+
+  /**
+   * Enter demo mode — clear credentials, reset all modules to their seed/mock
+   * data, close the popup.  Portfolio seed and Habits seed are loaded via the
+   * action registry so Shell does not directly couple to module internals.
+   */
+  function enterDemoMode() {
+    window.App.State.clearGistCredentials();
+
+    // Reset each module via the action registry (modules register these in init)
+    runAction('portfolio:clearToSampleData');
+
+    // Habits seed data
+    const habitsSeed = window.App.Habits?.Data?.buildSeedData?.();
+    window.App.State.setHabitsData(habitsSeed || { habits: [], logs: [] });
+
+    // Ember — no mock data exists; reset to empty
+    window.App.State.setEmberData({ sources: [], highlights: [] });
+    window.App.State.setEmberSettings(window.App.State.getEmberSettings());
+
+    // Re-render any already-initialised modules
+    if (window.App.Habits?.render)  window.App.Habits.render();
+    if (window.App.Ember?.render)   window.App.Ember.render();
+
+    el('cred-ov')?.classList.remove('open');
+    toast('Demo mode — sample data loaded', 'info');
+    if (_credCallback) { _credCallback(); _credCallback = null; }
+  }
+
+  function closeCredentialsPopup() {
+    el('cred-ov')?.classList.remove('open');
+    // No credentials entered — fall back to demo/sample data
+    const creds  = window.App.State.getGistCredentials();
+    const hasAuth = (creds.token || '').trim() && (creds.id || '').trim();
+    if (!hasAuth) {
+      runAction('portfolio:clearToSampleData');
+    }
+    if (_credCallback) { _credCallback(); _credCallback = null; }
+  }
+
+  /**
+   * Sign out — clears credentials, resets to demo/sample data, reopens popup.
+   */
+  function signOut() {
+    confirmAction(
+      'Sign Out?',
+      'Your credentials and locally-cached data will be cleared. Demo data will be shown until you sign in again. Your GitHub Gist is untouched.',
+      '🚪', 'Sign Out',
+      () => {
+        window.App.State.clearGistCredentials();
+        runAction('portfolio:clearToSampleData');
+        openCredentialsPopup(() => {});
+        toast('Signed out — showing demo data', 'info');
+      }
+    );
+  }
+
   /* ── Theme application ────────────────────────────────────────── */
 
   /**
@@ -494,6 +760,7 @@ window.App.Shell = (() => {
     applyTheme();
     _renderSidebar();
     _setupKeyboard();
+    _wireGlobalTopbar();
 
     // Activate default module
     switchModule(defaultModule);
@@ -501,10 +768,26 @@ window.App.Shell = (() => {
     console.info('[Shell] Ready. Active module:', defaultModule);
   }
 
+  /**
+   * Wire global topbar buttons that are outside all module panes.
+   * These live in the shared <div class="topbar"> and must be owned by Shell.
+   * Called once from init() — never from any module.
+   */
+  function _wireGlobalTopbar() {
+    el('h-signout-btn')?.addEventListener('click', () => signOut());
+    el('theme-toggle')?.addEventListener('click',  () => toggleTheme());
+    el('cred-save-btn')?.addEventListener('click', () => saveCredentials());
+    el('cred-demo-btn')?.addEventListener('click', () => enterDemoMode());
+    el('lock-token')?.addEventListener('keydown',   e => { if (e.key === 'Enter') saveCredentials(); });
+    el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCredentials(); });
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
   return {
     registerModule,
+    registerAction,
+    runAction,
     switchModule,
     applyTheme,
     toggleTheme,   // V3 fix: Shell owns theme toggling; settings.js calls this instead of App.Portfolio.toggleTheme()
@@ -517,6 +800,14 @@ window.App.Shell = (() => {
     // App-level Gist sync — works for every module automatically
     triggerGistSave,
     triggerGistLoad,
+    triggerGistLoadSilent,
+    // App-level credentials / lock screen — owned by Shell, not by any module
+    initLockScreen,
+    openCredentialsPopup,
+    closeCredentialsPopup,
+    saveCredentials,
+    enterDemoMode,
+    signOut,
     /** Returns the currently active module id */
     get active() { return _active; },
   };

@@ -1641,8 +1641,7 @@ window.App.PortfolioUI = (() => {
     // Portfolio.gistLoad() only restored portfolio + ember, silently omitting habits.
     el('h-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
     el('h-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
-    el('h-signout-btn')?.addEventListener('click', () => P().signOut());
-    el('theme-toggle')?.addEventListener('click', P().toggleTheme);
+    // h-signout-btn and theme-toggle are global topbar buttons — wired by App.Shell.init()
     el('h-currency')?.addEventListener('change', function() {
       const s = window.App.State.getPortfolioData();
       s.settings.currency = this.value;
@@ -1742,10 +1741,7 @@ window.App.PortfolioUI = (() => {
     el('cd-confirm')?.addEventListener('click', P().confirmDo);
     document.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', P().confirmCancel));
 
-    // Credentials popup
-    el('cred-save-btn')?.addEventListener('click', P().saveCredentials);
-    el('lock-token')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
-    el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
+    // Credentials popup buttons are wired by App.Shell.init() — not here
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {

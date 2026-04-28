@@ -96,7 +96,6 @@ window.App.Portfolio = (() => {
   let activeDrawer = null;
   let modalType    = 'BUY';
   let _idMode      = 'ticker';
-  let _credCallback = null;
   const tickerColorCache = {};
 
   /* ── State accessors ──────────────────────────────────────────── */
@@ -988,7 +987,7 @@ window.App.Portfolio = (() => {
             _save(s);
             render();
             syncSettingsUI();
-            applyTheme();
+            window.App.Shell.applyTheme();
             toast('Portfolio imported', 'success');
           }
         );
@@ -1131,7 +1130,7 @@ window.App.Portfolio = (() => {
 
           render();
           syncSettingsUI();
-          applyTheme();
+          window.App.Shell.applyTheme();
           setGistStatus('Loaded · ' + new Date().toLocaleTimeString(), true);
           const msg = hlCount
             ? `Loaded from Gist — portfolio + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''} ✓`
@@ -1178,82 +1177,6 @@ window.App.Portfolio = (() => {
     render();
   }
 
-  /**
-   * Sign out of Gist — clears credentials AND wipes the locally-cached real
-   * portfolio data, then loads demo/sample data.
-   * This ensures that without a token + Gist ID the real portfolio is never
-   * visible, which matters on public hosting (e.g. GitHub Pages).
-   * GitHub Gist is completely untouched.
-   */
-  function signOut() {
-    confirmAction(
-      'Sign Out?',
-      'Your credentials and locally-cached portfolio data will be cleared. Demo data will be shown until you sign in again. Your GitHub Gist is untouched.',
-      '🚪', 'Sign Out',
-      () => {
-        window.App.State.clearGistCredentials();
-        _clearToSampleData();
-        openCredentialsPopup(() => {});
-        toast('Signed out — showing demo data', 'info');
-      }
-    );
-  }
-
-  /* ═══════════════════════════════════════════════════════════════
-     CREDENTIALS / LOCK SCREEN
-     ═══════════════════════════════════════════════════════════════ */
-
-  function initLockScreen() {
-    // BUG-01 fix: read from canonical credential namespace
-    const creds = window.App.State.getGistCredentials();
-    if (!(creds.token||'').trim() || !(creds.id||'').trim()) {
-      openCredentialsPopup(() => {});
-    }
-  }
-
-  function openCredentialsPopup(callback) {
-    _credCallback = callback;
-    if (el('lock-token'))   el('lock-token').value   = '';
-    if (el('lock-gist-id')) el('lock-gist-id').value = '';
-    if (el('cred-hint'))    { el('cred-hint').textContent = ''; el('cred-hint').style.color = 'var(--muted)'; }
-    el('cred-ov')?.classList.add('open');
-    setTimeout(() => el('lock-token')?.focus(), 80);
-  }
-
-  function saveCredentials() {
-    const token  = (el('lock-token')?.value   || '').trim();
-    const gistId = (el('lock-gist-id')?.value || '').trim();
-    const hint   = el('cred-hint');
-    if (!token)  { if (hint) { hint.textContent = 'GitHub token is required'; hint.style.color = 'var(--red)'; } return; }
-    if (!gistId) { if (hint) { hint.textContent = 'Gist ID is required'; hint.style.color = 'var(--red)'; } return; }
-
-    // BUG-01 fix: write to canonical credential namespace
-    window.App.State.setGistCredentials({ token, id: gistId });
-    el('cred-ov')?.classList.remove('open');
-
-    // Offer to load from Gist — use Shell's canonical loader so ALL modules
-    // (portfolio, ember settings, habits) are restored in one shot.
-    // _gistLoad() is private and portfolio-only — never call it from here.
-    confirmAction(
-      'Load from Gist?',
-      'Load your saved portfolio from GitHub Gist, or cancel to browse with demo data. You can load from Gist anytime via Refresh.',
-      '☁️', 'Load from Gist',
-      () => { window.App.Shell.triggerGistLoad().then(() => { if (_credCallback) _credCallback(); }); }
-    );
-  }
-
-  function closeCredentialsPopup() {
-    el('cred-ov')?.classList.remove('open');
-    // If skipped with no credentials, ensure only demo data is visible.
-    // This is the privacy guarantee: real Gist data requires a valid token + ID.
-    const creds = window.App.State.getGistCredentials();
-    const hasAuth = (creds.token || '').trim() && (creds.id || '').trim();
-    if (!hasAuth) {
-      _clearToSampleData();
-    }
-    if (_credCallback) { _credCallback(); _credCallback = null; }
-  }
-
   /* ═══════════════════════════════════════════════════════════════
      SETTINGS
      ═══════════════════════════════════════════════════════════════ */
@@ -1285,21 +1208,8 @@ window.App.Portfolio = (() => {
     toast('Settings saved', 'success');
   }
 
-  function applyTheme() {
-    const theme = _settings().theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    // Sun shown in dark mode (click → go light); Moon shown in light mode (click → go dark)
-    const sun  = el('theme-icon-sun');
-    const moon = el('theme-icon-moon');
-    if (sun)  sun.style.display  = theme === 'dark'  ? '' : 'none';
-    if (moon) moon.style.display = theme === 'light' ? '' : 'none';
-  }
-
-  function toggleTheme() {
-    // V3 fix: delegate to Shell which now owns the state write and applyTheme call.
-    // applyTheme() is called after so the local icon state (sun/moon) stays in sync.
-    window.App.Shell.toggleTheme();
-  }
+  // applyTheme and toggleTheme removed — Shell owns both (Rule 4).
+  // All callers within this module use window.App.Shell.applyTheme() directly.
 
   /* ═══════════════════════════════════════════════════════════════
      SAMPLE DATA
@@ -1398,7 +1308,7 @@ window.App.Portfolio = (() => {
 
   function init() {
     seedSampleData();
-    applyTheme();
+    window.App.Shell.applyTheme();
     syncSettingsUI();
     _syncCurrencyUI();   // Sync saved currency to header dropdown
     updateStorageStatus();
@@ -1416,8 +1326,14 @@ window.App.Portfolio = (() => {
     fetchFX();
     refreshPrices();
 
-    // Show credentials popup if Gist token/ID are missing
-    initLockScreen();
+    // Register Shell actions so settings.js and other app-level code
+    // can invoke portfolio behaviour without direct module coupling (Rule 3)
+    window.App.Shell.registerAction('portfolio:exportCSV',          exportPortfolioCSV);
+    window.App.Shell.registerAction('portfolio:undoDelete',         undoDelete);
+    window.App.Shell.registerAction('portfolio:clearToSampleData',  _clearToSampleData);
+
+    // Lock screen is owned by Shell — delegate
+    window.App.Shell.initLockScreen();
 
     console.info('[Portfolio] Module initialised');
   }
@@ -1461,11 +1377,11 @@ window.App.Portfolio = (() => {
     // Gist
     // V6 fix: gistLoad removed from exports — it is now _gistLoad() (private).
     // Use App.Shell.triggerGistLoad() to restore all modules.
-    triggerGistSave, gistClearCredentials, signOut,
-    // Credentials
-    openCredentialsPopup, saveCredentials, closeCredentialsPopup,
-    // Settings
-    syncSettingsUI, applySettings, applyTheme, toggleTheme,
+    triggerGistSave, gistClearCredentials,
+    // NOTE: signOut, openCredentialsPopup, saveCredentials, closeCredentialsPopup,
+    // enterDemoMode, initLockScreen are now owned by App.Shell (not this module).
+    // Settings (applyTheme/toggleTheme removed — use App.Shell.applyTheme/toggleTheme)
+    syncSettingsUI, applySettings,
     // UI helpers
     toast, confirmAction, confirmDo, confirmCancel, setHeaderStatus,
     setGistStatus, updateFXUI, updateStorageStatus, updateGistSaveIndicator, updateSourceBadge,

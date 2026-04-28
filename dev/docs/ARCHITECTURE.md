@@ -198,14 +198,71 @@ triggerGistSave()  (app-shell.js or portfolio.js)
           └── App.State.setGistCredentials({ lastSync: now })
 ```
 
-**Two Gist files per Gist:**
+**Three Gist files per Gist:**
 
 | File | Contents |
 |------|----------|
 | `portfolio-data.json` | portfolio transactions, price cache, settings, gist credentials |
 | `ember-highlights.json` | highlights, sources, spaced-repetition settings, streak |
+| `habits-data.json` | habit definitions and completion log entries |
 
 **Credential scrubbing:** `_scrubToken()` strips any `ghp_` GitHub PAT from the payload before writing. GitHub auto-revokes tokens it detects in Gist content.
+
+---
+
+## Sign-In Flow
+
+The credentials popup (`#cred-ov`) is shown on first load when no token+Gist ID are stored.
+
+```
+User opens app (no credentials in localStorage)
+  └── portfolio.js initLockScreen() → openCredentialsPopup()
+
+Option A — Sign In:
+  User enters token + Gist ID → clicks "Sign In"
+  └── saveCredentials()
+        ├── validation (both fields required)
+        ├── App.State.setGistCredentials({ token, id })
+        ├── close popup
+        └── App.Shell.triggerGistLoadSilent()   ← loads all 3 Gist files silently
+              ├── loadPortfolioData()
+              ├── loadEmberData()      (null = skip, first save)
+              ├── loadHabitsData()     (null = skip, first save)
+              ├── mergeAll() + setEmberData() + setHabitsData()
+              └── re-render active module + toast "Signed in ✓"
+
+Option B — Demo:
+  User clicks "Demo"
+  └── enterDemoMode()
+        ├── clearGistCredentials()
+        ├── _clearToSampleData()        ← portfolio seed data
+        ├── App.State.setHabitsData(buildSeedData())  ← habits mock data
+        ├── App.State.setEmberData({ sources:[], highlights:[] })  ← empty (no mock)
+        └── close popup + toast "Demo mode"
+```
+
+**Security:** GitHub token and Gist ID are never hardcoded in source. They are entered at runtime, stored only in `localStorage → super_app_v1 → gist`, and scrubbed from Gist content before every write.
+
+---
+
+## Email Automation
+
+Ember daily-highlights email is sent **exclusively** via GitHub Actions cron — not from the browser.
+
+```
+.github/workflows/ember-email.yml
+  schedule: '0 6 * * *'  (06:00 UTC = 08:00 Germany summer / CEST)
+  │
+  └── Python script
+        ├── Fetch ember-highlights.json from Gist (uses EMBER_GIST_TOKEN secret)
+        ├── Check emailEnabled + frequency (daily/weekdays/weekly)
+        ├── Run same LCG shuffle + day-window as browser ember.js
+        └── POST to EmailJS REST API (uses EMAILJS_* secrets)
+```
+
+**Why not the browser:** `checkAndSendEmail()` was previously called from `ember.js init()` on every first Ember tab click. Opening the app on two different browsers/sessions in the same day would bypass the `lastEmailSentDate` guard and send duplicate emails. The GitHub Actions cron runs exactly once per day regardless of whether the app is open.
+
+**Required GitHub Secrets:** `EMBER_GIST_TOKEN`, `EMBER_GIST_ID`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_PUBLIC_KEY`.
 
 ---
 
