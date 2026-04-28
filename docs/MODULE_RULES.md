@@ -57,10 +57,28 @@ Modules must never call each other directly:
 ✅  window.App.Shell.confirmAction(…)   — Shell dialogs are fine
 
 ❌  window.App.Portfolio.toast(…)       — calling another module's function
-❌  window.App.Ember.getSources()       — reading another module's data directly
+❌  window.App.Ember.getSources()            — reading another module's data directly
+❌  window.App.Portfolio.exportPortfolioCSV() — settings calling portfolio internals
 ```
 
 If two modules need to share behaviour, put it in a `js/core/` helper — not in either module.
+
+**Action Registry pattern** — use this when one app-level concern (Settings, Shell) needs to trigger behaviour that lives inside a module:
+
+```javascript
+// In the module's init() — register what you expose:
+window.App.Shell.registerAction('portfolio:exportCSV',         exportPortfolioCSV);
+window.App.Shell.registerAction('portfolio:undoDelete',        undoDelete);
+window.App.Shell.registerAction('portfolio:clearToSampleData', _clearToSampleData);
+window.App.Shell.registerAction('habits:exportJSON',           exportJSON);
+window.App.Shell.registerAction('habits:importJSON',           importJSON);
+
+// In the caller (settings.js, Shell, etc.) — invoke without coupling:
+window.App.Shell.runAction('portfolio:exportCSV');
+window.App.Shell.runAction('habits:importJSON', file);
+```
+
+Naming convention: `'moduleId:actionName'` (camelCase after colon). Actions are registered lazily — `runAction()` warns in console if the module has not been initialised yet.
 
 ---
 
@@ -71,7 +89,7 @@ If two modules need to share behaviour, put it in a `js/core/` helper — not in
 | `js/core/` utilities (`constants`, `utils`, `formatters`, etc.) | Nothing — pure functions only | Anything on `window.App` |
 | `state.js` | `localStorage` only | Any module or Gist |
 | `gist.js` | `fetch()` (GitHub API) only | `App.State`, any module, any DOM |
-| `app-shell.js` | `App.State`, `App.Gist`, registered modules via `init()` | No module internals |
+| `app-shell.js` | `App.State`, `App.Gist`, registered modules via `init()`, action registry | No module internals directly |
 | Module business logic (e.g. `habits.js`) | `App.State`, `App.Shell`, `App.Gist` | Other modules |
 | Module UI (e.g. `habits-ui.js`) | Its own module's business logic, `App.Shell` | `App.State` directly, other modules |
 
@@ -109,12 +127,33 @@ Group D — inline boot script:
 - [ ] Add `<div id="mod-mymodule" class="module-pane">` in `index.html`
 - [ ] Add `<script>` tag in `index.html` before `settings.js`
 - [ ] If Gist sync needed: add file constant + save/load functions to `gist.js`, add `triggerGistSave()` + `triggerGistLoad()` to the module, add Gist Save/Load buttons to the module header in `index.html`, add Export/Import JSON to Settings
+- [ ] If Settings needs to trigger module actions: register them with `App.Shell.registerAction('mymodule:actionName', fn)` in `init()` (Rule 3)
+- [ ] If the module needs mock/demo data: add a `buildSeedData()` to `mymodule-data.js` and add one line in `App.Shell.enterDemoMode()` calling `App.State.setMymoduleData(window.App.MyModule.Data.buildSeedData())`
 
 **The shell auto-generates the sidebar button. No other files need to change.**
 
 ---
 
-## 7. Common mistakes to avoid
+## 7. App-level concerns — owned by Shell, never by modules
+
+The following are **app-wide** and must live in `app-shell.js`, never inside any module:
+
+| Concern | Shell API | Do NOT put in |
+|---------|-----------|---------------|
+| Sign-in / credentials popup | `App.Shell.initLockScreen()` | `portfolio.js` |
+| Sign out | `App.Shell.signOut()` | `portfolio.js` |
+| Demo mode | `App.Shell.enterDemoMode()` | `portfolio.js` |
+| Theme apply | `App.Shell.applyTheme()` | any module |
+| Theme toggle | `App.Shell.toggleTheme()` | any module |
+| Global topbar buttons (`h-signout-btn`, `theme-toggle`, `cred-save-btn`, `cred-demo-btn`) | Wired in `Shell._wireGlobalTopbar()` | `portfolio-ui.js` |
+| Toast | `App.Shell.toast()` | any module (modules have thin wrappers that delegate here) |
+| Confirm dialog | `App.Shell.confirmAction()` | any module |
+
+**Test:** If you remove `portfolio.js` from `index.html`, the sign-in popup, theme toggle, and sign-out button must still work. If they don't, you've put app-level logic in a module.
+
+---
+
+## 8. Common mistakes to avoid
 
 | Mistake | Consequence | Rule |
 |---------|-------------|------|
@@ -124,3 +163,6 @@ Group D — inline boot script:
 | Calling `window.App.Portfolio.toast()` from another module | Hard dependency, breaks isolation | Rule 3 |
 | Calling `localStorage.getItem()` directly in a module | Bypasses state layer, migration won't run | Rule 1 |
 | Loading scripts out of order | Silent failures — module calls function that isn't defined yet | Rule 5 |
+| Putting `initLockScreen()` / `signOut()` / `applyTheme()` inside a module | App breaks if that module is removed; Rule 7 violation | Rule 7 |
+| Wiring `h-signout-btn` or `theme-toggle` in a module-ui file | Button silently does nothing until that module is visited | Rule 7 |
+| Calling `window.App.Portfolio.exportCSV()` from `settings.js` | Direct cross-module coupling; use action registry | Rule 3 |

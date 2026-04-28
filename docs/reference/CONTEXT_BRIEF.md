@@ -119,13 +119,26 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 
 ---
 
+## Sign-In Flow
+
+On first open (no credentials in `localStorage`), the credentials popup is shown. Two paths:
+
+- **Sign In** — enter token + Gist ID → `saveCredentials()` → `App.Shell.triggerGistLoadSilent()` loads all three Gist files (portfolio, ember, habits) silently, no confirm dialog
+- **Demo** — `enterDemoMode()` → clears credentials → portfolio seed data + habits mock data loaded; Ember stays empty (no mock data exists)
+
+## Email Automation
+
+Daily Ember highlights email is sent **only** by GitHub Actions cron (`.github/workflows/ember-email.yml`, 06:00 UTC). The browser never sends email. `checkAndSendEmail()` has been removed from `ember.js init()` to prevent duplicates when the app is opened on multiple sessions.
+
+---
+
 ## Key Algorithms
 
 - **FIFO lot matching** — BUY before SELL on same date, then chronological
 - **XIRR** — Newton-Raphson, 7 seed points, 300 max iterations, returns `null` on no convergence
 - **Habits streak** — walks back from today (or yesterday if not checked); each loop iteration = one confirmed day
 - **Ember spaced repetition** — SM-2 variant; correct → ease factor up; wrong → reset to 1 day
-- **Ember daily review** — date-seeded shuffle (same 5 highlights all day, different each day)
+- **Ember daily review** — date-seeded LCG shuffle (same 10 highlights all day, different each day)
 
 ---
 
@@ -148,3 +161,4 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 - **Modular refactor:** Split into core + per-module data/logic/UI files, storage key migrated to `super_app_v1`
 - **Phase 2:** Added Ember module, CSS split, Gist cross-module sync, spaced repetition, daily email
 - **Phase 3–6:** Core utilities (`constants`, `utils`, `formatters`, `pagination`, `filters`), 172-test Vitest suite, per-module Gist save/load buttons, Habits Gist file, books-tab Gist load fix
+- **Phase 7:** Sign-in UX overhaul (Sign In + Demo buttons, silent auto-load), email exclusively via GitHub Actions cron (duplicate email fix)

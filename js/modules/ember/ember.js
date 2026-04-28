@@ -916,8 +916,10 @@ window.App.Ember = (() => {
 
     window.App.EmberUI.init();
 
-    // Check and send automated email (async, fire-and-forget)
-    checkAndSendEmail().catch(() => {});
+    // NOTE: Automated daily email is handled exclusively by the GitHub Actions
+    // cron in .github/workflows/ember-email.yml.
+    // The browser-based checkAndSendEmail() has been removed to prevent
+    // duplicate emails when the app is opened multiple times in a day.
   }
 
   /* ── Register with App.Shell ──────────────────────────────────── */

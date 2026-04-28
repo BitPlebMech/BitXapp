@@ -344,6 +344,10 @@ window.App.Habits = (() => {
       window.App.HabitsUI.setupEventListeners();
     }
 
+    // Register Shell actions so settings.js can call these without direct coupling (Rule 3)
+    window.App.Shell.registerAction('habits:exportJSON', exportJSON);
+    window.App.Shell.registerAction('habits:importJSON', importJSON);
+
     _render();
     console.info('[Habits] Module initialised');
   }

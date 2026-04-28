@@ -186,13 +186,9 @@ window.App.Settings = (() => {
   }
 
   function exportPortfolioCSV() {
-    // ARCH-DEBT (V7): exportPortfolioCSV() requires Portfolio's internal FIFO
-    // and FX state — it cannot be replicated here without duplicating logic.
-    // Accepted temporary coupling until an App.Shell.registerAction() pattern
-    // is implemented. Portfolio must be initialised before this button is usable.
-    if (typeof window.App.Portfolio?.exportPortfolioCSV === 'function') {
-      window.App.Portfolio.exportPortfolioCSV();
-    } else {
+    // Routes through Shell action registry — no direct Portfolio coupling (Rule 3)
+    const result = window.App.Shell.runAction('portfolio:exportCSV');
+    if (result === undefined) {
       _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
@@ -248,12 +244,9 @@ window.App.Settings = (() => {
   }
 
   function undoDelete() {
-    // ARCH-DEBT (V7): undoDelete() needs Portfolio's render() and toast() context.
-    // Accepted temporary coupling until an App.Shell.registerAction() pattern
-    // is implemented. Portfolio must be initialised before this button is usable.
-    if (typeof window.App.Portfolio?.undoDelete === 'function') {
-      window.App.Portfolio.undoDelete();
-    } else {
+    // Routes through Shell action registry — no direct Portfolio coupling (Rule 3)
+    const result = window.App.Shell.runAction('portfolio:undoDelete');
+    if (result === undefined) {
       _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
@@ -320,19 +313,19 @@ window.App.Settings = (() => {
   /* ── Habits section ──────────────────────────────────────────── */
 
   function exportHabitsJSON() {
-    if (typeof window.App.Habits?.exportJSON === 'function') {
-      window.App.Habits.exportJSON();
-    } else {
-      _toast('Habits module not loaded', 'error');
+    // Routes through Shell action registry — no direct Habits coupling (Rule 3)
+    const result = window.App.Shell.runAction('habits:exportJSON');
+    if (result === undefined) {
+      _toast('Habits module not loaded — visit Habits tab first', 'warn');
     }
   }
 
   function importHabitsJSON(file) {
     if (!file) return;
-    if (typeof window.App.Habits?.importJSON === 'function') {
-      window.App.Habits.importJSON(file);
-    } else {
-      _toast('Habits module not loaded', 'error');
+    // Routes through Shell action registry — no direct Habits coupling (Rule 3)
+    const result = window.App.Shell.runAction('habits:importJSON', file);
+    if (result === undefined) {
+      _toast('Habits module not loaded — visit Habits tab first', 'warn');
     }
   }
 
