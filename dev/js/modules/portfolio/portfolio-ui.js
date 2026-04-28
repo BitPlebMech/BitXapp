@@ -27,6 +27,7 @@ window.App.PortfolioUI = (() => {
   /* ── Aliases ──────────────────────────────────────────────────── */
   const P  = () => window.App.Portfolio;      // Business logic
   const PD = () => window.App.Portfolio.Data; // CSV data helpers
+  const _esc = (s) => window.App.Utils?.escHtml?.(s) ?? String(s ?? '');
 
   function el(id) { return document.getElementById(id); }
 
@@ -721,7 +722,7 @@ window.App.PortfolioUI = (() => {
         <td style="color:var(--dim)">${txs.length - i}</td>
         <td style="color:var(--text2)">${P().fmtDate(tx.date)}</td>
         <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
+        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${_esc(tx.notes)}</div>` : ''}</td>
         <td><span class="cls-badge ${P().CLS_CSS[cls]||'cb-stock'}">${cls}</span></td>
         <td style="color:var(--text)">${P().fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${P().fmtCompact(buyPriceD)}</td>
@@ -1061,7 +1062,7 @@ window.App.PortfolioUI = (() => {
       return `<tr>
         <td><span class="lot-num" style="background:${color}22;color:${color}">${i + 1}</span></td>
         <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td style="text-align:left;color:var(--text2)">${P().fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${tx.notes}</div>` : ''}</td>
+        <td style="text-align:left;color:var(--text2)">${P().fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${_esc(tx.notes)}</div>` : ''}</td>
         <td>${P().fmtQty(tx.qty)}</td>
         <td>${P().fmtCompact(txPriceD)}</td>
         <td>${P().fmtValue(tx.qty * txPriceD)}</td>
