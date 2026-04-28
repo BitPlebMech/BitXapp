@@ -96,7 +96,12 @@ window.App.State = (() => {
 
   /* ── Private helpers ──────────────────────────────────────────── */
 
-  /** Deep-merge source into target (one level deep for nested objects). */
+  /**
+   * Recursive deep-merge: source values overwrite target values.
+   * Arrays are replaced wholesale (not concatenated) — this is intentional
+   * because arrays in our state are data collections (transactions, logs),
+   * not configuration that needs merging.
+   */
   function _deepMerge(target, source) {
     const result = { ...target };
     for (const key of Object.keys(source)) {
@@ -108,7 +113,8 @@ window.App.State = (() => {
         target[key] !== null &&
         !Array.isArray(target[key])
       ) {
-        result[key] = { ...target[key], ...source[key] };
+        // Recurse into nested objects
+        result[key] = _deepMerge(target[key], source[key]);
       } else {
         result[key] = source[key];
       }
@@ -129,14 +135,6 @@ window.App.State = (() => {
             merged[ns] = _deepMerge(DEFAULT_STATE[ns], saved[ns]);
           }
         }
-        // Extra: merge portfolio.settings deeply (it has many evolving keys)
-        if (saved.portfolio?.settings) {
-          merged.portfolio.settings = {
-            ...DEFAULT_PORTFOLIO_SETTINGS,
-            ...saved.portfolio.settings,
-          };
-        }
-
         // ── One-time migration (BUG-01 / SCALE-02) ───────────────────────────
         // Credentials were previously stored in portfolio.settings.gistToken/Id.
         // Canonical storage is now _state.gist.  If the new location is still
@@ -208,13 +206,6 @@ window.App.State = (() => {
       if (incoming[ns]) {
         merged[ns] = _deepMerge(DEFAULT_STATE[ns], incoming[ns]);
       }
-    }
-    // Re-apply settings deep merge (many evolving keys)
-    if (incoming.portfolio?.settings) {
-      merged.portfolio.settings = {
-        ...DEFAULT_PORTFOLIO_SETTINGS,
-        ...incoming.portfolio.settings,
-      };
     }
     _state = merged;
     _save();
@@ -370,9 +361,10 @@ window.App.State = (() => {
    * Callers that previously used the string return value should use .display.
    */
   function storageInfo() {
-    const raw = localStorage.getItem(STORAGE_KEY) || '';
-    const kb  = (new Blob([raw]).size / 1024).toFixed(1);
-    const pct = ((raw.length / 5120000) * 100).toFixed(1);
+    const raw   = localStorage.getItem(STORAGE_KEY) || '';
+    const bytes = new Blob([raw]).size;
+    const kb    = (bytes / 1024).toFixed(1);
+    const pct   = ((bytes / (5 * 1024 * 1024)) * 100).toFixed(1);
     return { kb, pct, display: `${kb} KB (~${pct}% of 5 MB)` };
   }
 
