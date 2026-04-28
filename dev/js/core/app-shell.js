@@ -595,8 +595,8 @@ window.App.Shell = (() => {
     // Reset each module via the action registry (modules register these in init)
     runAction('portfolio:clearToSampleData');
 
-    // Habits seed data
-    const habitsSeed = window.App.Habits?.Data?.buildSeedData?.();
+    // Habits seed data — try the action registry first (module may not be loaded yet)
+    const habitsSeed = runAction('habits:buildSeedData');
     window.App.State.setHabitsData(habitsSeed || { habits: [], logs: [] });
 
     // Ember — no mock data exists; reset to empty

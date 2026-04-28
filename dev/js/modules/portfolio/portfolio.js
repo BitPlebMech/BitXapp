@@ -1331,6 +1331,7 @@ window.App.Portfolio = (() => {
     window.App.Shell.registerAction('portfolio:exportCSV',          exportPortfolioCSV);
     window.App.Shell.registerAction('portfolio:undoDelete',         undoDelete);
     window.App.Shell.registerAction('portfolio:clearToSampleData',  _clearToSampleData);
+    window.App.Shell.registerAction('portfolio:render',             render);
 
     // Lock screen is owned by Shell — delegate
     window.App.Shell.initLockScreen();

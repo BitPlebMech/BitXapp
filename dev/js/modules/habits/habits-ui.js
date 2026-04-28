@@ -300,8 +300,8 @@ window.App.HabitsUI = (() => {
     });
 
     // Habits header Gist buttons
-    document.getElementById('habits-gist-save')?.addEventListener('click', () => window.App.Habits.triggerGistSave());
-    document.getElementById('habits-gist-load')?.addEventListener('click', () => window.App.Habits.triggerGistLoad());
+    document.getElementById('habits-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
+    document.getElementById('habits-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */
