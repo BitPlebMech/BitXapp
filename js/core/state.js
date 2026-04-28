@@ -88,6 +88,9 @@ window.App.State = (() => {
       id: '',
       lastSync: '',
     },
+    app: {
+      theme: 'dark',
+    },
   };
 
   /* ── Internal state ───────────────────────────────────────────── */
@@ -147,6 +150,16 @@ window.App.State = (() => {
           merged.gist.id = merged.portfolio.settings.gistId;
         }
         // ─────────────────────────────────────────────────────────────────────
+
+        // ── Theme migration (V9 fix) ────────────────────────────────────
+        // Theme was previously stored in portfolio.settings.theme.
+        // Canonical location is now _state.app.theme.  If the new location
+        // still has the default value but the portfolio location differs,
+        // migrate it so the user's preference is preserved.
+        if (merged.app?.theme === 'dark' && merged.portfolio?.settings?.theme === 'light') {
+          merged.app.theme = 'light';
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         _state = merged;
       } else {
@@ -351,6 +364,20 @@ window.App.State = (() => {
     _save();
   }
 
+  // ─── App-level settings namespace ───────────────────────────────
+
+  function getAppSettings() {
+    _ensure();
+    if (!_state.app) _state.app = { theme: 'dark' };
+    return _state.app;
+  }
+
+  function setAppSettings(appObj) {
+    _ensure();
+    _state.app = { ...appObj };
+    _save();
+  }
+
   // ─── Utility ────────────────────────────────────────────────────
 
   /**
@@ -411,6 +438,9 @@ window.App.State = (() => {
     getGistCredentials,
     setGistCredentials,
     clearGistCredentials,
+    // App-level settings
+    getAppSettings,
+    setAppSettings,
     // Utility
     storageInfo,
     resetAll,

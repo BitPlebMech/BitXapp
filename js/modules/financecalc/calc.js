@@ -14,7 +14,7 @@
  *
  * Data flow (follows the same pattern as all other modules):
  *   • State: window.App.State.getFinanceCalcData() / setFinanceCalcData()
- *   • Gist:  triggerGistSave() → App.Gist.save(App.State.getAll(), token, id)
+ *   • Gist:  triggerGistSave() → App.Gist.saveFinanceCalcData() (when implemented)
  *   • Shell: window.App.Shell.registerModule({ id: 'calc', ... })
  * ═══════════════════════════════════════════════════════════════════
  */
