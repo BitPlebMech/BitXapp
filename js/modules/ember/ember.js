@@ -1,6 +1,19 @@
 'use strict';
 
 /**
+ * MODULE RULES — read docs/MODULE_RULES.md before editing
+ *
+ * 1. State: read/write ONLY your own namespace via App.State.getXxxData() / setXxxData()
+ * 2. Gist:  use your own file via App.Gist.saveXxxData() — never the generic save()
+ * 3. Isolation: never call another module directly — use App.State (data) or App.Shell (UI)
+ * 4. Shell: app-level concerns (theme, toast, confirm, sign-in) belong to App.Shell
+ * 5. Actions: register callable actions with App.Shell.registerAction('mod:action', fn)
+ * 6. Render: export a public render() so Shell can re-render after Gist load
+ * 7. Save button: wire header Gist Save to App.Shell.triggerGistSave(), not module save
+ * 8. No localStorage: only js/core/state.js touches localStorage directly
+ */
+
+/**
  * ═══════════════════════════════════════════════════════════════════
  * EMBER MODULE  —  Business logic & state management
  * ═══════════════════════════════════════════════════════════════════
