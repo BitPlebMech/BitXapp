@@ -384,6 +384,62 @@ window.App.Gist = (() => {
     }
   }
 
+  /* ── Unified loader — single Gist fetch, all files extracted ──── */
+
+  /**
+   * Fetch the Gist ONCE and extract all module files.
+   * Returns { portfolio, ember, habits } where each value is:
+   *   - parsed JSON object if the file exists
+   *   - null if the file doesn't exist yet (first save)
+   *
+   * This replaces calling loadPortfolioData + loadEmberData + loadHabitsData
+   * in parallel (which made 3 identical HTTP requests).
+   *
+   * @param {string} token - GitHub PAT
+   * @param {string} id    - Gist ID
+   * @returns {Promise<{ portfolio: object, ember: object|null, habits: object|null }>}
+   */
+  async function loadAllFiles(token, id) {
+    if (!token) throw new Error('GitHub token is required');
+    if (!id)    throw new Error('Gist ID is required');
+
+    const resp = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: _headers(token),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+
+    // Extract portfolio (required — throws if missing)
+    const portfolioRaw = data.files?.[FILENAME]?.content;
+    if (!portfolioRaw) throw new Error(`"${FILENAME}" not found in this Gist`);
+    let portfolio;
+    try { portfolio = JSON.parse(portfolioRaw); }
+    catch { throw new Error('portfolio-data.json is not valid JSON'); }
+
+    // Extract ember (optional — null if not present yet)
+    let ember = null;
+    const emberRaw = data.files?.[EMBER_FILENAME]?.content;
+    if (emberRaw) {
+      try { ember = JSON.parse(emberRaw); }
+      catch { throw new Error('ember-highlights.json is not valid JSON'); }
+    }
+
+    // Extract habits (optional — null if not present yet)
+    let habits = null;
+    const habitsRaw = data.files?.[HABITS_FILENAME]?.content;
+    if (habitsRaw) {
+      try { habits = JSON.parse(habitsRaw); }
+      catch { throw new Error('habits-data.json is not valid JSON'); }
+    }
+
+    return { portfolio, ember, habits };
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
   return {
@@ -391,6 +447,7 @@ window.App.Gist = (() => {
     savePortfolioData, loadPortfolioData,
     saveEmberData,     loadEmberData,
     saveHabitsData,    loadHabitsData,
+    loadAllFiles,
   };
 
 })();

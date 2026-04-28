@@ -362,6 +362,85 @@ window.App.Shell = (() => {
 
   let _gistLoadInProgress = false;
 
+  /* ── Shared Gist restore logic ───────────────────────────────────
+   *
+   * Extracted from triggerGistLoad/triggerGistLoadSilent to eliminate
+   * duplication.  Both call this after fetching and (optionally) confirming.
+   * ─────────────────────────────────────────────────────────────── */
+
+  function _restoreFromGist(portfolioParsed, emberParsed, habitsParsed) {
+    const { token: tok, id: gid } = window.App.State.getGistCredentials();
+
+    // Restore portfolio namespace
+    if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
+    // Always restore credentials (scrubbed before saving)
+    window.App.State.setGistCredentials({ token: tok, id: gid });
+
+    // Restore Ember from ember-highlights.json
+    if (emberParsed) {
+      let emberHighlights = emberParsed.highlights || [];
+      let emberSources    = emberParsed.sources    || [];
+
+      // Legacy recovery: Gist was saved before sources were included.
+      // Reconstruct synthetic stubs from sourceIds in highlights so the Books
+      // tab is not left blank after load.
+      if (emberSources.length === 0 && emberHighlights.length > 0) {
+        const seenIds = new Map();
+        const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
+          '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+          '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+        ];
+        for (const hl of emberHighlights) {
+          if (hl.sourceId && !seenIds.has(hl.sourceId)) {
+            seenIds.set(hl.sourceId, {
+              id:             hl.sourceId,
+              title:          `Book (${hl.sourceId.slice(-6)})`,
+              author:         '',
+              format:         'kindle',
+              color:          palette[seenIds.size % palette.length],
+              importedAt:     hl.addedAt || new Date().toISOString(),
+              lastImportAt:   hl.addedAt || new Date().toISOString(),
+              highlightCount: 0,
+            });
+          }
+        }
+        for (const hl of emberHighlights) {
+          const src = seenIds.get(hl.sourceId);
+          if (src) src.highlightCount++;
+        }
+        emberSources = Array.from(seenIds.values());
+      }
+
+      const currentEmber = window.App.State.getEmberData?.() || {};
+      window.App.State.setEmberData?.({
+        ...currentEmber,
+        highlights: emberHighlights,
+        sources:    emberSources,
+      });
+      if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
+      if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+    }
+
+    // Restore Habits from habits-data.json
+    if (habitsParsed) {
+      window.App.State.setHabitsData?.({
+        habits: habitsParsed.habits || [],
+        logs:   habitsParsed.logs   || [],
+      });
+    }
+
+    // Re-render all loaded modules
+    if (window.App.Ember?.render)  window.App.Ember.render();
+    if (window.App.Habits?.render) window.App.Habits.render();
+    const activeId = _active;
+    if (activeId && activeId !== 'ember' && activeId !== 'habits') {
+      _initialised.delete(activeId);
+      switchModule(activeId);
+    }
+
+    window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+  }
+
   async function triggerGistLoad() {
     if (_gistLoadInProgress) {
       toast('Load already in progress…', 'info');
@@ -379,12 +458,10 @@ window.App.Shell = (() => {
     _gistLoadInProgress = true;
     try {
       toast('Loading from Gist…', 'info');
-      // Fetch all three files in parallel — ember/habits may not exist yet (null = skip)
-      const [portfolioParsed, emberParsed, habitsParsed] = await Promise.all([
-        window.App.Gist.loadPortfolioData(creds.token, creds.id),
-        window.App.Gist.loadEmberData(creds.token, creds.id).catch(() => null),
-        window.App.Gist.loadHabitsData(creds.token, creds.id).catch(() => null),
-      ]);
+
+      // Single fetch — all three files extracted from one API call
+      const { portfolio: portfolioParsed, ember: emberParsed, habits: habitsParsed }
+        = await window.App.Gist.loadAllFiles(creds.token, creds.id);
 
       const txCount     = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
       const hlCount     = emberParsed?.highlights?.length || 0;
@@ -400,81 +477,7 @@ window.App.Shell = (() => {
         `Replace all local data with: ${detail}. This cannot be undone.`,
         '☁️', 'Load everything',
         () => {
-          const { token: tok, id: gid } = window.App.State.getGistCredentials();
-
-          // Restore portfolio namespace
-          if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
-          // Always restore credentials (scrubbed before saving)
-          window.App.State.setGistCredentials({ token: tok, id: gid });
-
-          // Restore Ember from ember-highlights.json
-          if (emberParsed) {
-            let emberHighlights = emberParsed.highlights || [];
-            let emberSources    = emberParsed.sources    || [];
-
-            // Legacy recovery: Gist was saved before sources were included (old bug).
-            // Reconstruct synthetic stubs from sourceIds in highlights so the Books
-            // tab is not left blank after load. A re-import will overwrite stubs.
-            if (emberSources.length === 0 && emberHighlights.length > 0) {
-              const seenIds = new Map();
-              const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
-                '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
-                '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
-              ];
-              for (const hl of emberHighlights) {
-                if (hl.sourceId && !seenIds.has(hl.sourceId)) {
-                  seenIds.set(hl.sourceId, {
-                    id:             hl.sourceId,
-                    title:          `Book (${hl.sourceId.slice(-6)})`,
-                    author:         '',
-                    format:         'kindle',
-                    color:          palette[seenIds.size % palette.length],
-                    importedAt:     hl.addedAt || new Date().toISOString(),
-                    lastImportAt:   hl.addedAt || new Date().toISOString(),
-                    highlightCount: 0,
-                  });
-                }
-              }
-              for (const hl of emberHighlights) {
-                const src = seenIds.get(hl.sourceId);
-                if (src) src.highlightCount++;
-              }
-              emberSources = Array.from(seenIds.values());
-            }
-
-            const currentEmber = window.App.State.getEmberData?.() || {};
-            window.App.State.setEmberData?.({
-              ...currentEmber,
-              highlights: emberHighlights,
-              sources:    emberSources,
-            });
-            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
-          }
-
-          // Restore Habits from habits-data.json
-          if (habitsParsed) {
-            window.App.State.setHabitsData?.({
-              habits: habitsParsed.habits || [],
-              logs:   habitsParsed.logs   || [],
-            });
-          }
-
-          // Re-render: call each module's public render() so we do not re-run
-          // init() (which would duplicate event listeners).
-          // V14 fix: was calling App.EmberUI / App.HabitsUI directly (Shell
-          // reaching into module sub-layers). Now routes through the module's
-          // own public render() which each module added to its exports.
-          if (window.App.Ember?.render)   window.App.Ember.render();
-          if (window.App.Habits?.render)  window.App.Habits.render();
-          // Re-initialise the active pane in case it is Portfolio or another module
-          const activeId = _active;
-          if (activeId && activeId !== 'ember' && activeId !== 'habits') {
-            _initialised.delete(activeId);
-            switchModule(activeId);
-          }
-
-          window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+          _restoreFromGist(portfolioParsed, emberParsed, habitsParsed);
           toast(`Loaded from Gist ✓ — ${detail}`, 'success');
         }
       );
@@ -505,80 +508,11 @@ window.App.Shell = (() => {
     try {
       toast('Signing in…', 'info');
 
-      const [portfolioParsed, emberParsed, habitsParsed] = await Promise.all([
-        window.App.Gist.loadPortfolioData(creds.token, creds.id),
-        window.App.Gist.loadEmberData(creds.token, creds.id).catch(() => null),
-        window.App.Gist.loadHabitsData(creds.token, creds.id).catch(() => null),
-      ]);
+      // Single fetch — all three files extracted from one API call
+      const { portfolio: portfolioParsed, ember: emberParsed, habits: habitsParsed }
+        = await window.App.Gist.loadAllFiles(creds.token, creds.id);
 
-      const { token: tok, id: gid } = window.App.State.getGistCredentials();
-
-      // Restore portfolio namespace
-      if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
-      // Always restore credentials (scrubbed before saving)
-      window.App.State.setGistCredentials({ token: tok, id: gid });
-
-      // Restore Ember
-      if (emberParsed) {
-        let emberHighlights = emberParsed.highlights || [];
-        let emberSources    = emberParsed.sources    || [];
-
-        // Legacy recovery: rebuild source stubs if sources were missing from old Gist save
-        if (emberSources.length === 0 && emberHighlights.length > 0) {
-          const seenIds = new Map();
-          const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
-            '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
-            '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
-          ];
-          for (const hl of emberHighlights) {
-            if (hl.sourceId && !seenIds.has(hl.sourceId)) {
-              seenIds.set(hl.sourceId, {
-                id:             hl.sourceId,
-                title:          `Book (${hl.sourceId.slice(-6)})`,
-                author:         '',
-                format:         'kindle',
-                color:          palette[seenIds.size % palette.length],
-                importedAt:     hl.addedAt || new Date().toISOString(),
-                lastImportAt:   hl.addedAt || new Date().toISOString(),
-                highlightCount: 0,
-              });
-            }
-          }
-          for (const hl of emberHighlights) {
-            const src = seenIds.get(hl.sourceId);
-            if (src) src.highlightCount++;
-          }
-          emberSources = Array.from(seenIds.values());
-        }
-
-        const currentEmber = window.App.State.getEmberData?.() || {};
-        window.App.State.setEmberData?.({
-          ...currentEmber,
-          highlights: emberHighlights,
-          sources:    emberSources,
-        });
-        if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-        if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
-      }
-
-      // Restore Habits
-      if (habitsParsed) {
-        window.App.State.setHabitsData?.({
-          habits: habitsParsed.habits || [],
-          logs:   habitsParsed.logs   || [],
-        });
-      }
-
-      // Re-render all loaded modules
-      if (window.App.Ember?.render)  window.App.Ember.render();
-      if (window.App.Habits?.render) window.App.Habits.render();
-      const activeId = _active;
-      if (activeId && activeId !== 'ember' && activeId !== 'habits') {
-        _initialised.delete(activeId);
-        switchModule(activeId);
-      }
-
-      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+      _restoreFromGist(portfolioParsed, emberParsed, habitsParsed);
 
       const txCount    = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
       const hlCount    = emberParsed?.highlights?.length || 0;
