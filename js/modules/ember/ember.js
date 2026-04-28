@@ -914,6 +914,15 @@ window.App.Ember = (() => {
     window.App.State.getEmberStreak();
     window.App.State.getEmberSettings();
 
+    // Register Shell actions so settings.js and Shell can invoke Ember behaviour
+    // without direct coupling (Rule 3).
+    window.App.Shell.registerAction('ember:render', () => window.App.EmberUI?.render?.());
+    window.App.Shell.registerAction('ember:renderSettingsInto', (container) => {
+      if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
+        window.App.EmberUI.renderSettingsInto(container);
+      }
+    });
+
     window.App.EmberUI.init();
 
     // NOTE: Automated daily email is handled exclusively by the GitHub Actions

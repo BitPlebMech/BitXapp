@@ -76,25 +76,17 @@ window.App.Settings = (() => {
   /* ── FX chips ─────────────────────────────────────────────────── */
 
   function _updateFXChips() {
-    // Mirror the FX chip rendering from portfolio module if available
-    const portfolioFX = window.App.Portfolio?.updateFXUI;
-    if (typeof portfolioFX === 'function') {
-      // Portfolio owns FX — just copy the rendered chips across
-      const src = document.getElementById('h-fx');
-      const dst = el('stg-fx-chips');
-      if (src && dst) {
-        // Show the same rates from state
-        const fxData = window.App.State.getPortfolioData()?.fxDaily || {};
-        const cur    = window.App.State.getPortfolioData()?.settings?.currency || 'EUR';
-        const pairs  = [
-          { pair: 'USD/EUR', val: fxData.USD?.[Object.keys(fxData.USD||{})[0]] },
-          { pair: 'INR/EUR', val: fxData.INR?.[Object.keys(fxData.INR||{})[0]] },
-        ];
-        dst.innerHTML = pairs.map(p =>
-          `<div class="fx-chip"><span>${p.pair}</span><span>${p.val ? (1/p.val).toFixed(4) : '—'}</span></div>`
-        ).join('');
-      }
-    }
+    const dst = el('stg-fx-chips');
+    if (!dst) return;
+    // Read FX data from state (allowed by Rule 3 — reading via App.State)
+    const fxData = window.App.State.getPortfolioData()?.fxDaily || {};
+    const pairs  = [
+      { pair: 'USD/EUR', val: fxData.USD?.[Object.keys(fxData.USD || {})[0]] },
+      { pair: 'INR/EUR', val: fxData.INR?.[Object.keys(fxData.INR || {})[0]] },
+    ];
+    dst.innerHTML = pairs.map(p =>
+      `<div class="fx-chip"><span>${p.pair}</span><span>${p.val ? (1 / p.val).toFixed(4) : '—'}</span></div>`
+    ).join('');
   }
 
   /* ── Ember settings section ───────────────────────────────────── */
@@ -102,10 +94,9 @@ window.App.Settings = (() => {
   function _renderEmberSettingsSection() {
     const container = el('stg-ember-settings-content');
     if (!container) return;
-    // Ask EmberUI to render its settings form into this container if available
-    if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
-      window.App.EmberUI.renderSettingsInto(container);
-    } else {
+    // Route through action registry — no direct EmberUI coupling (Rule 3)
+    const result = window.App.Shell.runAction('ember:renderSettingsInto', container);
+    if (result === undefined) {
       container.innerHTML = '<span style="color:var(--muted);font-size:12px">Ember settings load when you visit the Ember module first.</span>';
     }
   }
@@ -169,7 +160,7 @@ window.App.Settings = (() => {
     const hCur = document.getElementById('h-currency');
     if (hCur) hCur.value = s.settings.currency;
     // Re-render portfolio if active
-    window.App.Portfolio?.render?.();
+    window.App.Shell.runAction('portfolio:render');
     _toast('Portfolio settings saved', 'success');
   }
 
@@ -220,7 +211,7 @@ window.App.Settings = (() => {
               gistId:    current.settings.gistId,
             };
             window.App.State.setPortfolioData(merged);
-            window.App.Portfolio?.render?.();
+            window.App.Shell.runAction('portfolio:render');
             syncUI();
             _toast('Portfolio imported successfully', 'success');
           }
@@ -239,7 +230,7 @@ window.App.Settings = (() => {
     const s = window.App.State.getPortfolioData();
     s.priceCache = {};
     window.App.State.setPortfolioData(s);
-    window.App.Portfolio?.render?.();  // re-render if loaded; safe no-op if not
+    window.App.Shell.runAction('portfolio:render');  // re-render if loaded; safe no-op if not
     _toast('Price cache cleared', 'info');
   }
 
@@ -258,7 +249,7 @@ window.App.Settings = (() => {
       '⚠️', 'Reset Everything',
       () => {
         window.App.State.resetAll();
-        window.App.Portfolio?.render?.();
+        window.App.Shell.runAction('portfolio:render');
         syncUI();
         _toast('All data cleared', 'info');
       }
@@ -299,7 +290,7 @@ window.App.Settings = (() => {
             window.App.State.setEmberData(merged);
             if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
             if (parsed.streak)   window.App.State.setEmberStreak?.(parsed.streak);
-            window.App.Ember?.render?.();
+            window.App.Shell.runAction('ember:render');
             _toast('Ember data imported successfully', 'success');
           }
         );
