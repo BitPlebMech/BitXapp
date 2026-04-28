@@ -443,7 +443,6 @@ window.App.Gist = (() => {
   /* ── Exports ──────────────────────────────────────────────────── */
 
   return {
-    save, load,
     savePortfolioData, loadPortfolioData,
     saveEmberData,     loadEmberData,
     saveHabitsData,    loadHabitsData,

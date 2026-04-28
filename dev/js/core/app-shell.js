@@ -647,8 +647,8 @@ window.App.Shell = (() => {
    * Called once on startup; modules may call this again after settings change.
    */
   function applyTheme() {
-    const settings = window.App.State?.getPortfolioSettings?.() || {};
-    const theme = settings.theme || 'dark';
+    const appSettings = window.App.State?.getAppSettings?.() || {};
+    const theme = appSettings.theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   }
 
@@ -656,17 +656,14 @@ window.App.Shell = (() => {
    * Toggle between dark and light theme.
    * V3 fix: Shell now owns toggleTheme so settings.js can call App.Shell.toggleTheme()
    * instead of App.Portfolio.toggleTheme() (cross-module call).
-   * Theme storage stays in portfolio.settings.theme for now (V9 is the full migration).
+   * V9 fix: Theme storage moved from portfolio.settings.theme to app.theme namespace.
    */
   function toggleTheme() {
-    const s    = window.App.State?.getPortfolioData?.() || {};
-    const next = (s.settings?.theme || 'dark') === 'dark' ? 'light' : 'dark';
-    if (s.settings) {
-      s.settings.theme = next;
-      window.App.State.setPortfolioData(s);
-    }
+    const appSettings = window.App.State?.getAppSettings?.() || {};
+    const next = (appSettings.theme || 'dark') === 'dark' ? 'light' : 'dark';
+    window.App.State.setAppSettings({ ...appSettings, theme: next });
     applyTheme();
-    // Sync the theme-toggle icon in the Portfolio header if it is in the DOM
+    // Sync the theme-toggle icon in the header
     const sun  = document.getElementById('theme-icon-sun');
     const moon = document.getElementById('theme-icon-moon');
     if (sun)  sun.style.display  = next === 'dark'  ? '' : 'none';

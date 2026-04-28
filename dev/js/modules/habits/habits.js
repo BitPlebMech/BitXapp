@@ -16,7 +16,7 @@
  * DATA FLOW (proves the full modular architecture):
  *   1. init() → App.State.getHabitsData() → seed if empty
  *   2. checkIn() → mutates habits data → App.State.setHabitsData() → re-render
- *   3. triggerGistSave() → App.Gist.save(App.State.getAll(), token, id)
+ *   3. triggerGistSave() → App.Gist.saveHabitsData(habitsData, token, id)
  *      (saves the FULL unified state, so ALL modules persist together)
  * ═══════════════════════════════════════════════════════════════════
  */
