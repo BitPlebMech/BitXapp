@@ -113,7 +113,18 @@ window.App.Settings = (() => {
     // undefined and we show a helpful placeholder instead of a blank panel.
     const result = window.App.Shell.runAction('ember:renderSettingsInto', container);
     if (result === undefined) {
-      container.innerHTML = '<span style="color:var(--muted);font-size:12px">Ember settings load when you visit the Ember module first.</span>';
+      // Action not registered yet — Ember module hasn't been initialised.
+      // Show a click-to-load prompt instead of a blank panel.
+      container.innerHTML = `
+        <div style="padding:12px 0;display:flex;align-items:center;gap:10px">
+          <span style="color:var(--muted);font-size:12px">
+            Ember settings are available after visiting the Ember tab once.
+          </span>
+          <button class="abtn outline" style="font-size:11px;padding:3px 10px"
+            onclick="window.App.Shell.switchModule('ember');setTimeout(()=>window.App.Shell.switchModule('settings'),400)">
+            Open Ember
+          </button>
+        </div>`;
     }
   }
 
