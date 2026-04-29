@@ -74,13 +74,15 @@ window.App.Habits.Data = (() => {
     const rates = [0.80, 0.65, 0.90, 0.50];
     const rate = rates[index % rates.length];
 
-    // Use a seeded pseudo-random approach for deterministic history
+    // LCG (Linear Congruential Generator) with constants from Numerical Recipes.
+    // The habitId seed ensures each habit gets a distinct pattern rather than
+    // all four habits checking in on identical days.
     const seed = habitId.charCodeAt(0) + index * 17;
     const logs = [];
 
     for (let i = 0; i <= daysBack; i++) {
       const dateStr = daysAgo(i);
-      // Simple deterministic "random" — consistent across page reloads
+      // Deterministic pseudo-random value in [0, 1) — same result on every page load.
       const pseudoRand = ((seed * 9301 + i * 49297) % 233280) / 233280;
       if (pseudoRand < rate) {
         logs.push({ id: _genId(), habitId, date: dateStr });

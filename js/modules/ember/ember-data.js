@@ -42,6 +42,14 @@ window.App.Ember.Data = (() => {
 
   /* ── Hash (djb2) — fast, collision-resistant enough for dedup ─── */
 
+  /**
+   * djb2 hash — produces a stable base-36 fingerprint for highlight text.
+   * Used to detect duplicate highlights on subsequent imports of the same
+   * Kindle file without requiring an expensive full-text comparison.
+   *
+   * h = h * 33 XOR char  (the `<< 5) + h` form is h * 32 + h = h * 33)
+   * >>> 0 keeps the value in the unsigned 32-bit range after each XOR.
+   */
   function _hash(str) {
     let h = 5381;
     for (let i = 0; i < str.length; i++) {
@@ -228,11 +236,13 @@ window.App.Ember.Data = (() => {
           location,
           page,
           color,
-          addedAt:  null, // HTML export doesn't include timestamps
+          addedAt:  null, // HTML export does not include timestamps
           hash:     _hash(text),
         });
 
-        i++; // consume the .noteText element
+        // Advance i past the .noteText element we just consumed so the outer
+        // loop does not re-process it as a standalone element.
+        i++;
       }
     }
 

@@ -27,6 +27,8 @@ window.App = window.App || {};
 
 window.App.Gist = (() => {
 
+  // One Gist, three files.  Each module owns its own filename — no cross-module
+  // collisions even if two modules save simultaneously to the same Gist.
   const FILENAME        = 'portfolio-data.json';
   const EMBER_FILENAME  = 'ember-highlights.json';
   const HABITS_FILENAME = 'habits-data.json';
@@ -140,16 +142,17 @@ window.App.Gist = (() => {
     return clone;
   }
 
-  /* ── Public API ───────────────────────────────────────────────── */
+  /* ── Public API (legacy) ──────────────────────────────────────────
+   *
+   * save() and load() are kept here as dead code for backward compatibility.
+   * They are NOT exported — use the module-specific functions above instead.
+   * Removing the bodies would make git blame harder; keeping them documents
+   * the old single-file approach that was replaced by per-module functions.
+   * ─────────────────────────────────────────────────────────────── */
 
   /**
-   * Save a JSON payload to a GitHub Gist.
-   *
-   * @param {object} payload  - The data to persist (full App.State.getAll() recommended)
-   * @param {string} token    - GitHub Personal Access Token (gist scope)
-   * @param {string} [id]     - Existing Gist ID to update; omit to create a new Gist
-   * @returns {Promise<{ id: string, url: string }>}
-   * @throws {Error} on network failure or bad credentials
+   * @deprecated  Use savePortfolioData() instead.
+   * Kept as dead code — not exported.
    */
   async function save(payload, token, id) {
     if (!token) throw new Error('GitHub token is required');
@@ -187,12 +190,8 @@ window.App.Gist = (() => {
   }
 
   /**
-   * Load a JSON payload from a GitHub Gist.
-   *
-   * @param {string} token - GitHub Personal Access Token
-   * @param {string} id    - Gist ID to load from
-   * @returns {Promise<object>} Parsed JSON payload
-   * @throws {Error} if Gist not found, file missing, or JSON invalid
+   * @deprecated  Use loadPortfolioData() or loadAllFiles() instead.
+   * Kept as dead code — not exported.
    */
   async function load(token, id) {
     if (!token) throw new Error('GitHub token is required');

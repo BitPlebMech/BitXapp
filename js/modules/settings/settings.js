@@ -107,7 +107,10 @@ window.App.Settings = (() => {
   function _renderEmberSettingsSection() {
     const container = el('stg-ember-settings-content');
     if (!container) return;
-    // Route through action registry — no direct EmberUI coupling (Rule 3)
+    // Route through the Shell action registry — avoids direct EmberUI coupling (Rule 3).
+    // The 'ember:renderSettingsInto' action is registered by Ember.init() on the first
+    // visit to the Ember tab.  If it hasn't been registered yet, runAction() returns
+    // undefined and we show a helpful placeholder instead of a blank panel.
     const result = window.App.Shell.runAction('ember:renderSettingsInto', container);
     if (result === undefined) {
       container.innerHTML = '<span style="color:var(--muted);font-size:12px">Ember settings load when you visit the Ember module first.</span>';
@@ -386,16 +389,19 @@ window.App.Settings = (() => {
   }
 
   /**
-   * Called each time the Settings module is made visible (shell lazy-init
-   * only fires once, so we hook switchModule via a MutationObserver on the
-   * active class to re-sync on every visit).
+   * Re-sync the Settings UI on every visit, not just the first.
+   *
+   * Shell's lazy-init pattern calls mod.init() exactly once (the first visit),
+   * so init() alone would leave field values stale when the user toggles away
+   * and comes back.  A MutationObserver on the 'active' CSS class fires every
+   * time the pane is shown, keeping fields fresh without any router coupling.
    */
   function _observeActivation() {
     const pane = document.getElementById('mod-settings');
     if (!pane) return;
     const obs = new MutationObserver(() => {
       if (pane.classList.contains('active')) {
-        syncUI();                         // refresh fields + ember settings
+        syncUI();   // refresh all fields + lazy-render Ember settings section
       }
     });
     obs.observe(pane, { attributes: true, attributeFilter: ['class'] });
