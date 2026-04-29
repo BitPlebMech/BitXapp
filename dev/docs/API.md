@@ -186,10 +186,6 @@ App.State.setPortfolioSettings(obj)
 App.State.getHabitsData()              → { habits: [], logs: [] }
 App.State.setHabitsData(obj)
 
-// FinanceCalc
-App.State.getFinanceCalcData()         → { saved: [], history: [] }
-App.State.setFinanceCalcData(obj)
-
 // Ember
 App.State.getEmberData()               → { sources: [], highlights: [], settings: {}, streak: {} }
 App.State.setEmberData(obj)

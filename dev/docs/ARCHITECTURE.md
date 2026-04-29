@@ -27,7 +27,6 @@ Browser
                     ├── habits/       habits-data · habits · habits-ui
                     ├── ember/        ember-data · ember-ui · ember
                     ├── portfolio/    portfolio-data · portfolio · portfolio-ui
-                    ├── financecalc/  calc
                     └── settings/     settings
 ```
 
@@ -44,7 +43,6 @@ Every module reads and writes **only** through `js/core/state.js`. No module tou
   "portfolio": { "transactions": [], "priceCache": {}, "settings": {} },
   "habits":    { "habits": [], "logs": [] },
   "ember":     { "sources": [], "highlights": [], "settings": {}, "streak": {} },
-  "financecalc": { "saved": [], "history": [] },
   "gist":      { "token": "", "id": "", "lastSync": "" }
 }
 ```
@@ -100,10 +98,9 @@ Scripts must load in this exact order — each file depends on everything above 
 17. portfolio.js      — business logic (FIFO, XIRR, CAGR), registerModule()
 18. portfolio-ui.js   — DOM rendering, called by portfolio.js
 
-19. calc.js           — stub, calls App.Shell.registerModule()
-20. settings.js       — cross-module settings UI
+19. settings.js       — cross-module settings UI
 
-21. <inline script>   — DOMContentLoaded → App.State.init() → App.Shell.init()
+20. <inline script>   — DOMContentLoaded → App.State.init() → App.Shell.init()
 ```
 
 ---
@@ -125,10 +122,10 @@ App.State ──────── localStorage (super_app_v1)
         │
         └──── App.Shell
                   │
-          ┌───────┼───────┬──────────────┐
-          ▼       ▼       ▼              ▼
-      Habits   Ember  Portfolio     FinanceCalc
-      (init)  (init)   (init)        (init)
+          ┌───────┼───────┐
+          ▼       ▼       ▼
+      Habits   Ember  Portfolio
+      (init)  (init)   (init)
           │       │       │
       HabitsUI EmberUI PortfolioUI
 ```
@@ -276,7 +273,6 @@ Ember daily-highlights email is sent **exclusively** via GitHub Actions cron —
 | `css/modules/portfolio.css` | KPI cards, overview charts, positions grid, history table, lot details, analytics |
 | `css/modules/habits.css` | Habit cards, heatmap, check-in button, add form, streak display |
 | `css/modules/ember.css` | Book spine shelf, highlight cards, review interface, spaced-repetition UI |
-| `css/modules/financecalc.css` | Calculator UI (stub) |
 
 **Theme system:** All colours are CSS custom properties in `:root` (dark, default). The `[data-theme="light"]` block overrides only the tokens that differ. No hardcoded colours in component CSS.
 

@@ -10,7 +10,7 @@
 No build step, no framework, no backend. Pure HTML + CSS + vanilla JavaScript.
 Data lives in `localStorage` (`super_app_v1`) and syncs to a private GitHub Gist.
 
-**Current modules:** Portfolio · Ember (reading highlights) · Habits · FinanceCalc (stub)
+**Current modules:** Portfolio · Ember (reading highlights) · Habits
 
 **The app was built organically** — Portfolio came first, then other modules were added.
 Because of this, there are known and unknown places where early Portfolio patterns leaked

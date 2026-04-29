@@ -24,7 +24,6 @@ python3 -m http.server 8080
 | Portfolio | ✅ Complete | Investment tracking — FIFO, XIRR, CAGR, multi-asset, CSV import, live prices, Gist sync |
 | Habits | ✅ Complete | Daily habit tracking — streaks, heatmap, completion rate, Gist sync |
 | Ember | ✅ Complete | Kindle highlight import — searchable library, spaced repetition, daily digest email |
-| Finance Calc | 🔲 Stub | Registered in shell, no UI yet — SIP, compound interest, loan EMI planned |
 
 ---
 
@@ -44,8 +43,7 @@ DashBoard/
 │   └── modules/
 │       ├── portfolio.css
 │       ├── habits.css
-│       ├── ember.css
-│       └── financecalc.css
+│       └── ember.css
 │
 ├── js/
 │   ├── core/
@@ -62,7 +60,6 @@ DashBoard/
 │       ├── portfolio/            ← portfolio-data · portfolio · portfolio-ui
 │       ├── habits/               ← habits-data · habits · habits-ui
 │       ├── ember/                ← ember-data · ember-ui · ember
-│       ├── financecalc/          ← calc (stub)
 │       └── settings/             ← settings
 │
 ├── tests/
@@ -98,7 +95,6 @@ Module       localStorage namespace    Gist file
 portfolio    state.portfolio           portfolio-data.json
 habits       state.habits              habits-data.json
 ember        state.ember               ember-highlights.json
-financecalc  state.financecalc         (no Gist yet)
 ```
 
 Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug caused by breaking this rule.
@@ -146,7 +142,6 @@ Daily Ember highlights email is sent **only** by GitHub Actions cron (`.github/w
 
 | Feature | Notes |
 |---------|-------|
-| Finance Calculator | Stub registered; SIP, compound interest, loan EMI planned |
 | PDF highlight import | Ember supports Kindle only; PDF OCR planned |
 | Benchmarking | Compare portfolio vs S&P 500, Nifty, etc. |
 | Tax lot optimization | Suggest which lot to sell to minimize tax |

@@ -141,7 +141,6 @@ describe('App.State', () => {
           },
         },
         habits: { habits: [], logs: [] },
-        financecalc: { saved: [], history: [] },
         ember: { sources: [], highlights: [], settings: {}, streak: {} },
         gist: { token: '', id: '', lastSync: '' },
       };
@@ -162,7 +161,6 @@ describe('App.State', () => {
             gistToken: 'old_token', gistId: 'old_id' },
         },
         habits: { habits: [], logs: [] },
-        financecalc: { saved: [], history: [] },
         ember: { sources: [], highlights: [], settings: {}, streak: {} },
         gist: { token: 'new_token', id: 'new_id', lastSync: '' },
       };
