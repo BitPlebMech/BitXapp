@@ -91,15 +91,22 @@ window.App.Settings = (() => {
   function _updateFXChips() {
     const dst = el('stg-fx-chips');
     if (!dst) return;
-    // Read FX data from state (allowed by Rule 3 — reading via App.State)
-    const fxData = window.App.State.getPortfolioData()?.fxDaily || {};
-    const pairs  = [
-      { pair: 'USD/EUR', val: fxData.USD?.[Object.keys(fxData.USD || {})[0]] },
-      { pair: 'INR/EUR', val: fxData.INR?.[Object.keys(fxData.INR || {})[0]] },
-    ];
-    dst.innerHTML = pairs.map(p =>
-      `<div class="fx-chip"><span>${p.pair}</span><span>${p.val ? (1 / p.val).toFixed(4) : '—'}</span></div>`
-    ).join('');
+    // Read FX data from state (Rule 3 — reading via App.State is allowed).
+    // fxDaily stores EUR→currency rates (e.g. fxDaily.USD['2025-04-29'] = 1.09
+    // means 1 EUR = 1.09 USD).  We read the LATEST date entry (sorted descending)
+    // and display it directly.  Previously this read the FIRST key and inverted
+    // the value (1/p.val), which showed the wrong direction and wrong number.
+    const fxData  = window.App.State.getPortfolioData()?.fxDaily || {};
+    const usdKeys = Object.keys(fxData.USD || {}).sort();
+    const inrKeys = Object.keys(fxData.INR || {}).sort();
+    const usdVal  = usdKeys.length ? fxData.USD[usdKeys.at(-1)] : null;
+    const inrVal  = inrKeys.length ? fxData.INR[inrKeys.at(-1)] : null;
+    const lastDate = usdKeys.at(-1) || '—';
+
+    dst.innerHTML = `
+      <div class="fx-chip"><span class="src">EUR → USD</span><strong>${usdVal ? (1 * usdVal).toFixed(4) + ' USD' : '—'}</strong></div>
+      <div class="fx-chip"><span class="src">EUR → INR</span><strong>${inrVal ? '₹' + (1 * inrVal).toFixed(2) : '—'}</strong></div>
+      <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>`;
   }
 
   /* ── Ember settings section ───────────────────────────────────── */

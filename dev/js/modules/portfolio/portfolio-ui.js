@@ -29,6 +29,21 @@ window.App.PortfolioUI = (() => {
   const PD = () => window.App.Portfolio.Data; // CSV data helpers
   const _esc = (s) => window.App.Utils?.escHtml?.(s) ?? String(s ?? '');
 
+  /**
+   * Sanitise a ticker before embedding it inside an onclick="..." attribute.
+   * Valid ticker symbols only ever contain A-Z, 0-9, dot, or hyphen.
+   * Any other character (quotes, parens, semicolons, …) is stripped so that
+   * a malicious CSV-imported ticker cannot break out of the attribute context
+   * and inject arbitrary JS (stored-XSS defence-in-depth).
+   *
+   * @param {string} t - raw ticker string
+   * @returns {string} - safe ticker (empty string if input is not a string)
+   */
+  function _safeTicker(t) {
+    if (typeof t !== 'string') return '';
+    return t.replace(/[^A-Z0-9.\-]/gi, '');
+  }
+
   function el(id) { return document.getElementById(id); }
 
   /* ── Sort state for analytics ─────────────────────────────────── */
@@ -230,7 +245,7 @@ window.App.PortfolioUI = (() => {
         const x3 = cx + innerR * Math.cos(ea), y3 = cy + innerR * Math.sin(ea);
         const x4 = cx + innerR * Math.cos(sa), y4 = cy + innerR * Math.sin(sa);
         const la = sweep > Math.PI ? 1 : 0;
-        const click = slice.ticker ? `onclick="App.Portfolio.openDrawer('${slice.ticker}')"` : '';
+        const click = slice.ticker ? `onclick="App.Portfolio.openDrawer('${_safeTicker(slice.ticker)}')"` : '';
         paths += `<path d="M${x1} ${y1} A${outerR} ${outerR} 0 ${la} 1 ${x2} ${y2} L${x3} ${y3} A${innerR} ${innerR} 0 ${la} 0 ${x4} ${y4}Z"
           fill="${slice.color}" style="cursor:${slice.ticker?'pointer':'default'};transition:opacity .15s" ${click}
           onmouseover="this.style.opacity='.78'" onmouseout="this.style.opacity='1'">
@@ -251,7 +266,7 @@ window.App.PortfolioUI = (() => {
 
     const legEl = el(legendId);
     if (legEl) legEl.innerHTML = slices.map(s => `
-      <div class="leg-row" ${s.ticker ? `onclick="App.Portfolio.openDrawer('${s.ticker}')"` : ''} style="${!s.ticker?'cursor:default':''}">
+      <div class="leg-row" ${s.ticker ? `onclick="App.Portfolio.openDrawer('${_safeTicker(s.ticker)}')"` : ''} style="${!s.ticker?'cursor:default':''}">
         <div class="leg-left">
           <div class="leg-dot" style="background:${s.color}"></div>
           <span class="leg-ticker">${s.label}</span>
@@ -321,7 +336,7 @@ window.App.PortfolioUI = (() => {
       const nameCol = isAsset
         ? `<span style="color:${P().tickerColor(r.ticker)}">${r.ticker}</span> <span class="cls-badge ${P().CLS_CSS[r.cls]||'cb-stock'}">${r.cls}</span>`
         : `<span class="cls-badge ${P().CLS_CSS[r.cls]||'cb-stock'}">${r.cls}</span> <span style="color:var(--text2);font-size:10px;margin-left:4px">${r.count} position${r.count!==1?'s':''}</span>`;
-      const clickAttr = isAsset ? `onclick="App.Portfolio.openDrawer('${r.ticker}')"` : '';
+      const clickAttr = isAsset ? `onclick="App.Portfolio.openDrawer('${_safeTicker(r.ticker)}')"` : '';
       return `<tr ${clickAttr} style="${isAsset ? 'cursor:pointer' : ''}">
         <td>${nameCol}</td>
         <td style="color:${gc}">${P().fmtPct(r.unrealizedPct)}</td>
@@ -599,17 +614,17 @@ window.App.PortfolioUI = (() => {
         </div>
         <div class="pos-card-foot">
           <div class="pos-actions">
-            <button class="pos-btn" onclick="App.Portfolio.openDrawer('${p.ticker}')">
+            <button class="pos-btn" onclick="App.Portfolio.openDrawer('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Details
             </button>
-            ${!isLiquidated ? `<button class="pos-btn" onclick="App.PortfolioUI.openEditModal(null,'${p.ticker}')">
+            ${!isLiquidated ? `<button class="pos-btn" onclick="App.PortfolioUI.openEditModal(null,'${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>` : ''}
-            <button class="pos-btn" title="Rename ticker" onclick="App.Portfolio.renameTicker('${p.ticker}')">
+            <button class="pos-btn" title="Rename ticker" onclick="App.Portfolio.renameTicker('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="pos-btn danger" onclick="App.Portfolio.confirmDeletePos('${p.ticker}')">
+            <button class="pos-btn danger" onclick="App.Portfolio.confirmDeletePos('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -728,7 +743,7 @@ window.App.PortfolioUI = (() => {
         <td style="color:var(--text)">${P().fmtCompact(buyPriceD)}</td>
         <td style="color:var(--text)">${P().fmtValue(totalD)}</td>
         <td>${plHTML}</td>
-        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete transaction">
+        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${_safeTicker(tx.ticker)}',${tx.qty})" title="Delete transaction">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button></td>
       </tr>`;
@@ -1069,7 +1084,7 @@ window.App.PortfolioUI = (() => {
         <td style="color:var(--amber);font-size:10px">${fees > 0 ? '−' + P().fmtValue(fees) : '—'}</td>
         <td style="color:${pnlColor}">${pnlStr}${pnlLabel ? `<div style="font-size:9px;opacity:.6">${pnlLabel}</div>` : ''}</td>
         <td style="color:${pnlColor}">${pnlPctStr}</td>
-        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
+        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${_safeTicker(tx.ticker)}',${tx.qty})" title="Delete"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
       </tr>`;
     }).join('');
 
