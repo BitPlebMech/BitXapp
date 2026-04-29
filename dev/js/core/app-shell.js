@@ -319,30 +319,33 @@ window.App.Shell = (() => {
     try {
       toast('Saving to Gist…', 'info');
 
-      // 1. portfolio-data.json
+      // Step 1: portfolio-data.json — must go first because it creates the Gist
+      // (POST) if id is empty and returns the new Gist ID for the steps that follow.
       const portfolioPayload = {
         portfolio: window.App.State.getPortfolioData(),
         gist:      window.App.State.getGistCredentials(),
+        // Note: gist.token is scrubbed inside savePortfolioData() before writing
       };
       const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
-      const gistId = result.id || id;
+      const gistId = result.id || id;   // use newly-created ID if this was a first save
 
-      // 2. ember-highlights.json
+      // Step 2: ember-highlights.json — uses PATCH so it coexists with portfolio-data.json
       const emberData = window.App.State.getEmberData?.() || {};
       await window.App.Gist.saveEmberData({
-        sources:    emberData.sources    || [],   // ← books
+        sources:    emberData.sources    || [],   // ← books (needed for Books tab on load)
         highlights: emberData.highlights || [],
         settings:   window.App.State.getEmberSettings?.() || {},
         streak:     window.App.State.getEmberStreak?.()   || {},
       }, token, gistId);
 
-      // 3. habits-data.json
+      // Step 3: habits-data.json — also PATCH on the same Gist
       const habitsData = window.App.State.getHabitsData?.() || {};
       await window.App.Gist.saveHabitsData({
         habits: habitsData.habits || [],
         logs:   habitsData.logs   || [],
       }, token, gistId);
 
+      // Persist the new Gist ID if this was the first save (was empty before)
       if (!id) window.App.State.setGistCredentials({ id: gistId });
       window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
       toast('Saved to Gist ✓  (portfolio + ember + habits)', 'success');
@@ -369,11 +372,15 @@ window.App.Shell = (() => {
    * ─────────────────────────────────────────────────────────────── */
 
   function _restoreFromGist(portfolioParsed, emberParsed, habitsParsed) {
+    // Snapshot credentials before any state overwrite.
+    // Gist files are saved with tokens scrubbed (GitHub auto-revokes them otherwise),
+    // so we must re-inject the user's live credentials after restoring state.
     const { token: tok, id: gid } = window.App.State.getGistCredentials();
 
-    // Restore portfolio namespace
+    // mergeAll() deep-merges with DEFAULT_STATE so new keys get defaults and
+    // unknown keys from older/future saves are silently dropped.
     if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
-    // Always restore credentials (scrubbed before saving)
+    // Re-inject credentials that were intentionally stripped before saving.
     window.App.State.setGistCredentials({ token: tok, id: gid });
 
     // Restore Ember from ember-highlights.json
@@ -381,9 +388,10 @@ window.App.Shell = (() => {
       let emberHighlights = emberParsed.highlights || [];
       let emberSources    = emberParsed.sources    || [];
 
-      // Legacy recovery: Gist was saved before sources were included.
-      // Reconstruct synthetic stubs from sourceIds in highlights so the Books
-      // tab is not left blank after load.
+      // Legacy recovery: pre-v2.1 Gist saves stored only highlights, not sources.
+      // Build synthetic source stubs from the unique sourceIds found in highlights
+      // so the Books tab is not empty after load.  highlightCount is used for
+      // sorting/display; it's exact because we count in the loop below.
       if (emberSources.length === 0 && emberHighlights.length > 0) {
         const seenIds = new Map();
         const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
@@ -429,11 +437,14 @@ window.App.Shell = (() => {
       });
     }
 
-    // Re-render all loaded modules
+    // Re-render all loaded modules so their UI reflects the freshly-restored state.
+    // Ember and Habits have explicit render() exports; Portfolio is re-initialised
+    // by deleting it from the _initialised set and re-activating it via switchModule().
     if (window.App.Ember?.render)  window.App.Ember.render();
     if (window.App.Habits?.render) window.App.Habits.render();
     const activeId = _active;
     if (activeId && activeId !== 'ember' && activeId !== 'habits') {
+      // Force-re-init so portfolio re-runs seedSampleData guard and re-renders.
       _initialised.delete(activeId);
       switchModule(activeId);
     }

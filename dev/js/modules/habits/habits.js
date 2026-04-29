@@ -73,17 +73,21 @@ window.App.Habits = (() => {
     const today = _today();
     const checkedToday = checked.has(today);
 
-    // Current streak: walk back from today (or yesterday if not checked today)
-    // Using a while-loop avoids off-by-one: each iteration = one confirmed day.
+    // Current streak: walk backwards one day at a time from the most recent
+    // checked-in day.  If today is checked we start at offset 0 (today); if not,
+    // we start at offset 1 (yesterday) so a user who hasn't checked in yet today
+    // does not see their streak reset to 0 mid-day.
     let current = 0;
-    let dayOffset = checkedToday ? 0 : 1;  // Start from today or yesterday
+    let dayOffset = checkedToday ? 0 : 1;
 
     while (dayOffset < 365 && checked.has(_daysAgo(dayOffset))) {
       current++;
       dayOffset++;
     }
 
-    // Longest streak: scan all dates
+    // Longest streak: scan the full sorted log history looking for unbroken
+    // consecutive-day runs.  Mid-day timestamp (T12:00:00) avoids DST ambiguity
+    // when diffing dates across clock changes.
     const allDates = [...checked].sort();
     let longest = 0, run = 0, prevDate = null;
 
@@ -94,7 +98,7 @@ window.App.Habits = (() => {
         const prev = new Date(prevDate + 'T12:00:00');
         const curr = new Date(dateStr   + 'T12:00:00');
         const diffDays = Math.round((curr - prev) / 86400000);
-        run = diffDays === 1 ? run + 1 : 1;
+        run = diffDays === 1 ? run + 1 : 1;   // consecutive → extend; gap → reset
       }
       if (run > longest) longest = run;
       prevDate = dateStr;

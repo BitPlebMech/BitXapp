@@ -219,12 +219,13 @@ window.App.Ember = (() => {
     // 1. Stable sort by id so order is reproducible regardless of insertion order
     const sorted = [...highlights].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-    // 2. Shuffle once with a fixed seed so the deck stays constant between days
-    //    (changes only when new highlights are imported — which is fine).
+    // 2. Deterministic Fisher-Yates shuffle using an LCG (glibc constants).
+    //    Fixed seed → same shuffle order every time → the day-window in step 3
+    //    picks a consistent slice regardless of when the page is opened.
     const FIXED_SEED = 0xD15EA5E;
     let s = FIXED_SEED >>> 0;
     for (let i = sorted.length - 1; i > 0; i--) {
-      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;  // next LCG value
       const j = s % (i + 1);
       [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
     }
@@ -292,10 +293,13 @@ window.App.Ember = (() => {
         interval = Math.round(interval * easeFactor);
       }
 
-      // Update ease factor
+      // SM-2 ease factor adjustment formula (Wozniak 1990):
+      //   EF' = EF + (0.1 − (5 − q) × (0.08 + (5 − q) × 0.02))
+      // Easy (q=5) → EF increases; Hard (q=3) → EF decreases slightly.
+      // Clamped to [1.3, 3.0] and rounded to 2 dp for stable serialisation.
       easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
       easeFactor = Math.max(1.3, Math.min(3.0, easeFactor));
-      easeFactor = Math.round(easeFactor * 100) / 100; // 2 decimal places
+      easeFactor = Math.round(easeFactor * 100) / 100;
 
       repetitions++;
     }

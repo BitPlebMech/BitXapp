@@ -317,11 +317,17 @@ window.App.Portfolio = (() => {
      PRICE ENGINE
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * Generate a stable mock price for tickers without live data.
+   * The price is deterministic per (ticker, calendar-day) so the portfolio
+   * totals do not flutter on every render.  The ±4% daily jitter makes the
+   * UI feel realistic during demos without introducing meaningful daily swings.
+   */
   function getMockPrice(ticker) {
     const base = MOCK_PRICES_USD[ticker] || 50;
     const seed = ticker.split('').reduce((acc, ch, i) => acc + ch.charCodeAt(0) * (i + 3), 0);
-    const dayOffset = Math.floor(Date.now() / 86400000) % 97;
-    const pctChange = ((seed * 7919 + dayOffset * 1013) % 800 - 400) / 10000;
+    const dayOffset = Math.floor(Date.now() / 86400000) % 97;  // advances once per day
+    const pctChange = ((seed * 7919 + dayOffset * 1013) % 800 - 400) / 10000;  // -4% to +4%
     return +(base * (1 + pctChange)).toFixed(4);
   }
 
@@ -461,8 +467,24 @@ window.App.Portfolio = (() => {
      XIRR
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * XIRR via Newton-Raphson iteration.
+   *
+   * XIRR solves for the annualised internal rate of return r such that:
+   *   Σ CF[j] / (1 + r)^t[j]  =  0
+   * where t[j] is the time from the first cashflow in fractional years.
+   *
+   * Multiple seed points are tried because Newton-Raphson can converge to the
+   * wrong root or diverge if the initial guess is too far from the solution.
+   * Returns the first rate > -1 that converges; returns null if none do.
+   *
+   * @param {number[]} cashflows  - Negative for outflows (BUY), positive for inflows (SELL/current value)
+   * @param {Date[]}   dates      - Corresponding dates, same length as cashflows
+   * @returns {number|null}       - Annualised return as a percentage, or null if inconclusive
+   */
   function calcXIRR(cashflows, dates) {
     if (cashflows.length < 2) return null;
+    // XIRR is undefined without at least one inflow and one outflow.
     if (!cashflows.some(c => c < 0) || !cashflows.some(c => c > 0)) return null;
 
     const baseTime = dates[0].getTime();
@@ -474,14 +496,15 @@ window.App.Portfolio = (() => {
       for (let iter = 0; iter < MAX_ITER; iter++) {
         let npv = 0, dnpv = 0;
         for (let j = 0; j < cashflows.length; j++) {
+          // t[j]=0 means same-day cashflow — just add directly (avoids 0-division)
           if (years[j] === 0) { npv += cashflows[j]; continue; }
           const df = Math.pow(1 + rate, years[j]);
           npv  +=  cashflows[j] / df;
           dnpv -= years[j] * cashflows[j] / ((1 + rate) * df);
         }
-        if (Math.abs(dnpv) < 1e-14) break;
+        if (Math.abs(dnpv) < 1e-14) break;      // Flat derivative — cannot step
         const next = rate - npv / dnpv;
-        if (!isFinite(next) || Math.abs(next) > 1000) break;
+        if (!isFinite(next) || Math.abs(next) > 1000) break;  // Diverged
         if (Math.abs(next - rate) < EPSILON) { converged = true; rate = next; break; }
         rate = next;
       }
@@ -490,6 +513,12 @@ window.App.Portfolio = (() => {
     return null;
   }
 
+  /**
+   * Convert transactions into the signed cashflow arrays XIRR expects.
+   * BUY:  cash leaves the portfolio → negative cashflow (cost + fees)
+   * SELL: cash enters the portfolio → positive cashflow (proceeds − fees)
+   * Mid-day timestamp (T12:00:00) avoids DST edge-cases on boundary dates.
+   */
   function buildCashflows(txs) {
     const cashflows = [], dates = [];
     for (const tx of txs) {
@@ -543,9 +572,23 @@ window.App.Portfolio = (() => {
     return 'Stock';
   }
 
+  /**
+   * Core calculation engine — builds per-ticker position data from raw transactions.
+   *
+   * Algorithm:
+   *   1. Sort transactions chronologically; BUY before SELL on same date (FIFO safety).
+   *   2. For each ticker, walk transactions in order:
+   *        BUY  → push a lot onto the FIFO queue (price includes per-share fee allocation)
+   *        SELL → pop lots from the front of the queue, accumulate realised gain
+   *   3. Sum remaining open lots for unrealised P&L and current market value.
+   *   4. Compute CAGR (weighted by cost), XIRR (Newton-Raphson), and effectiveBuyAvg.
+   *
+   * @returns {Object.<string, PositionObject>}  keyed by ticker symbol
+   */
   function computePositions() {
     const s = _state();
-    // CRITICAL: BUY before SELL on same date — prevents overselling in FIFO
+    // CRITICAL: BUY before SELL on same date — prevents FIFO queue going negative
+    // when a buy and sell happen on the same day (e.g. same-day flip).
     const sorted = [...s.transactions].sort((a, b) => {
       const d = a.date.localeCompare(b.date);
       if (d !== 0) return d;
@@ -613,8 +656,13 @@ window.App.Portfolio = (() => {
       const unrealized  = marketValue - totalCostD;
       const avgHoldYears = totalCostD > 0 ? weightedYears / totalCostD : 0;
 
-      // Effective Buy Average = (all cash invested − all sale proceeds) / remaining shares
-      // Correctly surfaces hidden realized losses from tax-loss harvesting
+      // Effective Buy Average (EBA):
+      //   = (total cash paid for all BUYs − total cash received from all SELLs)
+      //     / remaining open shares
+      //
+      // Unlike Open Lots Average (which only looks at remaining lots), EBA
+      // reflects the full trading history and surfaces the true per-share cost
+      // even after partial sells, tax-loss harvesting, or round-trips.
       const effectiveBuyAvg = totalShares > 0 ? (totalInvested - totalProceeds) / totalShares : 0;
 
       positions[ticker] = {

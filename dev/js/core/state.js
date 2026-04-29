@@ -225,6 +225,10 @@ window.App.State = (() => {
   }
 
   // ─── Portfolio namespace ────────────────────────────────────────
+  //
+  // getPortfolioData() returns the LIVE reference — callers that mutate it
+  // (e.g. s.priceCache[ticker] = ...) must call setPortfolioData(s) afterwards.
+  // This avoids the overhead of deep-cloning on every read.
 
   function getPortfolioData() {
     _ensure();
@@ -339,15 +343,19 @@ window.App.State = (() => {
 
   // ─── Gist credential namespace ──────────────────────────────────
 
+  // getGistCredentials() returns a SHALLOW COPY (not the live ref) so callers
+  // cannot accidentally mutate stored credentials by modifying the returned object.
   function getGistCredentials() {
     _ensure();
     return { ..._state.gist };
   }
 
+  // setGistCredentials accepts a partial object — only the provided keys are updated.
+  // This lets callers write just { lastSync } without clobbering token or id.
   function setGistCredentials({ token, id, lastSync }) {
     _ensure();
-    if (token   !== undefined) _state.gist.token    = token;
-    if (id      !== undefined) _state.gist.id       = id;
+    if (token    !== undefined) _state.gist.token    = token;
+    if (id       !== undefined) _state.gist.id       = id;
     if (lastSync !== undefined) _state.gist.lastSync = lastSync;
     _save();
   }
@@ -365,9 +373,13 @@ window.App.State = (() => {
   }
 
   // ─── App-level settings namespace ───────────────────────────────
+  //
+  // app.theme is the canonical theme preference (P3 migration — was portfolio.settings.theme).
+  // Shell reads and writes through these accessors; no module touches app directly.
 
   function getAppSettings() {
     _ensure();
+    // Lazy-init guard: very old saves pre-dating P3 may lack the 'app' key entirely.
     if (!_state.app) _state.app = { theme: 'dark' };
     return _state.app;
   }
