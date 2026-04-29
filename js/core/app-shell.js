@@ -226,12 +226,11 @@ window.App.Shell = (() => {
    * @param {string} type  - 'info' | 'success' | 'warn' | 'error'
    */
   function toast(msg, type = 'info') {
-    const container = el('toast-container') || (() => {
-      const div = Object.assign(document.createElement('div'), { id: 'toast-container' });
-      Object.assign(div.style, {
-        position: 'fixed', bottom: '24px', right: '24px', zIndex: '9999',
-        display: 'flex', flexDirection: 'column', gap: '8px',
-      });
+    // Use the pre-existing #toast-wrap from index.html (has .toast-wrap CSS).
+    // The old fallback created #toast-container with inline styles which
+    // bypassed all .toast-* CSS rules, producing unstyled / invisible toasts.
+    const container = el('toast-wrap') || (() => {
+      const div = Object.assign(document.createElement('div'), { id: 'toast-wrap', className: 'toast-wrap' });
       document.body.appendChild(div);
       return div;
     })();
@@ -329,6 +328,12 @@ window.App.Shell = (() => {
       const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
       const gistId = result.id || id;   // use newly-created ID if this was a first save
 
+      // Persist the new Gist ID immediately after step 1 — before steps 2/3.
+      // Previously this was deferred to after all three saves, so if ember or
+      // habits threw the newly-created Gist existed on GitHub but the app had
+      // no record of its ID, causing the next save to POST again (duplicate Gist).
+      if (!id && gistId) window.App.State.setGistCredentials({ id: gistId });
+
       // Step 2: ember-highlights.json — uses PATCH so it coexists with portfolio-data.json
       const emberData = window.App.State.getEmberData?.() || {};
       await window.App.Gist.saveEmberData({
@@ -345,8 +350,7 @@ window.App.Shell = (() => {
         logs:   habitsData.logs   || [],
       }, token, gistId);
 
-      // Persist the new Gist ID if this was the first save (was empty before)
-      if (!id) window.App.State.setGistCredentials({ id: gistId });
+      // lastSync only written when all three files saved successfully
       window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
       toast('Saved to Gist ✓  (portfolio + ember + habits)', 'success');
     } catch (e) {
@@ -606,9 +610,16 @@ window.App.Shell = (() => {
     // Reset each module via the action registry (modules register these in init)
     runAction('portfolio:clearToSampleData');
 
-    // Habits seed data — try the action registry first (module may not be loaded yet)
-    const habitsSeed = runAction('habits:buildSeedData');
-    window.App.State.setHabitsData(habitsSeed || { habits: [], logs: [] });
+    // Habits seed data — habits-data.js (loaded at startup, before any tab visit)
+    // always exposes window.App.Habits.Data.buildSeedData().  Previously this used
+    // runAction('habits:buildSeedData') which is only registered inside habits.js
+    // init(), so it returned undefined if the user had never visited the Habits tab
+    // (the common case in demo mode), leaving Habits empty.
+    // The action registry call is kept as a fallback for future extensibility.
+    const habitsSeed = window.App.Habits?.Data?.buildSeedData?.()
+                    || runAction('habits:buildSeedData')
+                    || { habits: [], logs: [] };
+    window.App.State.setHabitsData(habitsSeed);
 
     // Ember — no mock data exists; reset to empty
     window.App.State.setEmberData({ sources: [], highlights: [] });
