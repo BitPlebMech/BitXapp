@@ -14,8 +14,9 @@
  *     portfolio: { transactions, deletedTransactions, priceCache,
  *                  tickerMeta, lastRefreshTS, fxDaily, fxLastFetch, settings },
  *     habits:    { habits, logs },
- *     financecalc: { saved, history },
- *     gist:      { token, id, lastSync }
+ *     ember:     { sources, highlights, settings, streak },
+ *     gist:      { token, id, lastSync },
+ *     app:       { theme }
  *   }
  *
  * RULES
@@ -58,10 +59,6 @@ window.App.State = (() => {
     habits: {
       habits: [],
       logs: [],
-    },
-    financecalc: {
-      saved: [],
-      history: [],
     },
     ember: {
       sources: [],    // [{ id, title, author, format, importedAt, highlightCount }]
@@ -274,19 +271,6 @@ window.App.State = (() => {
     _save();
   }
 
-  // ─── Finance Calc namespace ─────────────────────────────────────
-
-  function getFinanceCalcData() {
-    _ensure();
-    return _state.financecalc;
-  }
-
-  function setFinanceCalcData(calcObj) {
-    _ensure();
-    _state.financecalc = calcObj;
-    _save();
-  }
-
   // ─── Ember namespace ────────────────────────────────────────────
 
   /**
@@ -436,9 +420,6 @@ window.App.State = (() => {
     // Habits
     getHabitsData,
     setHabitsData,
-    // FinanceCalc
-    getFinanceCalcData,
-    setFinanceCalcData,
     // Ember
     getEmberData,
     setEmberData,

@@ -18,8 +18,7 @@
  *
  * DESIGN RATIONALE
  *   Keeping Gist logic here (not in portfolio.js) means every future
- *   module (habits, financecalc, …) gets sync capability for free —
- *   just call App.Gist.save() with the full state payload.
+ *   module gets sync capability for free — just add a save/load pair here.
  *   No code duplication, no cross-module imports.
  * ═══════════════════════════════════════════════════════════════════
  */

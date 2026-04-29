@@ -13,7 +13,6 @@
   "portfolio":   { "transactions": [], "priceCache": {}, "settings": {} },
   "habits":      { "habits": [], "logs": [] },
   "ember":       { "sources": [], "highlights": [], "settings": {}, "streak": {} },
-  "financecalc": { "saved": [], "history": [] },
   "gist":        { "token": "", "id": "", "lastSync": "" }
 }
 ```
@@ -110,7 +109,6 @@ Group C — modules (each group: data file → business logic → UI):
   habits-data.js → habits.js → habits-ui.js
   ember-data.js  → ember-ui.js → ember.js
   portfolio-data.js → portfolio.js → portfolio-ui.js
-  calc.js
   settings.js   ← always last (depends on all modules being registered)
 
 Group D — inline boot script:

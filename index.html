@@ -11,12 +11,11 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 
   <!-- ── CSS load order ───────────────────────────────────────────────
-       1. Base styles — exact reference stylesheet (BitXappMod.css)
-       2. Module-specific overrides for new modules (habits, calc)
+       1. Base styles — design tokens, reset, animations
+       2. Module-specific styles
        ──────────────────────────────────────────────────────────────── -->
   <link rel="stylesheet" href="css/bitxapp-base.css">
   <link rel="stylesheet" href="css/modules/habits.css">
-  <link rel="stylesheet" href="css/modules/financecalc.css">
   <link rel="stylesheet" href="css/modules/ember.css">
 </head>
 
@@ -340,23 +339,6 @@
         </div>
         <div id="habits-content" style="flex:1;overflow-y:auto;padding:20px 22px 90px">
           <!-- Populated by App.HabitsUI.render() -->
-        </div>
-      </div>
-
-      <!-- ── Finance Calculator module (stub) ─────────────────────── -->
-      <div class="module-pane" id="mod-calc">
-        <div class="placeholder-module">
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="4" y="2" width="16" height="20" rx="2"/>
-            <line x1="8" y1="6" x2="16" y2="6"/>
-            <line x1="8" y1="10" x2="16" y2="10"/>
-            <line x1="8" y1="14" x2="12" y2="14"/>
-            <line x1="8" y1="18" x2="16" y2="18"/>
-          </svg>
-          <h2>Finance Calculator</h2>
-          <p>Compound interest, SIP returns, loan amortisation, and more.</p>
-          <span class="placeholder-soon-badge">Coming soon</span>
         </div>
       </div>
 
@@ -1176,9 +1158,6 @@
 <script src="js/modules/portfolio/portfolio-data.js"></script>
 <script src="js/modules/portfolio/portfolio.js"></script>
 <script src="js/modules/portfolio/portfolio-ui.js"></script>
-
-<!-- Finance Calculator stub — sidebar position 4 (soon) -->
-<script src="js/modules/financecalc/calc.js"></script>
 
 <!-- Settings module — registers last so all other modules are available -->
 <script src="js/modules/settings/settings.js"></script>
