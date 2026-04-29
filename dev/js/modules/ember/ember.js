@@ -937,6 +937,7 @@ window.App.Ember = (() => {
     window.App.Shell.registerAction('ember:renderSettingsInto', (container) => {
       if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
         window.App.EmberUI.renderSettingsInto(container);
+        return true; // signal to settings.js that render succeeded (non-undefined)
       }
     });
 
