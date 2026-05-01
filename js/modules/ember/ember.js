@@ -935,8 +935,10 @@ window.App.Ember = (() => {
     try {
       const d        = _data();
       const emberData = {
-        sources:    d.sources,             // ← books
+        sources:    d.sources,              // ← books
         highlights: d.highlights,
+        quotes:     d.quotes    || [],      // v3.0: manually added quotes
+        bookmarks:  d.bookmarks || [],      // v3.0: saved articles + videos
         settings:   window.App.State.getEmberSettings(),
         streak:     window.App.State.getEmberStreak(),
       };
@@ -1019,10 +1021,19 @@ window.App.Ember = (() => {
 
       const srcCount = sources.length;
       const hlCount  = highlights.length;
+      const qtCount  = (parsed.quotes    || []).length;
+      const bmCount  = (parsed.bookmarks || []).length;
+
+      const detail = [
+        `${srcCount} book${srcCount !== 1 ? 's' : ''}`,
+        `${hlCount} highlight${hlCount !== 1 ? 's' : ''}`,
+        qtCount ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`       : '',
+        bmCount ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`    : '',
+      ].filter(Boolean).join(', ');
 
       window.App.Shell.confirmAction(
         'Load Ember data from Gist?',
-        `Replace local Ember data with ${srcCount} book${srcCount !== 1 ? 's' : ''} and ${hlCount} highlight${hlCount !== 1 ? 's' : ''} from Gist. This cannot be undone.`,
+        `Replace local Ember data with ${detail} from Gist. This cannot be undone.`,
         '☁️', 'Load',
         () => {
           const d = _data();
@@ -1036,7 +1047,7 @@ window.App.Ember = (() => {
           if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
           if (parsed.streak)   window.App.State.setEmberStreak(parsed.streak);
           window.App.EmberUI.render();
-          _toast(`Ember loaded ✓ — ${srcCount} book${srcCount !== 1 ? 's' : ''}, ${hlCount} highlight${hlCount !== 1 ? 's' : ''}`, 'success');
+          _toast(`Ember loaded ✓ — ${detail}`, 'success');
         }
       );
     } catch (e) {

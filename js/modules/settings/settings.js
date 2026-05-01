@@ -312,9 +312,16 @@ window.App.Settings = (() => {
       try {
         const parsed = JSON.parse(e.target.result);
         const hlCount = (parsed.highlights || []).length;
+        const qtCount = (parsed.quotes    || []).length;
+        const bmCount = (parsed.bookmarks || []).length;
+        const importDetail = [
+          `${hlCount} highlight${hlCount !== 1 ? 's' : ''}`,
+          qtCount ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`    : '',
+          bmCount ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}` : '',
+        ].filter(Boolean).join(', ');
         _confirm(
           'Import Ember JSON?',
-          `Replace current Ember data with ${hlCount} highlights from file?`,
+          `Replace current Ember data with ${importDetail} from file?`,
           '📥', 'Import',
           () => {
             const current = window.App.State.getEmberData();

@@ -2587,3 +2587,111 @@
     flex-direction: column;
   }
 }
+
+/* ── Phase 4: Responsive — Quotes, Bookmarks, Drawer ────────────────
+   Breakpoints mirror the existing ember.css conventions:
+     640px  — tablet / narrow desktop
+     500px  — large phone
+     420px  — small phone
+   ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* ── Quotes toolbar ───────────────────────────────────────────── */
+  .ember-qt-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .ember-qt-search {
+    width: 100%;
+  }
+
+  /* Tag filter strip: allow horizontal scroll so tags don't wrap onto
+     multiple lines (same pattern as .ember-tab-bar on mobile) */
+  .ember-qt-tag-strip,
+  .ember-bm-tag-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .ember-qt-tag-strip::-webkit-scrollbar,
+  .ember-bm-tag-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── Bookmarks toolbar ────────────────────────────────────────── */
+  .ember-bm-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  /* ── Bookmark card: stack icon and body vertically ────────────── */
+  .ember-bm-card {
+    align-items: flex-start;
+  }
+
+  .ember-bm-thumb {
+    /* Slightly smaller on mobile */
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  /* ── Drawer panel ─────────────────────────────────────────────── */
+  .ember-drawer-panel {
+    /* On narrow screens let the panel use more vertical space */
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .ember-drawer-footer {
+    /* Stack buttons on very small screens */
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .ember-drawer-footer .abtn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 500px) {
+  /* ── Quote card: move star/del to right edge of the action row ── */
+  .ember-qt-card-actions {
+    gap: 6px;
+  }
+
+  /* ── Drawer type switcher: equal-width pills ──────────────────── */
+  .ember-drawer-type-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* ── Tag pill input wrap ──────────────────────────────────────── */
+  .ember-tag-input-wrap {
+    min-height: 38px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* ── Stats bar: allow wrapping when there are now 4 stat items ── */
+  .ember-stats {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Quote text: slightly tighter leading on tiny screens */
+  .ember-qt-text {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* Bookmark title: prevent very long URLs breaking layout */
+  .ember-bm-title {
+    word-break: break-word;
+  }
+}

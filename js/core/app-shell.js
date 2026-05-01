@@ -339,6 +339,8 @@ window.App.Shell = (() => {
       await window.App.Gist.saveEmberData({
         sources:    emberData.sources    || [],   // ← books (needed for Books tab on load)
         highlights: emberData.highlights || [],
+        quotes:     emberData.quotes     || [],   // v3.0: manually added quotes
+        bookmarks:  emberData.bookmarks  || [],   // v3.0: saved articles + videos
         settings:   window.App.State.getEmberSettings?.() || {},
         streak:     window.App.State.getEmberStreak?.()   || {},
       }, token, gistId);
@@ -483,12 +485,16 @@ window.App.Shell = (() => {
         = await window.App.Gist.loadAllFiles(creds.token, creds.id);
 
       const txCount     = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
-      const hlCount     = emberParsed?.highlights?.length || 0;
-      const habitCount  = habitsParsed?.habits?.length || 0;
+      const hlCount     = emberParsed?.highlights?.length  || 0;
+      const qtCount     = emberParsed?.quotes?.length      || 0;
+      const bmCount     = emberParsed?.bookmarks?.length   || 0;
+      const habitCount  = habitsParsed?.habits?.length     || 0;
       const detail = [
         `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
-        hlCount     ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}`   : '',
-        habitCount  ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`       : '',
+        hlCount    ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}`  : '',
+        qtCount    ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`            : '',
+        bmCount    ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`         : '',
+        habitCount ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`      : '',
       ].filter(Boolean).join(' + ');
 
       confirmAction(
@@ -535,11 +541,15 @@ window.App.Shell = (() => {
 
       const txCount    = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
       const hlCount    = emberParsed?.highlights?.length || 0;
-      const habitCount = habitsParsed?.habits?.length || 0;
+      const qtCount    = emberParsed?.quotes?.length     || 0;
+      const bmCount    = emberParsed?.bookmarks?.length  || 0;
+      const habitCount = habitsParsed?.habits?.length    || 0;
       const detail = [
         `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
-        hlCount     ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '',
-        habitCount  ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`     : '',
+        hlCount    ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '',
+        qtCount    ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`           : '',
+        bmCount    ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`        : '',
+        habitCount ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`     : '',
       ].filter(Boolean).join(' + ');
 
       toast(`Signed in ✓ — ${detail}`, 'success');
