@@ -66,7 +66,8 @@ window.App.State = (() => {
       quotes: [],     // [{ id, type:'quote', text, url, tags, starred, addedAt }]
       bookmarks: [],  // [{ id, type:'article'|'video', title, url, tags, status:'unread'|'done', note, addedAt }]
       settings: {
-        email: '',
+        email: '',          // legacy — kept for backward compat; migrate to emails[] on load
+        emails: [],         // v3.1: multiple recipient addresses
         emailEnabled: false,
         emailFrequency: 'daily',  // 'daily' | 'weekdays' | 'weekly'
         emailTime: '08:00',
@@ -300,6 +301,15 @@ window.App.State = (() => {
     }
     if (!_state.ember.settings.emailJSConfig) {
       _state.ember.settings.emailJSConfig = { serviceId: '', templateId: '', publicKey: '' };
+    }
+    // v3.1 migration: move legacy single-email string into the emails[] array.
+    // Only runs once — after this, email is cleared and emails[] is the source of truth.
+    const s = _state.ember.settings;
+    if (!Array.isArray(s.emails)) s.emails = [];
+    if (s.email && s.emails.length === 0) {
+      s.emails = [s.email];
+      s.email  = '';   // clear legacy field; emails[] is now canonical
+      _save();
     }
     return _state.ember.settings;
   }

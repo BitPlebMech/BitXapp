@@ -2401,6 +2401,106 @@
 .ember-test-success { color: var(--green, #22c55e); }
 .ember-test-error   { color: var(--red, #ef4444); }
 
+/* ── Multi-email chip input (Settings → Email Automation) ─────────── */
+
+.ember-email-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--b2, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  background: var(--bg2, rgba(255,255,255,0.04));
+  cursor: text;
+  min-height: 40px;
+  transition: border-color 0.15s;
+}
+
+.ember-email-wrap:focus-within {
+  border-color: var(--blue, #4AB5E8);
+  outline: none;
+}
+
+/* Individual email address chip */
+.ember-email-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 20px;
+  background: var(--blue, #4AB5E8);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ember-email-chip-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(255,255,255,0.28);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 9px;
+  color: #fff;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+  transition: background 0.12s;
+}
+
+.ember-email-chip-del:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+/* The bare text input inside the chip wrap */
+.ember-email-input {
+  flex: 1;
+  min-width: 180px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  padding: 2px 4px;
+}
+
+.ember-email-input::placeholder {
+  color: var(--muted);
+}
+
+/* Shake animation for invalid email format */
+@keyframes ember-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+.ember-email-input-shake {
+  animation: ember-shake 0.35s ease;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .ember-email-wrap {
+  background: var(--bg2, rgba(0,0,0,0.04));
+  border-color: var(--b2, rgba(0,0,0,0.14));
+}
+
+[data-theme="light"] .ember-email-chip {
+  background: var(--blue, #0ea5e9);
+}
+
 .ember-settings-actions {
   display: flex;
   gap: 10px;
