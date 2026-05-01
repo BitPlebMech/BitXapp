@@ -68,6 +68,20 @@ window.App.EmberUI = (() => {
   let _reviewIndex            = 0;
   let _reviewSessionActive    = false;
 
+  // Quotes tab state
+  let _quotesTagFilter        = 'all';
+  let _quotesSearch           = '';
+
+  // Bookmarks tab state
+  let _bookmarksTypeFilter    = 'all';   // 'all' | 'article' | 'video'
+  let _bookmarksTagFilter     = 'all';
+
+  // Drawer state
+  let _drawerType             = 'quote'; // 'quote' | 'article' | 'video'
+  let _drawerQuoteTags        = [];
+  let _drawerArticleTags      = [];
+  let _drawerVideoTags        = [];
+
   /* ═══════════════════════════════════════════════════════════════
      INIT
      ═══════════════════════════════════════════════════════════════ */
@@ -75,6 +89,7 @@ window.App.EmberUI = (() => {
   function init() {
     _bindHeader();
     _bindImportWizard();
+    _bindDrawer();
     render();
   }
 
@@ -88,19 +103,23 @@ window.App.EmberUI = (() => {
   }
 
   function renderActiveTab() {
-    // Update tab button states (settings tab removed — now lives in sidebar Settings module)
-    ['books', 'library', 'review'].forEach(tab => {
+    // Update tab button states
+    ['books', 'library', 'quotes', 'bookmarks', 'review'].forEach(tab => {
       el(`ember-tab-${tab}`)?.classList.toggle('active', tab === _activeTab);
     });
 
     // Show/hide panes
-    el('ember-pane-books').style.display   = _activeTab === 'books'   ? '' : 'none';
-    el('ember-pane-library').style.display = _activeTab === 'library' ? '' : 'none';
-    el('ember-pane-review').style.display  = _activeTab === 'review'  ? '' : 'none';
+    const panes = ['books', 'library', 'quotes', 'bookmarks', 'review'];
+    panes.forEach(tab => {
+      const pane = el(`ember-pane-${tab}`);
+      if (pane) pane.style.display = tab === _activeTab ? '' : 'none';
+    });
 
-    if (_activeTab === 'books')   _renderBooks();
-    if (_activeTab === 'library') _renderLibrary();
-    if (_activeTab === 'review')  _renderReview();
+    if (_activeTab === 'books')     _renderBooks();
+    if (_activeTab === 'library')   _renderLibrary();
+    if (_activeTab === 'quotes')    _renderQuotes();
+    if (_activeTab === 'bookmarks') _renderBookmarks();
+    if (_activeTab === 'review')    _renderReview();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -114,7 +133,11 @@ window.App.EmberUI = (() => {
     statsEl.innerHTML =
       `<span class="ember-stat"><strong>${stats.sourceCount}</strong> Book${stats.sourceCount !== 1 ? 's' : ''}</span>` +
       `<span class="ember-stat-sep">·</span>` +
-      `<span class="ember-stat"><strong>${stats.highlightCount}</strong> Highlight${stats.highlightCount !== 1 ? 's' : ''}</span>`;
+      `<span class="ember-stat"><strong>${stats.highlightCount}</strong> Highlight${stats.highlightCount !== 1 ? 's' : ''}</span>` +
+      `<span class="ember-stat-sep">·</span>` +
+      `<span class="ember-stat"><strong>${stats.quoteCount}</strong> Quote${stats.quoteCount !== 1 ? 's' : ''}</span>` +
+      `<span class="ember-stat-sep">·</span>` +
+      `<span class="ember-stat"><strong>${stats.bookmarkCount}</strong> Bookmark${stats.bookmarkCount !== 1 ? 's' : ''}</span>`;
   }
 
   function _bindHeader() {
@@ -122,7 +145,7 @@ window.App.EmberUI = (() => {
     el('ember-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
     el('ember-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
 
-    ['books', 'library', 'review'].forEach(tab => {
+    ['books', 'library', 'quotes', 'bookmarks', 'review'].forEach(tab => {
       el(`ember-tab-${tab}`)?.addEventListener('click', () => {
         _activeTab = tab;
         if (tab !== 'books') _selectedSourceId = null;
@@ -131,6 +154,15 @@ window.App.EmberUI = (() => {
           _reviewSessionActive = false;
           _reviewQueue         = [];
           _reviewIndex         = 0;
+        }
+        // Reset quotes / bookmarks filter state when switching away
+        if (tab !== 'quotes') {
+          _quotesTagFilter = 'all';
+          _quotesSearch    = '';
+        }
+        if (tab !== 'bookmarks') {
+          _bookmarksTypeFilter = 'all';
+          _bookmarksTagFilter  = 'all';
         }
         renderActiveTab();
       });
@@ -809,6 +841,470 @@ window.App.EmberUI = (() => {
   }
 
   /* ═══════════════════════════════════════════════════════════════
+     QUOTES TAB
+     ═══════════════════════════════════════════════════════════════ */
+
+  function _renderQuotes() {
+    const wrap = el('ember-quotes-content');
+    if (!wrap) return;
+
+    const quotes = window.App.Ember.getQuotes({
+      tag:    _quotesTagFilter !== 'all' ? _quotesTagFilter : undefined,
+      search: _quotesSearch || undefined,
+    });
+    const allTags = window.App.Ember.getAllQuoteTags();
+
+    // ── Tag filter strip ───────────────────────────────────────────
+    const tagPillsHtml = [
+      `<span class="ember-tag-pill ember-tag-all ${_quotesTagFilter === 'all' ? 'active' : ''}"
+            data-tag="all">All</span>`,
+      ...allTags.map(t => {
+        const ns  = _tagNs(t);
+        const active = _quotesTagFilter === t ? 'active' : '';
+        return `<span class="ember-tag-pill ${active}" data-tag="${_esc(t)}" data-ns="${ns}">${_esc(t)}</span>`;
+      }),
+    ].join('');
+
+    // ── Cards ──────────────────────────────────────────────────────
+    const cardsHtml = quotes.length > 0
+      ? quotes.map(q => _buildQuoteCard(q)).join('')
+      : _emptyState('💬', 'No quotes yet',
+          _quotesTagFilter !== 'all' || _quotesSearch
+            ? 'No quotes match your filter.'
+            : 'Add quotes you find on X, podcasts, or books.',
+          `<button class="abtn primary" onclick="window.App.EmberUI.openAddDrawer('quote')">+ Add Quote</button>`);
+
+    wrap.innerHTML = `
+      <div class="ember-quotes-toolbar">
+        <div class="ember-search-wrap">
+          <svg class="ember-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input class="ember-search-input" id="ember-quotes-search"
+                 placeholder="Search quotes…" value="${_esc(_quotesSearch)}">
+        </div>
+        <button class="abtn primary sm" onclick="window.App.EmberUI.openAddDrawer('quote')">+ Add Quote</button>
+      </div>
+      <div class="ember-tag-filter-strip" id="ember-quotes-tag-strip">${tagPillsHtml}</div>
+      <div class="ember-quotes-list" id="ember-quotes-list">${cardsHtml}</div>`;
+
+    // Search
+    const searchEl = el('ember-quotes-search');
+    let _debounce = null;
+    searchEl?.addEventListener('input', () => {
+      clearTimeout(_debounce);
+      _debounce = setTimeout(() => {
+        _quotesSearch = searchEl.value;
+        _renderQuotes();
+      }, 220);
+    });
+
+    // Tag filter pills
+    el('ember-quotes-tag-strip')?.querySelectorAll('.ember-tag-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        _quotesTagFilter = pill.dataset.tag;
+        _renderQuotes();
+      });
+    });
+
+    // Card actions: star, delete
+    el('ember-quotes-list')?.querySelectorAll('.ember-quote-star').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.App.Ember.toggleQuoteStar(btn.dataset.id);
+        _renderQuotes();
+        _renderHeaderStats();
+      });
+    });
+    el('ember-quotes-list')?.querySelectorAll('.ember-quote-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.App.Ember.deleteQuote(btn.dataset.id);
+        _renderQuotes();
+        _renderHeaderStats();
+      });
+    });
+  }
+
+  function _buildQuoteCard(q) {
+    const tags = (q.tags || []).map(t =>
+      `<span class="ember-tag-pill" data-ns="${_tagNs(t)}" style="font-size:10px;padding:2px 8px">${_esc(t)}</span>`
+    ).join('');
+
+    const date = q.addedAt
+      ? new Date(q.addedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+
+    const starClass = q.starred ? 'ember-quote-star on' : 'ember-quote-star';
+    const urlLink   = q.url
+      ? `<a class="ember-quote-url" href="${_esc(q.url)}" target="_blank" rel="noopener" title="${_esc(q.url)}">↗ source</a>`
+      : '';
+
+    return `
+      <div class="ember-quote-card${q.starred ? ' starred' : ''}" data-id="${q.id}">
+        <div class="ember-quote-text">${_esc(q.text)}</div>
+        <div class="ember-quote-footer">
+          <div class="ember-quote-tags">${tags}</div>
+          <div class="ember-quote-meta-right">
+            ${urlLink}
+            <span class="ember-quote-date">${date}</span>
+            <button class="${starClass}" data-id="${q.id}" title="${q.starred ? 'Unstar' : 'Star'}">★</button>
+            <button class="ember-quote-del" data-id="${q.id}" title="Delete">✕</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     BOOKMARKS TAB
+     ═══════════════════════════════════════════════════════════════ */
+
+  function _renderBookmarks() {
+    const wrap = el('ember-bookmarks-content');
+    if (!wrap) return;
+
+    const bookmarks = window.App.Ember.getBookmarks({
+      type: _bookmarksTypeFilter !== 'all' ? _bookmarksTypeFilter : undefined,
+      tag:  _bookmarksTagFilter  !== 'all' ? _bookmarksTagFilter  : undefined,
+    });
+    const allTags = window.App.Ember.getAllBookmarkTags();
+
+    // ── Type toggle ────────────────────────────────────────────────
+    const types = [
+      { id: 'all',     label: 'All' },
+      { id: 'article', label: '📄 Articles' },
+      { id: 'video',   label: '▶ Videos' },
+    ];
+    const typeToggleHtml = types.map(t =>
+      `<button class="ember-bm-type-btn${_bookmarksTypeFilter === t.id ? ' active' : ''}" data-type="${t.id}">${t.label}</button>`
+    ).join('');
+
+    // ── Tag filter strip ───────────────────────────────────────────
+    const tagPillsHtml = [
+      `<span class="ember-tag-pill ember-tag-all ${_bookmarksTagFilter === 'all' ? 'active' : ''}"
+            data-tag="all">All</span>`,
+      ...allTags.map(t => {
+        const active = _bookmarksTagFilter === t ? 'active' : '';
+        return `<span class="ember-tag-pill ${active}" data-tag="${_esc(t)}" data-ns="${_tagNs(t)}">${_esc(t)}</span>`;
+      }),
+    ].join('');
+
+    // ── Cards ──────────────────────────────────────────────────────
+    const cardsHtml = bookmarks.length > 0
+      ? bookmarks.map(b => _buildBookmarkCard(b)).join('')
+      : _emptyState('🔖', 'No bookmarks yet',
+          _bookmarksTypeFilter !== 'all' || _bookmarksTagFilter !== 'all'
+            ? 'No bookmarks match your filter.'
+            : 'Save articles and videos you want to keep.',
+          `<button class="abtn primary" onclick="window.App.EmberUI.openAddDrawer('article')">+ Save Link</button>`);
+
+    wrap.innerHTML = `
+      <div class="ember-bm-toolbar">
+        <div class="ember-bm-type-toggle" id="ember-bm-type-toggle">${typeToggleHtml}</div>
+        <button class="abtn primary sm" onclick="window.App.EmberUI.openAddDrawer('article')">+ Save Link</button>
+      </div>
+      <div class="ember-tag-filter-strip" id="ember-bm-tag-strip">${tagPillsHtml}</div>
+      <div class="ember-bm-list" id="ember-bm-list">${cardsHtml}</div>`;
+
+    // Type toggle
+    el('ember-bm-type-toggle')?.querySelectorAll('.ember-bm-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _bookmarksTypeFilter = btn.dataset.type;
+        _renderBookmarks();
+      });
+    });
+
+    // Tag filter
+    el('ember-bm-tag-strip')?.querySelectorAll('.ember-tag-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        _bookmarksTagFilter = pill.dataset.tag;
+        _renderBookmarks();
+      });
+    });
+
+    // Card actions: done toggle, delete
+    el('ember-bm-list')?.querySelectorAll('.ember-bm-done-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.App.Ember.toggleBookmarkStatus(btn.dataset.id);
+        _renderBookmarks();
+        _renderHeaderStats();
+      });
+    });
+    el('ember-bm-list')?.querySelectorAll('.ember-bm-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.App.Ember.deleteBookmark(btn.dataset.id);
+        _renderBookmarks();
+        _renderHeaderStats();
+      });
+    });
+  }
+
+  function _buildBookmarkCard(b) {
+    const tags = (b.tags || []).map(t =>
+      `<span class="ember-tag-pill" data-ns="${_tagNs(t)}" style="font-size:10px;padding:2px 8px">${_esc(t)}</span>`
+    ).join('');
+
+    const date = b.addedAt
+      ? new Date(b.addedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+
+    const isVideo   = b.type === 'video';
+    const thumbIcon = isVideo ? '▶' : '📄';
+    const thumbCls  = isVideo ? 'video-thumb' : 'article-thumb';
+    const badgeCls  = isVideo ? 'video'        : 'article';
+    const badgeLbl  = isVideo ? 'Video'         : 'Article';
+    const doneLbl   = b.status === 'done' ? '✓ Done' : 'Mark done';
+
+    const noteHtml = b.note
+      ? `<div class="ember-bm-note">${_esc(b.note)}</div>`
+      : '';
+
+    return `
+      <div class="ember-bm-card${b.status === 'done' ? ' done' : ''}">
+        <div class="ember-bm-thumb ${thumbCls}">${thumbIcon}</div>
+        <div class="ember-bm-body">
+          <a class="ember-bm-title" href="${_esc(b.url)}" target="_blank" rel="noopener">${_esc(b.title)}</a>
+          <div class="ember-bm-url">${_esc(_shortenUrl(b.url))}</div>
+          ${noteHtml}
+          <div class="ember-bm-footer">
+            <span class="ember-bm-badge ${badgeCls}">${badgeLbl}</span>
+            ${tags}
+            <span class="ember-bm-date">${date}</span>
+          </div>
+        </div>
+        <div class="ember-bm-actions">
+          <button class="ember-bm-done-btn${b.status === 'done' ? ' on' : ''}" data-id="${b.id}">${doneLbl}</button>
+          <button class="ember-bm-del" data-id="${b.id}" title="Delete">✕</button>
+        </div>
+      </div>`;
+  }
+
+  /** Shorten a URL to domain + path (max 48 chars) for display. */
+  function _shortenUrl(url) {
+    try {
+      const u = new URL(url);
+      const short = u.hostname + u.pathname;
+      return short.length > 48 ? short.slice(0, 45) + '…' : short;
+    } catch (_) {
+      return url.length > 48 ? url.slice(0, 45) + '…' : url;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TAG HELPERS  — shared by Quotes and Bookmarks
+     ═══════════════════════════════════════════════════════════════ */
+
+  /** Extract namespace prefix from a tag string, e.g. "author:Naval" → "author". */
+  function _tagNs(tag) {
+    const prefix = (tag || '').split(':')[0];
+    return ['author', 'topic', 'source', 'mood'].includes(prefix) ? prefix : 'default';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     ADD QUOTE / SAVE BOOKMARK DRAWER
+     ═══════════════════════════════════════════════════════════════ */
+
+  function openAddDrawer(type) {
+    _drawerType = type || 'quote';
+    _drawerQuoteTags   = [];
+    _drawerArticleTags = [];
+    _drawerVideoTags   = [];
+
+    // Clear all form fields
+    ['ember-q-text', 'ember-q-url', 'ember-a-url', 'ember-a-title',
+     'ember-a-note', 'ember-v-url', 'ember-v-title', 'ember-v-note'].forEach(id => {
+      const inp = el(id);
+      if (inp) inp.value = '';
+    });
+    // Clear tag pill areas
+    _renderTagPills('ember-q-tag-wrap', 'ember-q-tag-input', _drawerQuoteTags);
+    _renderTagPills('ember-a-tag-wrap', 'ember-a-tag-input', _drawerArticleTags);
+    _renderTagPills('ember-v-tag-wrap', 'ember-v-tag-input', _drawerVideoTags);
+
+    _switchDrawerType(_drawerType);
+    el('ember-drawer-ov')?.classList.add('active');
+  }
+
+  function _closeDrawer() {
+    el('ember-drawer-ov')?.classList.remove('active');
+  }
+
+  function _switchDrawerType(type) {
+    _drawerType = type;
+    ['quote', 'article', 'video'].forEach(t => {
+      el(`ember-dtype-${t}`)?.classList.toggle('active', t === type);
+      const form = el(`ember-dform-${t}`);
+      if (form) form.style.display = t === type ? '' : 'none';
+    });
+    const labels = { quote: 'Add Quote', article: 'Save Article', video: 'Save Video' };
+    const submitBtn = el('ember-drawer-submit');
+    if (submitBtn) submitBtn.textContent = labels[type] || 'Save';
+  }
+
+  function _bindDrawer() {
+    // Overlay background click closes
+    el('ember-drawer-ov')?.addEventListener('click', e => {
+      if (e.target === el('ember-drawer-ov')) _closeDrawer();
+    });
+    el('ember-drawer-cancel')?.addEventListener('click', _closeDrawer);
+    el('ember-drawer-submit')?.addEventListener('click', _submitDrawer);
+
+    // Type switcher buttons
+    el('ember-drawer-type-toggle')?.querySelectorAll('.ember-dtype-btn').forEach(btn => {
+      btn.addEventListener('click', () => _switchDrawerType(btn.dataset.type));
+    });
+
+    // Tag input binding for each form
+    _bindTagInput('ember-q-tag-wrap', 'ember-q-tag-input', 'ember-q-tag-sug', _drawerQuoteTags,
+      () => window.App.Ember.getAllQuoteTags());
+    _bindTagInput('ember-a-tag-wrap', 'ember-a-tag-input', 'ember-a-tag-sug', _drawerArticleTags,
+      () => window.App.Ember.getAllBookmarkTags());
+    _bindTagInput('ember-v-tag-wrap', 'ember-v-tag-input', 'ember-v-tag-sug', _drawerVideoTags,
+      () => window.App.Ember.getAllBookmarkTags());
+  }
+
+  function _submitDrawer() {
+    try {
+      if (_drawerType === 'quote') {
+        const text = (el('ember-q-text')?.value || '').trim();
+        if (!text) { el('ember-q-text')?.focus(); window.App.Shell.toast('Quote text is required', 'warn'); return; }
+        window.App.Ember.addQuote({
+          text,
+          tags: [..._drawerQuoteTags],
+          url:  (el('ember-q-url')?.value || '').trim(),
+        });
+        _activeTab = 'quotes';
+
+      } else if (_drawerType === 'article') {
+        const url   = (el('ember-a-url')?.value   || '').trim();
+        const title = (el('ember-a-title')?.value || '').trim();
+        if (!url)   { el('ember-a-url')?.focus();   window.App.Shell.toast('URL is required', 'warn'); return; }
+        if (!title) { el('ember-a-title')?.focus(); window.App.Shell.toast('Title is required', 'warn'); return; }
+        window.App.Ember.addBookmark({
+          type: 'article', url, title,
+          tags: [..._drawerArticleTags],
+          note: (el('ember-a-note')?.value || '').trim(),
+        });
+        _activeTab = 'bookmarks';
+
+      } else if (_drawerType === 'video') {
+        const url   = (el('ember-v-url')?.value   || '').trim();
+        const title = (el('ember-v-title')?.value || '').trim();
+        if (!url)   { el('ember-v-url')?.focus();   window.App.Shell.toast('URL is required', 'warn'); return; }
+        if (!title) { el('ember-v-title')?.focus(); window.App.Shell.toast('Title is required', 'warn'); return; }
+        window.App.Ember.addBookmark({
+          type: 'video', url, title,
+          tags: [..._drawerVideoTags],
+          note: (el('ember-v-note')?.value || '').trim(),
+        });
+        _activeTab = 'bookmarks';
+      }
+
+      _closeDrawer();
+      render();
+    } catch (err) {
+      window.App.Shell.toast(err.message, 'error');
+    }
+  }
+
+  /* ── Tag input component ──────────────────────────────────────── */
+
+  /**
+   * Wire up a tag input:  wrap (holds pills + input), input (the text field),
+   * sugBox (dropdown), tagArr (live array mutated in place), getSuggestions (fn).
+   */
+  function _bindTagInput(wrapId, inputId, sugId, tagArr, getSuggestions) {
+    const wrapEl  = el(wrapId);
+    const inputEl = el(inputId);
+    const sugEl   = el(sugId);
+    if (!wrapEl || !inputEl) return;
+
+    wrapEl.addEventListener('click', () => inputEl.focus());
+
+    inputEl.addEventListener('input', () => {
+      const val = inputEl.value;
+      if (!sugEl) return;
+      const all  = getSuggestions();
+      const lc   = val.toLowerCase();
+      const matches = lc
+        ? all.filter(t => t.toLowerCase().includes(lc) && !tagArr.includes(t)).slice(0, 6)
+        : all.filter(t => !tagArr.includes(t)).slice(0, 6);
+
+      if (matches.length) {
+        sugEl.innerHTML = matches.map(m =>
+          `<div class="ember-tag-sug-item" data-tag="${_esc(m)}">${_esc(m)}</div>`
+        ).join('');
+        sugEl.style.display = '';
+        sugEl.querySelectorAll('.ember-tag-sug-item').forEach(item => {
+          item.addEventListener('mousedown', e => {
+            e.preventDefault();
+            _addTag(tagArr, item.dataset.tag, wrapId, inputId);
+            sugEl.style.display = 'none';
+          });
+        });
+      } else {
+        sugEl.style.display = 'none';
+      }
+    });
+
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = inputEl.value.replace(/,$/, '').trim();
+        if (val) _addTag(tagArr, val, wrapId, inputId);
+        if (sugEl) sugEl.style.display = 'none';
+      } else if (e.key === 'Backspace' && !inputEl.value) {
+        if (tagArr.length) {
+          tagArr.pop();
+          _renderTagPills(wrapId, inputId, tagArr);
+        }
+      } else if (e.key === 'Escape') {
+        if (sugEl) sugEl.style.display = 'none';
+      }
+    });
+
+    inputEl.addEventListener('blur', () => {
+      setTimeout(() => { if (sugEl) sugEl.style.display = 'none'; }, 150);
+    });
+  }
+
+  function _addTag(tagArr, tag, wrapId, inputId) {
+    tag = tag.trim();
+    if (!tag || tagArr.includes(tag)) return;
+    tagArr.push(tag);
+    _renderTagPills(wrapId, inputId, tagArr);
+    const inputEl = el(inputId);
+    if (inputEl) inputEl.value = '';
+  }
+
+  function _renderTagPills(wrapId, inputId, tagArr) {
+    const wrapEl  = el(wrapId);
+    const inputEl = el(inputId);
+    if (!wrapEl || !inputEl) return;
+
+    // Remove existing pills (keep the input)
+    wrapEl.querySelectorAll('.ember-drawer-tag-pill').forEach(p => p.remove());
+
+    // Insert pills before the input
+    for (let i = tagArr.length - 1; i >= 0; i--) {
+      const tag  = tagArr[i];
+      const pill = document.createElement('span');
+      pill.className = `ember-drawer-tag-pill`;
+      pill.dataset.ns = _tagNs(tag);
+      pill.innerHTML  = `${_esc(tag)} <span class="ember-drawer-tag-remove" data-idx="${i}">×</span>`;
+      wrapEl.insertBefore(pill, inputEl);
+    }
+
+    // Bind remove buttons
+    wrapEl.querySelectorAll('.ember-drawer-tag-remove').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        tagArr.splice(parseInt(btn.dataset.idx, 10), 1);
+        _renderTagPills(wrapId, inputId, tagArr);
+      });
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
      IMPORT WIZARD
      ═══════════════════════════════════════════════════════════════ */
 
@@ -935,7 +1431,7 @@ window.App.EmberUI = (() => {
 
       if (!parsed || parsed.length === 0 || parsed.every(p => p.highlights.length === 0)) {
         if (errEl) {
-          errEl.textContent = 'Could not parse this file. Please upload a Kindle TXT or HTML Notebook Export.';
+          errEl.textContent = 'Could not parse this file. Please upload a Kindle TXT, Kindle HTML Notebook Export, or an Ember-compatible JSON file.';
           errEl.style.display = '';
         }
         if (dropzone) dropzone.classList.remove('has-file');
@@ -950,6 +1446,17 @@ window.App.EmberUI = (() => {
       if (errEl) { errEl.textContent = 'File read error — please try again.'; errEl.style.display = ''; }
     };
     reader.readAsText(file);
+  }
+
+  /** Map internal format identifiers to human-readable labels. */
+  function _fmtLabel(format) {
+    const map = {
+      'kindle-html': 'Kindle HTML',
+      'kindle-txt':  'Kindle TXT',
+      'pdf':         'PDF (JSON)',
+      'json':        'JSON Import',
+    };
+    return map[format] || format || 'Unknown';
   }
 
   function _buildPreview(parsed) {
@@ -970,7 +1477,7 @@ window.App.EmberUI = (() => {
           <div class="ember-preview-book">
             <div class="ember-preview-book-title">${_esc(p.title)}</div>
             <div class="ember-preview-book-author">by ${_esc(p.author)}</div>
-            <div class="ember-preview-book-fmt">${p.format === 'kindle-html' ? 'Kindle HTML' : 'Kindle TXT'}</div>
+            <div class="ember-preview-book-fmt">${_fmtLabel(p.format)}</div>
             <div class="ember-preview-book-count">${p.highlights.length} highlights found</div>
           </div>`).join('')}
       </div>
@@ -979,6 +1486,14 @@ window.App.EmberUI = (() => {
         <span class="ember-preview-new-badge">${newCount} new</span>
         ${skipCount > 0 ? `<span class="ember-preview-skip-badge">${skipCount} duplicates (will skip)</span>` : ''}
         <span class="ember-preview-cat-badge ${_pendingCategory === 'academic' ? 'academic' : 'general'}">${catLabel}</span>
+      </div>
+
+      <div class="ember-import-gist-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="flex-shrink:0;margin-top:1px">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Import saves to local storage only — press <strong>Gist Save</strong> in the header to sync to cloud.
       </div>
 
       ${samples.length > 0 ? `
@@ -1102,6 +1617,7 @@ window.App.EmberUI = (() => {
     renderActiveTab,
     setGistStatus,
     openImportWizard,
+    openAddDrawer,
     renderSettingsInto,
   };
 

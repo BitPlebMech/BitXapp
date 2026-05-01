@@ -63,6 +63,8 @@ window.App.State = (() => {
     ember: {
       sources: [],    // [{ id, title, author, format, importedAt, highlightCount }]
       highlights: [], // [{ id, sourceId, text, chapter, location, page, color, hash, addedAt, category, srData }]
+      quotes: [],     // [{ id, type:'quote', text, url, tags, starred, addedAt }]
+      bookmarks: [],  // [{ id, type:'article'|'video', title, url, tags, status:'unread'|'done', note, addedAt }]
       settings: {
         email: '',
         emailEnabled: false,
@@ -325,6 +327,46 @@ window.App.State = (() => {
     _save();
   }
 
+  /**
+   * Returns the ember quotes array.
+   * Lazy-initialises to [] if missing (backward compat with pre-v3 saves).
+   * quotes: [{ id, type:'quote', text, url, tags, starred, addedAt }]
+   */
+  function getEmberQuotes() {
+    _ensure();
+    if (!Array.isArray(_state.ember.quotes)) {
+      _state.ember.quotes = [];
+    }
+    return _state.ember.quotes;
+  }
+
+  /** Persist the ember quotes array. */
+  function setEmberQuotes(quotesArr) {
+    _ensure();
+    _state.ember.quotes = quotesArr;
+    _save();
+  }
+
+  /**
+   * Returns the ember bookmarks array.
+   * Lazy-initialises to [] if missing (backward compat with pre-v3 saves).
+   * bookmarks: [{ id, type:'article'|'video', title, url, tags, status:'unread'|'done', note, addedAt }]
+   */
+  function getEmberBookmarks() {
+    _ensure();
+    if (!Array.isArray(_state.ember.bookmarks)) {
+      _state.ember.bookmarks = [];
+    }
+    return _state.ember.bookmarks;
+  }
+
+  /** Persist the ember bookmarks array. */
+  function setEmberBookmarks(bookmarksArr) {
+    _ensure();
+    _state.ember.bookmarks = bookmarksArr;
+    _save();
+  }
+
   // ─── Gist credential namespace ──────────────────────────────────
 
   // getGistCredentials() returns a SHALLOW COPY (not the live ref) so callers
@@ -427,6 +469,10 @@ window.App.State = (() => {
     setEmberSettings,
     getEmberStreak,
     setEmberStreak,
+    getEmberQuotes,
+    setEmberQuotes,
+    getEmberBookmarks,
+    setEmberBookmarks,
     // Gist credentials
     getGistCredentials,
     setGistCredentials,

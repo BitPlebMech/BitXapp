@@ -752,7 +752,164 @@ window.App.Ember = (() => {
     return {
       sourceCount:    d.sources.length,
       highlightCount: d.highlights.length,
+      quoteCount:     (d.quotes    || []).length,
+      bookmarkCount:  (d.bookmarks || []).length,
     };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     QUOTES  —  Manually added quotes with tag-based organisation
+     ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * Return all quotes, optionally filtered.
+   * @param {{ tag?: string, search?: string, starred?: boolean }} [filters]
+   */
+  function getQuotes(filters = {}) {
+    let quotes = window.App.State.getEmberQuotes();
+    if (filters.tag && filters.tag !== 'all') {
+      quotes = quotes.filter(q => (q.tags || []).includes(filters.tag));
+    }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      quotes = quotes.filter(qt =>
+        qt.text.toLowerCase().includes(q) ||
+        (qt.tags || []).some(t => t.toLowerCase().includes(q)),
+      );
+    }
+    if (filters.starred) {
+      quotes = quotes.filter(q => q.starred);
+    }
+    // Newest first
+    return quotes.slice().sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  }
+
+  /**
+   * Add a new quote.
+   * @param {{ text: string, tags?: string[], url?: string }} data
+   * @returns {object} the created quote
+   */
+  function addQuote({ text, tags = [], url = '' }) {
+    if (!text || !text.trim()) throw new Error('Quote text is required');
+    const quote = {
+      id:      ED().genId('qt'),
+      type:    'quote',
+      text:    text.trim(),
+      tags:    tags.map(t => t.trim()).filter(Boolean),
+      url:     url.trim() || '',
+      starred: false,
+      addedAt: new Date().toISOString(),
+    };
+    const current = window.App.State.getEmberQuotes();
+    window.App.State.setEmberQuotes([quote, ...current]);
+    return quote;
+  }
+
+  /**
+   * Delete a quote by id.
+   */
+  function deleteQuote(id) {
+    const updated = window.App.State.getEmberQuotes().filter(q => q.id !== id);
+    window.App.State.setEmberQuotes(updated);
+  }
+
+  /**
+   * Toggle the starred flag on a quote.
+   */
+  function toggleQuoteStar(id) {
+    const updated = window.App.State.getEmberQuotes().map(q =>
+      q.id === id ? { ...q, starred: !q.starred } : q,
+    );
+    window.App.State.setEmberQuotes(updated);
+  }
+
+  /**
+   * Return every unique tag across all quotes, sorted alphabetically.
+   * Used to populate the tag filter strip and autocomplete suggestions.
+   */
+  function getAllQuoteTags() {
+    const quotes = window.App.State.getEmberQuotes();
+    const seen = new Set();
+    for (const q of quotes) {
+      for (const t of (q.tags || [])) seen.add(t);
+    }
+    return [...seen].sort();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     BOOKMARKS  —  Saved articles and videos
+     ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * Return all bookmarks, optionally filtered.
+   * @param {{ type?: string, tag?: string, status?: string }} [filters]
+   */
+  function getBookmarks(filters = {}) {
+    let bms = window.App.State.getEmberBookmarks();
+    if (filters.type && filters.type !== 'all') {
+      bms = bms.filter(b => b.type === filters.type);
+    }
+    if (filters.tag && filters.tag !== 'all') {
+      bms = bms.filter(b => (b.tags || []).includes(filters.tag));
+    }
+    if (filters.status && filters.status !== 'all') {
+      bms = bms.filter(b => b.status === filters.status);
+    }
+    // Newest first
+    return bms.slice().sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  }
+
+  /**
+   * Add a new bookmark.
+   * @param {{ type: 'article'|'video', title: string, url: string, tags?: string[], note?: string }} data
+   * @returns {object} the created bookmark
+   */
+  function addBookmark({ type, title, url, tags = [], note = '' }) {
+    if (!url || !url.trim())   throw new Error('URL is required');
+    if (!title || !title.trim()) throw new Error('Title is required');
+    const bookmark = {
+      id:      ED().genId('bm'),
+      type:    type === 'video' ? 'video' : 'article',
+      title:   title.trim(),
+      url:     url.trim(),
+      tags:    tags.map(t => t.trim()).filter(Boolean),
+      note:    note.trim() || '',
+      status:  'unread',
+      addedAt: new Date().toISOString(),
+    };
+    const current = window.App.State.getEmberBookmarks();
+    window.App.State.setEmberBookmarks([bookmark, ...current]);
+    return bookmark;
+  }
+
+  /**
+   * Delete a bookmark by id.
+   */
+  function deleteBookmark(id) {
+    const updated = window.App.State.getEmberBookmarks().filter(b => b.id !== id);
+    window.App.State.setEmberBookmarks(updated);
+  }
+
+  /**
+   * Toggle bookmark status between 'unread' and 'done'.
+   */
+  function toggleBookmarkStatus(id) {
+    const updated = window.App.State.getEmberBookmarks().map(b =>
+      b.id === id ? { ...b, status: b.status === 'done' ? 'unread' : 'done' } : b,
+    );
+    window.App.State.setEmberBookmarks(updated);
+  }
+
+  /**
+   * Return every unique tag across all bookmarks, sorted alphabetically.
+   */
+  function getAllBookmarkTags() {
+    const bms = window.App.State.getEmberBookmarks();
+    const seen = new Set();
+    for (const b of bms) {
+      for (const t of (b.tags || [])) seen.add(t);
+    }
+    return [...seen].sort();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -871,6 +1028,10 @@ window.App.Ember = (() => {
           const d = _data();
           d.highlights = highlights;
           d.sources    = sources;
+          // v3.0: restore quotes and bookmarks; fall back to existing local
+          // data so a pre-v3 Gist file doesn't wipe entries added locally.
+          d.quotes    = parsed.quotes    || d.quotes    || [];
+          d.bookmarks = parsed.bookmarks || d.bookmarks || [];
           _save(d);
           if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
           if (parsed.streak)   window.App.State.setEmberStreak(parsed.streak);
@@ -903,6 +1064,8 @@ window.App.Ember = (() => {
     const d = _data();
     if (!d.sources)    d.sources    = [];
     if (!d.highlights) d.highlights = [];
+    if (!d.quotes)     d.quotes     = [];
+    if (!d.bookmarks)  d.bookmarks  = [];
 
     // Migration: assign spine colours to any sources that pre-date this feature
     let dirty = false;
@@ -934,6 +1097,8 @@ window.App.Ember = (() => {
     // Register Shell actions so settings.js and Shell can invoke Ember behaviour
     // without direct coupling (Rule 3).
     window.App.Shell.registerAction('ember:render', () => window.App.EmberUI?.render?.());
+    window.App.Shell.registerAction('ember:openQuoteDrawer',    () => window.App.EmberUI?.openAddDrawer?.('quote'));
+    window.App.Shell.registerAction('ember:openBookmarkDrawer', () => window.App.EmberUI?.openAddDrawer?.('article'));
     window.App.Shell.registerAction('ember:renderSettingsInto', (container) => {
       if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
         window.App.EmberUI.renderSettingsInto(container);
@@ -987,6 +1152,18 @@ window.App.Ember = (() => {
     sendDailyEmail,
     // Stats
     getStats,
+    // Quotes
+    getQuotes,
+    addQuote,
+    deleteQuote,
+    toggleQuoteStar,
+    getAllQuoteTags,
+    // Bookmarks
+    getBookmarks,
+    addBookmark,
+    deleteBookmark,
+    toggleBookmarkStatus,
+    getAllBookmarkTags,
     // Gist
     triggerGistSave,
     triggerGistLoad,

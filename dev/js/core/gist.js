@@ -234,10 +234,12 @@ window.App.Gist = (() => {
     const payload = {
       sources:    emberData.sources    || [],   // ← books; was missing, caused empty Books tab
       highlights: emberData.highlights || [],
+      quotes:     emberData.quotes     || [],   // v3.0: manually added quotes
+      bookmarks:  emberData.bookmarks  || [],   // v3.0: saved articles + videos
       settings:   emberData.settings   || {},
       streak:     emberData.streak     || {},
       metadata: {
-        version:  '2.1',
+        version:  '3.0',
         lastSync: new Date().toISOString(),
       },
     };
@@ -420,6 +422,9 @@ window.App.Gist = (() => {
     catch { throw new Error('portfolio-data.json is not valid JSON'); }
 
     // Extract ember (optional — null if not present yet)
+    // v3.0: ember payload now includes quotes[] and bookmarks[] alongside
+    // existing sources[], highlights[], settings{}, streak{}.
+    // Callers that merge via App.State.mergeAll() get new fields for free.
     let ember = null;
     const emberRaw = data.files?.[EMBER_FILENAME]?.content;
     if (emberRaw) {
