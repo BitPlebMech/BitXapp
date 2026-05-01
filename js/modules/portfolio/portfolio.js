@@ -1188,6 +1188,10 @@ window.App.Portfolio = (() => {
               ...currentEmber,
               highlights: emberParsed.highlights || currentEmber.highlights || [],
               sources:    emberParsed.sources    || currentEmber.sources   || [],
+              // v3.0: restore quotes and bookmarks; fall back to local so pre-v3
+              // Gist files (without these fields) don't wipe existing local entries.
+              quotes:    emberParsed.quotes    || currentEmber.quotes    || [],
+              bookmarks: emberParsed.bookmarks || currentEmber.bookmarks || [],
             });
             if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
             if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);

@@ -428,6 +428,10 @@ window.App.Shell = (() => {
         ...currentEmber,
         highlights: emberHighlights,
         sources:    emberSources,
+        // v3.0: restore quotes and bookmarks; fall back to current local data
+        // so a pre-v3 Gist (without these fields) doesn't wipe existing local entries.
+        quotes:     emberParsed.quotes    || currentEmber.quotes    || [],
+        bookmarks:  emberParsed.bookmarks || currentEmber.bookmarks || [],
       });
       if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
       if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
@@ -621,8 +625,8 @@ window.App.Shell = (() => {
                     || { habits: [], logs: [] };
     window.App.State.setHabitsData(habitsSeed);
 
-    // Ember — no mock data exists; reset to empty
-    window.App.State.setEmberData({ sources: [], highlights: [] });
+    // Ember — no mock data exists; reset to empty (v3.0: include quotes + bookmarks)
+    window.App.State.setEmberData({ sources: [], highlights: [], quotes: [], bookmarks: [] });
     window.App.State.setEmberSettings(window.App.State.getEmberSettings());
 
     // Re-render any already-initialised modules

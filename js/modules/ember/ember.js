@@ -871,6 +871,10 @@ window.App.Ember = (() => {
           const d = _data();
           d.highlights = highlights;
           d.sources    = sources;
+          // v3.0: restore quotes and bookmarks; fall back to existing local
+          // data so a pre-v3 Gist file doesn't wipe entries added locally.
+          d.quotes    = parsed.quotes    || d.quotes    || [];
+          d.bookmarks = parsed.bookmarks || d.bookmarks || [];
           _save(d);
           if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
           if (parsed.streak)   window.App.State.setEmberStreak(parsed.streak);

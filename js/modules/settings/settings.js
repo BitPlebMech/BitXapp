@@ -321,6 +321,9 @@ window.App.Settings = (() => {
             const merged  = { ...current };
             if (Array.isArray(parsed.highlights)) merged.highlights = parsed.highlights;
             if (Array.isArray(parsed.sources))    merged.sources    = parsed.sources;
+            // v3.0: also restore quotes and bookmarks if present in the file
+            if (Array.isArray(parsed.quotes))     merged.quotes     = parsed.quotes;
+            if (Array.isArray(parsed.bookmarks))  merged.bookmarks  = parsed.bookmarks;
             window.App.State.setEmberData(merged);
             if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
             if (parsed.streak)   window.App.State.setEmberStreak?.(parsed.streak);
