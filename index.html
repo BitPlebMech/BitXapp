@@ -410,6 +410,20 @@
             </svg>
             Library
           </button>
+          <button class="tab-btn" id="ember-tab-quotes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Quotes
+          </button>
+          <button class="tab-btn" id="ember-tab-bookmarks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+            Bookmarks
+          </button>
           <button class="tab-btn" id="ember-tab-review">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round">
@@ -428,6 +442,12 @@
         </div>
         <div id="ember-pane-library" style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
           <div id="ember-library-content"></div>
+        </div>
+        <div id="ember-pane-quotes"    style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-quotes-content"></div>
+        </div>
+        <div id="ember-pane-bookmarks" style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
+          <div id="ember-bookmarks-content"></div>
         </div>
         <div id="ember-pane-review"  style="flex:1;overflow-y:auto;padding:20px 22px 90px;display:none">
           <div id="ember-review-content"></div>
@@ -979,6 +999,99 @@
     <div class="confirm-btns">
       <button class="cancel-btn" id="confirm-cancel">Cancel</button>
       <button class="abtn red"   id="cd-confirm" style="width:auto">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     EMBER — Add Quote / Save Bookmark Drawer
+     ════════════════════════════════════════════════════════════════════ -->
+<div class="ember-drawer-ov" id="ember-drawer-ov">
+  <div class="ember-drawer-panel" id="ember-drawer-panel">
+    <div class="ember-drawer-handle"></div>
+
+    <!-- Type switcher -->
+    <div class="ember-drawer-type-toggle" id="ember-drawer-type-toggle">
+      <button class="ember-dtype-btn active" data-type="quote"    id="ember-dtype-quote">💬 Quote</button>
+      <button class="ember-dtype-btn"        data-type="article"  id="ember-dtype-article">📄 Article</button>
+      <button class="ember-dtype-btn"        data-type="video"    id="ember-dtype-video">▶ Video</button>
+    </div>
+
+    <!-- Quote form -->
+    <div id="ember-dform-quote">
+      <div class="ember-drawer-title">Add Quote</div>
+      <div class="ember-drawer-sub">Paste a quote from X, a book, podcast, or anywhere.</div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Quote Text *</label>
+        <textarea class="ember-dform-textarea" id="ember-q-text" placeholder="Paste the quote here…" rows="4"></textarea>
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Tags <span class="ember-dform-hint">Prefix with author: topic: source: mood: — press Enter or comma to add</span></label>
+        <div class="ember-tag-input-wrap" id="ember-q-tag-wrap">
+          <input class="ember-tag-real-input" id="ember-q-tag-input" placeholder="e.g. author:Naval, topic:stoicism…">
+        </div>
+        <div class="ember-tag-suggestions" id="ember-q-tag-sug"></div>
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Source URL <span class="ember-dform-hint">optional</span></label>
+        <input class="ember-dform-input" id="ember-q-url" placeholder="https://…">
+      </div>
+    </div>
+
+    <!-- Article form -->
+    <div id="ember-dform-article" style="display:none">
+      <div class="ember-drawer-title">Save Article</div>
+      <div class="ember-drawer-sub">Bookmark an article to read later or archive once done.</div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">URL *</label>
+        <input class="ember-dform-input" id="ember-a-url" placeholder="https://…">
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Title *</label>
+        <input class="ember-dform-input" id="ember-a-title" placeholder="Article title">
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Tags <span class="ember-dform-hint">optional</span></label>
+        <div class="ember-tag-input-wrap" id="ember-a-tag-wrap">
+          <input class="ember-tag-real-input" id="ember-a-tag-input" placeholder="e.g. topic:AI, source:Substack…">
+        </div>
+        <div class="ember-tag-suggestions" id="ember-a-tag-sug"></div>
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Note <span class="ember-dform-hint">optional</span></label>
+        <textarea class="ember-dform-textarea" id="ember-a-note" placeholder="Why are you saving this?" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Video form -->
+    <div id="ember-dform-video" style="display:none">
+      <div class="ember-drawer-title">Save Video</div>
+      <div class="ember-drawer-sub">Preserve a video you've watched and want to revisit.</div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">URL *</label>
+        <input class="ember-dform-input" id="ember-v-url" placeholder="https://youtube.com/…">
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Title *</label>
+        <input class="ember-dform-input" id="ember-v-title" placeholder="Video title">
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Tags <span class="ember-dform-hint">optional</span></label>
+        <div class="ember-tag-input-wrap" id="ember-v-tag-wrap">
+          <input class="ember-tag-real-input" id="ember-v-tag-input" placeholder="e.g. topic:finance, author:Ali Abdaal…">
+        </div>
+        <div class="ember-tag-suggestions" id="ember-v-tag-sug"></div>
+      </div>
+      <div class="ember-dform-group">
+        <label class="ember-dform-label">Key Takeaway <span class="ember-dform-hint">optional</span></label>
+        <textarea class="ember-dform-textarea" id="ember-v-note" placeholder="What was the main idea?" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ember-drawer-footer">
+      <button class="cancel-btn" id="ember-drawer-cancel">Cancel</button>
+      <button class="abtn primary" id="ember-drawer-submit">Add Quote</button>
     </div>
   </div>
 </div>
