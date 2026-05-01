@@ -643,11 +643,29 @@ window.App.Ember = (() => {
    * Send the daily digest email via EmailJS.
    * @param {boolean} [isTest=false] — if true, bypasses day-dedup check
    */
+  /**
+   * Send the daily digest email to all configured recipient addresses.
+   *
+   * v3.1: supports multiple recipients via settings.emails[].
+   * Each address receives its own EmailJS send() call so that:
+   *   • Free-tier EmailJS quotas are correctly counted per send
+   *   • Recipient privacy is preserved (no CC/BCC leakage)
+   *   • A failure for one address does not block others
+   *
+   * @param {boolean} [isTest=false] — if true, bypasses day-dedup check
+   * @returns {Promise<{ sent: number, failed: number, errors: string[] }>}
+   */
   async function sendDailyEmail(isTest = false) {
     const settings = window.App.State.getEmberSettings();
     const config   = settings.emailJSConfig || {};
 
-    if (!settings.email) throw new Error('No recipient email address configured');
+    // v3.1: canonical recipient list is emails[]; fall back to legacy email string
+    const recipients = (settings.emails || []).filter(e => e && e.trim());
+    if (recipients.length === 0 && settings.email) recipients.push(settings.email);
+    if (recipients.length === 0) {
+      throw new Error('No recipient email addresses configured');
+    }
+
     if (!config.serviceId || !config.templateId || !config.publicKey) {
       throw new Error('EmailJS credentials not fully configured (Service ID, Template ID, and Public Key are required)');
     }
@@ -668,7 +686,7 @@ window.App.Ember = (() => {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    // Build per-slot plain-text variables for 10 slots.
+    // Build per-slot plain-text variables for 10 slots (shared across all sends).
     // EmailJS HTML-escapes {{variable}} content so we send plain text only —
     // the template itself provides all the HTML structure.
     const ACCENT_COLORS = [
@@ -677,8 +695,7 @@ window.App.Ember = (() => {
     ];
     const sources = getSources();
 
-    const params = {
-      to_email:         settings.email,
+    const baseParams = {
       subject:          `Ember — ${highlights.length} highlights for ${dateStr}`,
       date_string:      dateStr,
       highlights_count: String(highlights.length),
@@ -688,21 +705,46 @@ window.App.Ember = (() => {
       const hl = highlights[i - 1];
       if (hl) {
         const src = sources.find(s => s.id === hl.sourceId);
-        params[`h${i}_text`]   = hl.text   || '';
-        params[`h${i}_book`]   = src?.title  || 'Unknown Book';
-        params[`h${i}_author`] = src?.author ? ` — ${src.author}` : '';
-        params[`h${i}_color`]  = ACCENT_COLORS[(i - 1) % ACCENT_COLORS.length];
-        params[`h${i}_show`]   = 'block';
+        baseParams[`h${i}_text`]   = hl.text    || '';
+        baseParams[`h${i}_book`]   = src?.title  || 'Unknown Book';
+        baseParams[`h${i}_author`] = src?.author ? ` — ${src.author}` : '';
+        baseParams[`h${i}_color`]  = ACCENT_COLORS[(i - 1) % ACCENT_COLORS.length];
+        baseParams[`h${i}_show`]   = 'block';
       } else {
-        params[`h${i}_text`]   = '';
-        params[`h${i}_book`]   = '';
-        params[`h${i}_author`] = '';
-        params[`h${i}_color`]  = '#cccccc';
-        params[`h${i}_show`]   = 'none';
+        baseParams[`h${i}_text`]   = '';
+        baseParams[`h${i}_book`]   = '';
+        baseParams[`h${i}_author`] = '';
+        baseParams[`h${i}_color`]  = '#cccccc';
+        baseParams[`h${i}_show`]   = 'none';
       }
     }
 
-    await emailjs.send(config.serviceId, config.templateId, params);
+    // Send one email per recipient — collect results
+    let sent   = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const address of recipients) {
+      try {
+        await emailjs.send(config.serviceId, config.templateId, {
+          ...baseParams,
+          to_email: address,
+        });
+        sent++;
+      } catch (e) {
+        failed++;
+        const msg = e.message || e.text || (typeof e === 'string' ? e : JSON.stringify(e));
+        errors.push(`${address}: ${msg}`);
+        console.warn('[Ember] Email send failed for', address, e);
+      }
+    }
+
+    // If every send failed, throw so the caller shows an error
+    if (sent === 0 && failed > 0) {
+      throw new Error(errors.join('\n'));
+    }
+
+    return { sent, failed, errors };
   }
 
   /**
@@ -710,8 +752,9 @@ window.App.Ember = (() => {
    * Called from init() — fails silently on error.
    */
   async function checkAndSendEmail() {
-    const settings = window.App.State.getEmberSettings();
-    if (!settings.emailEnabled || !settings.email) return;
+    const settings    = window.App.State.getEmberSettings();
+    const hasRecipient = (settings.emails || []).some(e => e && e.trim()) || !!settings.email;
+    if (!settings.emailEnabled || !hasRecipient) return;
 
     const today    = new Date().toISOString().split('T')[0];
     // V1 fix: was localStorage.getItem('ember_last_email_sent') — a raw key outside

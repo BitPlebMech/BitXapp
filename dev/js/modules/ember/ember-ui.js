@@ -596,9 +596,21 @@ window.App.EmberUI = (() => {
           </div>
 
           <div class="ember-settings-row">
-            <label class="ember-settings-label">Email Address</label>
-            <input type="email" class="ember-settings-inp" id="es-email"
-                   value="${_esc(s.email || '')}" placeholder="you@example.com">
+            <label class="ember-settings-label">
+              Recipient Email Addresses
+              <span class="ember-settings-hint"> — press Enter or comma to add each address</span>
+            </label>
+            <!-- Chip input wrap — same visual pattern as the drawer tag input -->
+            <div class="ember-email-wrap" id="es-email-wrap">
+              ${(s.emails || []).map(addr => `
+                <span class="ember-email-chip" data-email="${_esc(addr)}">
+                  ${_esc(addr)}
+                  <button class="ember-email-chip-del" aria-label="Remove ${_esc(addr)}" data-email="${_esc(addr)}">✕</button>
+                </span>`).join('')}
+              <input type="email" id="es-email-input" class="ember-email-input"
+                     placeholder="${(s.emails || []).length === 0 ? 'you@example.com' : 'Add another…'}"
+                     autocomplete="off" spellcheck="false">
+            </div>
           </div>
 
           <div class="ember-settings-row ember-settings-toggle-row">
@@ -709,6 +721,9 @@ window.App.EmberUI = (() => {
       }
     });
 
+    // ── Multi-email chip input ─────────────────────────────────────
+    _bindEmailChips();
+
     // Bind test email
     el('es-test-btn')?.addEventListener('click', async () => {
       const btn    = el('es-test-btn');
@@ -718,12 +733,16 @@ window.App.EmberUI = (() => {
       if (result) { result.textContent = ''; result.className = 'ember-settings-test-result'; }
 
       try {
-        // Save current settings first
+        // Save current settings first (silently — no toast)
         _saveSettings(false);
-        await window.App.Ember.sendDailyEmail(true);
+        const { sent, failed, errors } = await window.App.Ember.sendDailyEmail(true);
         if (result) {
-          result.textContent = '✓ Test email sent successfully! Check your inbox.';
-          result.classList.add('ember-test-success');
+          if (failed === 0) {
+            result.textContent = `✓ Test email sent to ${sent} address${sent !== 1 ? 'es' : ''}. Check your inbox.`;
+          } else {
+            result.textContent = `✓ Sent to ${sent}, ✗ failed for ${failed}. ${errors.join('; ')}`;
+          }
+          result.classList.add(failed === 0 ? 'ember-test-success' : 'ember-test-error');
         }
       } catch (e) {
         if (result) {
@@ -739,18 +758,118 @@ window.App.EmberUI = (() => {
     });
   }
 
+  /**
+   * Wire up the multi-email chip input in the Settings panel.
+   * Chips are added on Enter / comma / Tab / blur.
+   * Invalid email addresses are rejected with a shake animation.
+   */
+  function _bindEmailChips() {
+    const wrap  = el('es-email-wrap');
+    const input = el('es-email-input');
+    if (!wrap || !input) return;
+
+    function _addChip(raw) {
+      const addr = raw.trim().toLowerCase();
+      if (!addr) return;
+
+      // Basic email format check
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
+        input.classList.add('ember-email-input-shake');
+        setTimeout(() => input.classList.remove('ember-email-input-shake'), 400);
+        return;
+      }
+
+      // Deduplicate
+      if (wrap.querySelector(`[data-email="${CSS.escape(addr)}"]`)) {
+        input.value = '';
+        return;
+      }
+
+      const chip = document.createElement('span');
+      chip.className = 'ember-email-chip';
+      chip.dataset.email = addr;
+      chip.innerHTML = `${_esc(addr)}<button class="ember-email-chip-del" aria-label="Remove ${_esc(addr)}" data-email="${_esc(addr)}">✕</button>`;
+      wrap.insertBefore(chip, input);
+      input.value = '';
+      input.placeholder = 'Add another…';
+    }
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+        e.preventDefault();
+        _addChip(input.value);
+      }
+      // Backspace on empty input removes the last chip
+      if (e.key === 'Backspace' && input.value === '') {
+        const chips = wrap.querySelectorAll('.ember-email-chip');
+        if (chips.length > 0) chips[chips.length - 1].remove();
+        if (wrap.querySelectorAll('.ember-email-chip').length === 0) {
+          input.placeholder = 'you@example.com';
+        }
+      }
+    });
+
+    // Also add on paste of comma-separated addresses
+    input.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text');
+      pasted.split(/[,;\s]+/).forEach(part => _addChip(part));
+    });
+
+    // Add on blur (user clicks away)
+    input.addEventListener('blur', () => {
+      if (input.value.trim()) _addChip(input.value);
+    });
+
+    // Remove chip on ✕ click (event delegation on wrap)
+    wrap.addEventListener('click', e => {
+      const del = e.target.closest('.ember-email-chip-del');
+      if (!del) return;
+      del.closest('.ember-email-chip')?.remove();
+      if (wrap.querySelectorAll('.ember-email-chip').length === 0) {
+        input.placeholder = 'you@example.com';
+      }
+    });
+
+    // Clicking anywhere on the wrap focuses the input
+    wrap.addEventListener('click', e => {
+      if (!e.target.closest('.ember-email-chip-del') && !e.target.closest('.ember-email-chip')) {
+        input.focus();
+      }
+    });
+  }
+
   function _saveSettings(showToast = true) {
-    const email     = el('es-email')?.value.trim()  || '';
-    const enabled   = el('es-email-enabled')?.checked || false;
-    const frequency = el('es-frequency')?.value || 'daily';
-    const time      = el('es-time')?.value || '08:00';
-    const serviceId = el('es-service-id')?.value.trim() || '';
+    // Collect email chips — flush any half-typed address in the input first
+    const wrap      = el('es-email-wrap');
+    const inputEl   = el('es-email-input');
+    if (inputEl && inputEl.value.trim()) {
+      // Trigger the chip-add logic by simulating blur-add
+      const addr = inputEl.value.trim().toLowerCase();
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
+        const chip = document.createElement('span');
+        chip.className = 'ember-email-chip';
+        chip.dataset.email = addr;
+        chip.innerHTML = `${_esc(addr)}<button class="ember-email-chip-del" data-email="${_esc(addr)}">✕</button>`;
+        wrap?.insertBefore(chip, inputEl);
+        inputEl.value = '';
+      }
+    }
+    const emails = wrap
+      ? [...wrap.querySelectorAll('.ember-email-chip')].map(c => c.dataset.email).filter(Boolean)
+      : [];
+
+    const enabled    = el('es-email-enabled')?.checked || false;
+    const frequency  = el('es-frequency')?.value || 'daily';
+    const time       = el('es-time')?.value || '08:00';
+    const serviceId  = el('es-service-id')?.value.trim() || '';
     const templateId = el('es-template-id')?.value.trim() || '';
-    const publicKey = el('es-public-key')?.value.trim() || '';
-    const dailyGoal = parseInt(el('es-daily-goal')?.value || '10', 10);
+    const publicKey  = el('es-public-key')?.value.trim() || '';
+    const dailyGoal  = parseInt(el('es-daily-goal')?.value || '10', 10);
 
     const settings = {
-      email,
+      email:  '',    // legacy field — cleared; emails[] is now canonical
+      emails,
       emailEnabled: enabled,
       emailFrequency: frequency,
       emailTime: time,
