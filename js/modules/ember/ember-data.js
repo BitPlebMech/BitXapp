@@ -2,12 +2,13 @@
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * EMBER / DATA  —  Kindle highlight file parsers
+ * EMBER / DATA  —  Highlight file parsers
  * ═══════════════════════════════════════════════════════════════════
  *
- * Supports two Kindle export formats:
+ * Supports three import formats:
  *   • My Clippings.txt  — the TXT file exported from the Kindle device
  *   • Notebook HTML     — the HTML file exported from the Kindle app / web
+ *   • Ember JSON        — Ember-compatible JSON (e.g. from Python PDF extractor)
  *
  * Also exposes:
  *   • detect(content, filename) — auto-detect format
@@ -18,7 +19,7 @@
  *   [{
  *     title:      string,
  *     author:     string,
- *     format:     'kindle-txt' | 'kindle-html',
+ *     format:     'kindle-txt' | 'kindle-html' | 'pdf' | string,
  *     highlights: [{
  *       text:     string,
  *       chapter:  string | null,
@@ -29,6 +30,13 @@
  *       hash:     string,   ← djb2 hash of text, used for dedup
  *     }]
  *   }]
+ *
+ * JSON import shape (what your Python extractor should output):
+ *   {
+ *     "sources": [{ "title", "author", "format" }],   ← optional
+ *     "highlights": [{ "text", "chapter", "page", "location", "color", "addedAt" }]
+ *   }
+ *   OR the full Ember state export shape (sources[] paired with highlights[]).
  *
  * RULES
  *  • No DOM manipulation — this is a pure data module.
@@ -249,18 +257,140 @@ window.App.Ember.Data = (() => {
     return [{ title, author, format: 'kindle-html', highlights }];
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+     JSON PARSER  —  Ember-compatible JSON (Python PDF extractor et al.)
+     ═══════════════════════════════════════════════════════════════
+
+     Accepts two JSON shapes:
+
+     Shape A — flat list (simplest, recommended for Python extractor):
+       {
+         "title":  "Book Title",       ← optional, defaults to filename
+         "author": "Author Name",      ← optional, defaults to "Unknown"
+         "format": "pdf",              ← optional, defaults to "json"
+         "highlights": [
+           {
+             "text":    "highlight text",   ← required
+             "chapter": "Chapter 1",        ← optional
+             "page":    42,                 ← optional
+             "location": null,              ← optional
+             "color":   null,               ← optional
+             "addedAt": "2025-04-01T..."    ← optional ISO string
+           }
+         ]
+       }
+
+     Shape B — full Ember state export (same structure as Gist file):
+       {
+         "sources":    [{ "title", "author", "format", ... }],
+         "highlights": [{ "text", "chapter", "page", "sourceId", ... }]
+       }
+       In this shape, highlights are grouped back to their source by sourceId.
+
+     In both cases:
+       • Missing hashes are computed from text (same djb2 as other parsers).
+       • Highlights with empty text are skipped.
+       • The result is always an array of source objects (same shape as
+         parseTxt / parseHtml), so the caller (importParsed) is format-agnostic.
+  */
+
+  /**
+   * Parse Ember-compatible JSON content into source objects.
+   * @param {string} content  — raw file text (will be JSON.parsed)
+   * @param {string} filename — original filename (used as title fallback)
+   * @returns {Array} array of source objects, or null on parse failure
+   */
+  function parseJSON(content, filename) {
+    let data;
+    try {
+      data = JSON.parse(content);
+    } catch (e) {
+      return null; // Not valid JSON — caller will show error
+    }
+
+    if (!data || typeof data !== 'object') return null;
+
+    // ── Shape B: full Ember state export (has sources[] + highlights[]) ──
+    if (Array.isArray(data.sources) && Array.isArray(data.highlights)) {
+      // Rebuild per-source highlight lists
+      const sourceMap = {};
+      for (const src of data.sources) {
+        if (!src.id) continue;
+        sourceMap[src.id] = {
+          title:      src.title  || 'Unknown Book',
+          author:     src.author || 'Unknown Author',
+          format:     src.format || 'json',
+          highlights: [],
+        };
+      }
+
+      for (const hl of data.highlights) {
+        if (!hl.text || !hl.text.trim()) continue;
+        const text = hl.text.trim();
+        const bucket = sourceMap[hl.sourceId];
+        if (bucket) {
+          bucket.highlights.push({
+            text,
+            chapter:  hl.chapter  || null,
+            location: hl.location || null,
+            page:     hl.page     || null,
+            color:    hl.color    || null,
+            addedAt:  hl.addedAt  || null,
+            hash:     hl.hash     || _hash(text),
+          });
+        }
+      }
+
+      const result = Object.values(sourceMap).filter(s => s.highlights.length > 0);
+      return result.length > 0 ? result : null;
+    }
+
+    // ── Shape A: flat list — single source with highlights array ────────
+    if (Array.isArray(data.highlights)) {
+      const highlights = [];
+      for (const hl of data.highlights) {
+        if (!hl.text || !hl.text.trim()) continue;
+        const text = hl.text.trim();
+        highlights.push({
+          text,
+          chapter:  hl.chapter  || null,
+          location: hl.location || null,
+          page:     typeof hl.page === 'number' ? hl.page : null,
+          color:    hl.color    || null,
+          addedAt:  hl.addedAt  || null,
+          hash:     hl.hash     || _hash(text),
+        });
+      }
+
+      if (highlights.length === 0) return null;
+
+      // Use title/author from top-level fields, falling back to filename
+      const baseName = (filename || 'Imported Book').replace(/\.json$/i, '');
+      return [{
+        title:      data.title  || baseName,
+        author:     data.author || 'Unknown Author',
+        format:     data.format || 'pdf',
+        highlights,
+      }];
+    }
+
+    return null; // Unrecognised shape
+  }
+
   /* ── Format detection ─────────────────────────────────────────── */
 
   /**
    * Auto-detect format from file extension and/or content.
-   * @returns 'kindle-txt' | 'kindle-html' | null
+   * @returns 'kindle-txt' | 'kindle-html' | 'json' | null
    */
   function detect(content, filename) {
     const ext = (filename || '').split('.').pop().toLowerCase();
-    if (ext === 'txt')              return 'kindle-txt';
+    if (ext === 'json')              return 'json';
+    if (ext === 'txt')               return 'kindle-txt';
     if (ext === 'html' || ext === 'htm') return 'kindle-html';
 
     // Content sniffing fallback
+    if (content.trimStart().startsWith('{') || content.trimStart().startsWith('[')) return 'json';
     if (content.includes('==========') && /Your Highlight/i.test(content)) return 'kindle-txt';
     if (content.includes('bodyContainer') || content.includes('noteHeading'))  return 'kindle-html';
     if (content.includes('My Clippings'))                                      return 'kindle-txt';
@@ -272,12 +402,13 @@ window.App.Ember.Data = (() => {
 
   /**
    * Parse file content into source objects (see module docblock for shape).
-   * Returns null if format cannot be determined.
+   * Returns null if format cannot be determined or parsing yields no highlights.
    */
   function parse(content, filename) {
     const fmt = detect(content, filename);
     if (fmt === 'kindle-txt')  return parseTxt(content);
     if (fmt === 'kindle-html') return parseHtml(content);
+    if (fmt === 'json')        return parseJSON(content, filename);
     return null;
   }
 
@@ -287,7 +418,8 @@ window.App.Ember.Data = (() => {
     parse,
     detect,
     genId,
-    _hash, // exposed for testing
+    parseJSON, // exposed for direct use / testing
+    _hash,     // exposed for testing
   };
 
 })();

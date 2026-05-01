@@ -896,7 +896,26 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* Gist safety note shown in Step 2 preview */
+.ember-import-gist-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
   margin-bottom: 14px;
+  background: rgba(255, 170, 32, 0.07);
+  border: 1px solid rgba(255, 170, 32, 0.22);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--amber, #ffaa20);
+  line-height: 1.5;
+}
+
+.ember-import-gist-note strong {
+  color: var(--amber, #ffaa20);
 }
 
 .ember-preview-new-badge {

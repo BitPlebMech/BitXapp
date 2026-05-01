@@ -935,7 +935,7 @@ window.App.EmberUI = (() => {
 
       if (!parsed || parsed.length === 0 || parsed.every(p => p.highlights.length === 0)) {
         if (errEl) {
-          errEl.textContent = 'Could not parse this file. Please upload a Kindle TXT or HTML Notebook Export.';
+          errEl.textContent = 'Could not parse this file. Please upload a Kindle TXT, Kindle HTML Notebook Export, or an Ember-compatible JSON file.';
           errEl.style.display = '';
         }
         if (dropzone) dropzone.classList.remove('has-file');
@@ -950,6 +950,17 @@ window.App.EmberUI = (() => {
       if (errEl) { errEl.textContent = 'File read error — please try again.'; errEl.style.display = ''; }
     };
     reader.readAsText(file);
+  }
+
+  /** Map internal format identifiers to human-readable labels. */
+  function _fmtLabel(format) {
+    const map = {
+      'kindle-html': 'Kindle HTML',
+      'kindle-txt':  'Kindle TXT',
+      'pdf':         'PDF (JSON)',
+      'json':        'JSON Import',
+    };
+    return map[format] || format || 'Unknown';
   }
 
   function _buildPreview(parsed) {
@@ -970,7 +981,7 @@ window.App.EmberUI = (() => {
           <div class="ember-preview-book">
             <div class="ember-preview-book-title">${_esc(p.title)}</div>
             <div class="ember-preview-book-author">by ${_esc(p.author)}</div>
-            <div class="ember-preview-book-fmt">${p.format === 'kindle-html' ? 'Kindle HTML' : 'Kindle TXT'}</div>
+            <div class="ember-preview-book-fmt">${_fmtLabel(p.format)}</div>
             <div class="ember-preview-book-count">${p.highlights.length} highlights found</div>
           </div>`).join('')}
       </div>
@@ -979,6 +990,14 @@ window.App.EmberUI = (() => {
         <span class="ember-preview-new-badge">${newCount} new</span>
         ${skipCount > 0 ? `<span class="ember-preview-skip-badge">${skipCount} duplicates (will skip)</span>` : ''}
         <span class="ember-preview-cat-badge ${_pendingCategory === 'academic' ? 'academic' : 'general'}">${catLabel}</span>
+      </div>
+
+      <div class="ember-import-gist-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="flex-shrink:0;margin-top:1px">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Import saves to local storage only — press <strong>Gist Save</strong> in the header to sync to cloud.
       </div>
 
       ${samples.length > 0 ? `

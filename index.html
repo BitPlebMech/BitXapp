@@ -1046,14 +1046,15 @@
 
       <div class="ember-dropzone" id="ember-dropzone">
         <div class="ember-dropzone-icon">📄</div>
-        <div class="ember-dropzone-label">Drop your Kindle file here</div>
+        <div class="ember-dropzone-label">Drop your file here</div>
         <div class="ember-dropzone-sub">or click to browse</div>
         <div class="ember-dropzone-name" id="ember-dropzone-name"></div>
       </div>
-      <input type="file" id="ember-file-input" accept=".txt,.html,.htm" style="display:none">
+      <input type="file" id="ember-file-input" accept=".txt,.html,.htm,.json" style="display:none">
       <div class="ember-format-note">
         <strong>Kindle TXT</strong> — <code>My Clippings.txt</code> from your device<br>
-        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website
+        <strong>Kindle HTML</strong> — Notebook Export from the Kindle app or website<br>
+        <strong>JSON</strong> — Ember-compatible JSON (e.g. from your Python PDF extractor)
       </div>
       <div class="ember-parse-error" id="ember-parse-error" style="display:none"></div>
     </div>
