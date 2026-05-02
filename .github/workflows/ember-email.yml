@@ -75,8 +75,13 @@ jobs:
               print('Email automation is disabled in Ember settings — skipping')
               sys.exit(0)
 
-          recipient = settings.get('email', '').strip()
-          if not recipient:
+          # v3.1 fix: canonical recipient list is emails[] (array).
+          # Fall back to legacy single email string for backward compat.
+          # Mirrors the same logic as ember.js sendDailyEmail().
+          recipients = [e.strip() for e in settings.get('emails', []) if e and e.strip()]
+          if not recipients and settings.get('email', '').strip():
+              recipients = [settings['email'].strip()]
+          if not recipients:
               print('::warning::No recipient email configured in Ember settings')
               sys.exit(0)
 
@@ -132,8 +137,8 @@ jobs:
 
           date_str = now_utc.strftime('%A, %B %-d, %Y')
 
+          # to_email is set per-recipient in the send loop below (v3.1 multi-recipient)
           params = {
-              'to_email':         recipient,
               'subject':          f'Ember — {len(chosen)} highlights for {date_str}',
               'date_string':      date_str,
               'highlights_count': str(len(chosen)),
@@ -157,38 +162,48 @@ jobs:
                   params[f'h{i}_color']  = '#cccccc'
                   params[f'h{i}_show']   = 'none'
 
-          # ── 5. Call EmailJS REST API ───────────────────────────────────────────
+          # ── 5. Call EmailJS REST API for each recipient ───────────────────────
           # EmailJS v3 REST endpoint — identical to what the browser SDK calls.
+          # v3.1 fix: loop over recipients[] instead of a single email string.
           service_id  = os.environ['EMAILJS_SERVICE_ID']
           template_id = os.environ['EMAILJS_TEMPLATE_ID']
           public_key  = os.environ['EMAILJS_PUBLIC_KEY']
 
-          payload = json.dumps({
-              'service_id':  service_id,
-              'template_id': template_id,
-              'user_id':     public_key,      # EmailJS v3 field name
-              'accessToken': public_key,      # EmailJS v4 field name (harmless if unused)
-              'template_params': params,
-          }).encode('utf-8')
+          sent = 0
+          failed = 0
+          for recipient in recipients:
+              send_params = {**params, 'to_email': recipient}
+              payload = json.dumps({
+                  'service_id':  service_id,
+                  'template_id': template_id,
+                  'user_id':     public_key,      # EmailJS v3 field name
+                  'accessToken': public_key,      # EmailJS v4 field name (harmless if unused)
+                  'template_params': send_params,
+              }).encode('utf-8')
 
-          ejs_req = urllib.request.Request(
-              'https://api.emailjs.com/api/v1.0/email/send',
-              data=payload,
-              headers={
-                  'Content-Type': 'application/json',
-                  'User-Agent':   'ember-email-action',
-                  'origin':       'https://bitplebmech.github.io/BitXapp/',
-              },
-              method='POST',
-          )
+              ejs_req = urllib.request.Request(
+                  'https://api.emailjs.com/api/v1.0/email/send',
+                  data=payload,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'User-Agent':   'ember-email-action',
+                      'origin':       'https://bitplebmech.github.io/BitXapp/',
+                  },
+                  method='POST',
+              )
 
-          try:
-              with urllib.request.urlopen(ejs_req, timeout=15) as resp:
-                  body = resp.read().decode('utf-8')
-              print(f'✅ Email sent to {recipient} ({len(chosen)} highlights)')
-              print(f'   EmailJS response: {body}')
-          except urllib.error.HTTPError as e:
-              err_body = e.read().decode('utf-8', errors='replace')
-              print(f'::error::EmailJS API error: HTTP {e.code} — {err_body}')
-              sys.exit(1)
+              try:
+                  with urllib.request.urlopen(ejs_req, timeout=15) as resp:
+                      body = resp.read().decode('utf-8')
+                  print(f'✅ Email sent to {recipient} ({len(chosen)} highlights)')
+                  print(f'   EmailJS response: {body}')
+                  sent += 1
+              except urllib.error.HTTPError as e:
+                  err_body = e.read().decode('utf-8', errors='replace')
+                  print(f'::error::EmailJS API error for {recipient}: HTTP {e.code} — {err_body}')
+                  failed += 1
+
+          print(f'Done — {sent} sent, {failed} failed (of {len(recipients)} recipients)')
+          if failed > 0 and sent == 0:
+              sys.exit(1)   # fail the job only if ALL sends failed
           PYEOF
