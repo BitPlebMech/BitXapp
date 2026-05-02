@@ -605,18 +605,74 @@ window.App.Shell = (() => {
     window.App.State.setGistCredentials({ token, id: gistId });
     el('cred-ov')?.classList.remove('open');
 
-    // Load all Gist files silently — no confirm dialog needed, user just signed in
+    // Show mode selection screen
+    showModeSelection();
+  }
+
+  /**
+   * Mode Selection Screen — appears after credentials are saved.
+   * User chooses between "User Mode" (load from Gist) or "Demo Mode" (load from /demo).
+   */
+  function showModeSelection() {
+    el('mode-ov')?.classList.add('open');
+    setTimeout(() => el('mode-user-btn')?.focus(), 80);
+  }
+
+  async function selectUserMode() {
+    el('mode-ov')?.classList.remove('open');
+
+    // Load all Gist files silently
     triggerGistLoadSilent().then(() => {
+      toast('User mode — data loaded from Gist', 'info');
       if (_credCallback) { _credCallback(); _credCallback = null; }
     }).catch(e => {
       toast('Sign-in failed: ' + e.message, 'error');
     });
   }
 
+  async function selectDemoMode() {
+    el('mode-ov')?.classList.remove('open');
+
+    // Load demo data from local /demo directory
+    try {
+      const portfolioRes = await fetch('./demo/portfolio-demo.json');
+      const emberRes = await fetch('./demo/ember-highlights-demo.json');
+
+      let portfolioData = null;
+      let emberData = null;
+
+      if (portfolioRes.ok) {
+        portfolioData = await portfolioRes.json();
+        window.App.State.setPortfolioData(portfolioData);
+      }
+
+      if (emberRes.ok) {
+        emberData = await emberRes.json();
+        window.App.State.setEmberData(emberData);
+      }
+
+      // Clear credentials since we're in demo mode
+      window.App.State.clearGistCredentials();
+
+      // Re-render any already-initialised modules
+      if (window.App.Portfolio?.render)  window.App.Portfolio.render();
+      if (window.App.Habits?.render)    window.App.Habits.render();
+      if (window.App.Ember?.render)     window.App.Ember.render();
+
+      toast('Demo mode — demo files loaded', 'info');
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    } catch (e) {
+      console.error('[Shell] Demo mode error:', e);
+      toast('Demo mode — no demo data files. Starting with empty slate.', 'info');
+      window.App.State.clearGistCredentials();
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    }
+  }
+
   /**
-   * Enter demo mode — clear credentials, reset all modules to their seed/mock
-   * data, close the popup.  Portfolio seed and Habits seed are loaded via the
-   * action registry so Shell does not directly couple to module internals.
+   * Enter demo mode (legacy) — used when user closes credentials popup without signing in.
+   * Uses hardcoded seed data as fallback. Kept for backward compatibility.
+   * The modern flow is: credentials → mode selection → selectDemoMode() (loads from /demo).
    */
   function enterDemoMode() {
     window.App.State.clearGistCredentials();
@@ -747,6 +803,10 @@ window.App.Shell = (() => {
     el('cred-demo-btn')?.addEventListener('click', () => enterDemoMode());
     el('lock-token')?.addEventListener('keydown',   e => { if (e.key === 'Enter') saveCredentials(); });
     el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCredentials(); });
+
+    // Mode selection buttons (shown after credentials are saved)
+    el('mode-user-btn')?.addEventListener('click', () => selectUserMode());
+    el('mode-demo-btn')?.addEventListener('click', () => selectDemoMode());
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */
