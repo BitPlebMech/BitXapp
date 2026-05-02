@@ -141,83 +141,8 @@ window.App.Gist = (() => {
     return clone;
   }
 
-  /* ── Public API (legacy) ──────────────────────────────────────────
-   *
-   * save() and load() are kept here as dead code for backward compatibility.
-   * They are NOT exported — use the module-specific functions above instead.
-   * Removing the bodies would make git blame harder; keeping them documents
-   * the old single-file approach that was replaced by per-module functions.
-   * ─────────────────────────────────────────────────────────────── */
-
-  /**
-   * @deprecated  Use savePortfolioData() instead.
-   * Kept as dead code — not exported.
-   */
-  async function save(payload, token, id) {
-    if (!token) throw new Error('GitHub token is required');
-
-    const safePayload = _scrubToken(payload);
-    const body = {
-      description: 'BiT PleB Dashboard — saved ' + new Date().toISOString(),
-      public: false,
-      files: {
-        [FILENAME]: {
-          content: JSON.stringify({ ...safePayload, _saved: new Date().toISOString() }, null, 2),
-        },
-      },
-    };
-
-    const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
-    const method = id ? 'PATCH' : 'POST';
-
-    const resp = await fetch(url, {
-      method,
-      headers: _headers(token),
-      body: JSON.stringify(body),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    return {
-      id:  data.id,
-      url: data.html_url,
-    };
-  }
-
-  /**
-   * @deprecated  Use loadPortfolioData() or loadAllFiles() instead.
-   * Kept as dead code — not exported.
-   */
-  async function load(token, id) {
-    if (!token) throw new Error('GitHub token is required');
-    if (!id)    throw new Error('Gist ID is required');
-
-    const resp = await fetch(`https://api.github.com/gists/${id}`, {
-      headers: _headers(token),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    const raw  = data.files?.[FILENAME]?.content;
-    if (!raw) throw new Error(`"${FILENAME}" not found in this Gist`);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      throw new Error('Gist file is not valid JSON');
-    }
-
-    return parsed;
-  }
+  // FIX-16: deprecated save() and load() deleted — git history has the bodies.
+  // Use savePortfolioData() / loadPortfolioData() / loadAllFiles() instead.
 
   /**
    * Save Ember-specific data to a dedicated `ember-highlights.json` file
