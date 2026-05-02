@@ -644,20 +644,28 @@ window.App.Shell = (() => {
       if (portfolioRes.ok) {
         portfolioData = await portfolioRes.json();
         window.App.State.setPortfolioData(portfolioData);
+        console.info('[Shell] Portfolio demo data loaded');
+      } else {
+        console.warn('[Shell] Portfolio demo file not found (404)');
       }
 
       if (emberRes.ok) {
         emberData = await emberRes.json();
         window.App.State.setEmberData(emberData);
+        console.info('[Shell] Ember demo data loaded');
+      } else {
+        console.warn('[Shell] Ember demo file not found (404)');
       }
+
+      // Habits: Use dynamic buildSeedData() from habits-data.js
+      // (same as legacy enterDemoMode — habits doesn't have a static JSON file)
+      const habitsSeed = window.App.Habits?.Data?.buildSeedData?.()
+                      || { habits: [], logs: [] };
+      window.App.State.setHabitsData(habitsSeed);
+      console.info('[Shell] Habits demo data generated');
 
       // Clear credentials since we're in demo mode
       window.App.State.clearGistCredentials();
-
-      // Re-render any already-initialised modules
-      if (window.App.Portfolio?.render)  window.App.Portfolio.render();
-      if (window.App.Habits?.render)    window.App.Habits.render();
-      if (window.App.Ember?.render)     window.App.Ember.render();
 
       toast('Demo mode — demo files loaded', 'info');
       if (_credCallback) { _credCallback(); _credCallback = null; }

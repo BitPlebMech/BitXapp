@@ -118,12 +118,24 @@
   "quotes": [],
   "bookmarks": [],
   "settings": {
+    "email": "",
+    "emails": [],
     "emailEnabled": false,
-    "emailFrequency": "daily"
+    "emailFrequency": "daily",
+    "emailTime": "08:00",
+    "emailJSConfig": {
+      "serviceId": "",
+      "templateId": "",
+      "publicKey": ""
+    },
+    "dailyGoal": 10,
+    "lastEmailSentDate": null
   },
   "streak": {
-    "current": 0,
-    "longest": 0,
-    "lastReviewDate": null
+    "currentStreak": 0,
+    "longestStreak": 0,
+    "lastReviewDate": null,
+    "totalReviewDays": 0,
+    "reviewHistory": []
   }
 }

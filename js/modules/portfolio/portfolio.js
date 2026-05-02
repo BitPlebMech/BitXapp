@@ -1282,12 +1282,25 @@ window.App.Portfolio = (() => {
 
   /* ═══════════════════════════════════════════════════════════════
      SAMPLE DATA
-     ═══════════════════════════════════════════════════════════════ */
+     ═══════════════════════════════════════════════════════════════
+
+     V3.1 (Phase 2 refactor): Hardcoded sample data removed.
+     Demo data now stored in /demo/portfolio-demo.json (version-controlled).
+
+     When user enters Demo Mode, App.Shell.selectDemoMode() fetches from
+     /demo directory. When user enters User Mode or closes credentials popup,
+     this module's init() will not call seedSampleData() — data comes from
+     Gist or demo JSON instead.
+
+     seedSampleData() is kept for backward compatibility (legacy Demo button).
+     ═════════════════════════════════════════════════════════════════ */
 
   function seedSampleData() {
     const s = _state();
     if (s.transactions.length > 0) return; // Don't overwrite existing data on normal init
 
+    // Fallback hardcoded seed (used by legacy Demo button in app-shell.js)
+    // For new workflows, data comes from /demo/portfolio-demo.json instead
     s.transactions = [
       { id: generateId(), date:'2022-03-15', ticker:'AAPL', type:'BUY',  qty:10,  price:155.00, fees:1.50, taxes:0,     notes:'Initial position' },
       { id: generateId(), date:'2022-08-10', ticker:'NVDA', type:'BUY',  qty:5,   price:178.00, fees:1.50, taxes:0,     notes:'' },
@@ -1376,7 +1389,16 @@ window.App.Portfolio = (() => {
   }
 
   function init() {
-    seedSampleData();
+    // V3.1: Only seed sample data if no transactions loaded yet.
+    // In modern workflow (Phase 2+), data comes from mode selection:
+    //   - User Mode: Loaded from Gist via App.Shell.selectUserMode()
+    //   - Demo Mode: Loaded from /demo via App.Shell.selectDemoMode()
+    // Legacy path: closing credentials popup without signing in still seeds sample data
+    const currentData = _state();
+    if (!currentData.transactions || currentData.transactions.length === 0) {
+      seedSampleData();
+    }
+
     window.App.Shell.applyTheme();
     syncSettingsUI();
     _syncCurrencyUI();   // Sync saved currency to header dropdown
