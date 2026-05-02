@@ -153,11 +153,15 @@ window.App.State = (() => {
 
         // ── Theme migration (V9 fix) ────────────────────────────────────
         // Theme was previously stored in portfolio.settings.theme.
-        // Canonical location is now _state.app.theme.  If the new location
-        // still has the default value but the portfolio location differs,
-        // migrate it so the user's preference is preserved.
-        if (merged.app?.theme === 'dark' && merged.portfolio?.settings?.theme === 'light') {
-          merged.app.theme = 'light';
+        // Canonical location is now _state.app.theme.
+        // FIX-08: only migrate when the saved data pre-dates the 'app' namespace
+        // (i.e. saved['app'] is absent), so we don't re-run on every load for
+        // users who legitimately have app.theme === 'dark'.
+        // The old condition `merged.app?.theme === 'dark'` was always true for
+        // dark-mode users because DEFAULT_STATE.app.theme is 'dark', causing
+        // the migration to fire on every single page load.
+        if (!saved.app && merged.portfolio?.settings?.theme) {
+          merged.app.theme = merged.portfolio.settings.theme;
         }
         // ─────────────────────────────────────────────────────────────────
 

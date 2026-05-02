@@ -53,6 +53,7 @@ window.App.EmberUI = (() => {
   ];
 
   /* ── UI state ─────────────────────────────────────────────────── */
+  let _listenersAttached      = false;    // FIX-13: guard against double event-listener attachment
   let _activeTab              = 'books';
   let _selectedSourceId       = null;    // which book is open in the detail pane
   let _librarySearch          = '';
@@ -87,9 +88,12 @@ window.App.EmberUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function init() {
-    _bindHeader();
-    _bindImportWizard();
-    _bindDrawer();
+    if (!_listenersAttached) { // FIX-13: idempotent — bind event listeners only once
+      _bindHeader();
+      _bindImportWizard();
+      _bindDrawer();
+      _listenersAttached = true;
+    }
     render();
   }
 
@@ -1676,14 +1680,9 @@ window.App.EmberUI = (() => {
      SHARED HELPERS
      ═══════════════════════════════════════════════════════════════ */
 
-  function _esc(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+  // Delegate to the canonical implementation in App.Utils so both modules
+  // escape identically (including single-quote → &#39; which was missing here).
+  const _esc = (s) => window.App.Utils?.escHtml?.(s) ?? String(s ?? '');
 
   function _spineColor(source) {
     if (source.color) return source.color;
