@@ -1292,9 +1292,13 @@
 <script src="js/modules/habits/habits-ui.js"></script>
 
 <!-- Ember module — sidebar position 2 -->
+<!-- FIX-20: load order corrected to data → logic → UI, matching all other modules. -->
+<!-- ember-ui.js was previously loaded before ember.js (inverted from MODULE_RULES §5). -->
+<!-- Safe to swap because ember-ui.js only calls window.App.Ember.* at event-handler -->
+<!-- time (never at parse time), but correct order prevents future footguns.          -->
 <script src="js/modules/ember/ember-data.js"></script>
-<script src="js/modules/ember/ember-ui.js"></script>
 <script src="js/modules/ember/ember.js"></script>
+<script src="js/modules/ember/ember-ui.js"></script>
 
 <!-- Portfolio module — sidebar position 3 -->
 <script src="js/modules/portfolio/portfolio-data.js"></script>

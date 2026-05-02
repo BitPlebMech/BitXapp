@@ -490,16 +490,15 @@ window.App.Shell = (() => {
     }
 
     // Re-render all loaded modules so their UI reflects the freshly-restored state.
-    // Ember and Habits have explicit render() exports; Portfolio is re-initialised
-    // by deleting it from the _initialised set and re-activating it via switchModule().
+    // FIX-18: use the action registry for all three modules instead of the old
+    // _initialised.delete(activeId) + switchModule(activeId) pattern.
+    // The delete+switchModule approach re-triggered init(), which re-ran
+    // seedSampleData() — a problem when the Gist portfolio is intentionally empty
+    // (new user's first save). runAction('portfolio:render') calls render() directly,
+    // which is all that's needed after _restoreFromGist() has already written state.
     if (window.App.Ember?.render)  window.App.Ember.render();
     if (window.App.Habits?.render) window.App.Habits.render();
-    const activeId = _active;
-    if (activeId && activeId !== 'ember' && activeId !== 'habits') {
-      // Force-re-init so portfolio re-runs seedSampleData guard and re-renders.
-      _initialised.delete(activeId);
-      switchModule(activeId);
-    }
+    runAction('portfolio:render');
 
     window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
   }

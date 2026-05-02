@@ -107,6 +107,12 @@ window.App.Portfolio = (() => {
   // the first is mid-flight (e.g. after Gist load re-inits the module).
   let _refreshInProgress = false;
 
+  // FIX-14: computePositions() memoization — invalidated by any CRUD op or price write.
+  // Saves FIFO + XIRR re-computation on every render() when nothing has changed.
+  let _posCache = null;
+  let _posDirty = true;
+  function _invalidatePositions() { _posDirty = true; }
+
   let histFilter   = 'all';
   let clsFilter    = 'all';
   // confirmCallback removed — confirm dialog state is now owned by App.Shell
@@ -118,7 +124,7 @@ window.App.Portfolio = (() => {
   /* ── State accessors ──────────────────────────────────────────── */
 
   function _state()   { return window.App.State.getPortfolioData(); }
-  function _save(s)   { window.App.State.setPortfolioData(s); }
+  function _save(s)   { _invalidatePositions(); window.App.State.setPortfolioData(s); }
   function _settings(){ return _state().settings; }
 
   /**
@@ -207,6 +213,22 @@ window.App.Portfolio = (() => {
   }
 
   async function fetchFX() {
+    // FIX-15: skip the multi-megabyte bulk fetch if data is less than 24 h old.
+    // fxLastFetch is already persisted in state so the guard survives page reloads.
+    const ONE_DAY_MS = 86_400_000;
+    const cached = _state().fxLastFetch;
+    if (cached && Date.now() - cached < ONE_DAY_MS) {
+      // Re-populate in-memory fxLatest from the already-loaded fxDaily so FX
+      // conversions work without a network round-trip.
+      const s = _state();
+      const latestUSD = Object.keys(s.fxDaily.USD || {}).sort().at(-1);
+      const latestINR = Object.keys(s.fxDaily.INR || {}).sort().at(-1);
+      if (latestUSD) { fxLatest.USD = s.fxDaily.USD[latestUSD]; fxLoaded.USD = true; }
+      if (latestINR) { fxLatest.INR = s.fxDaily.INR[latestINR]; fxLoaded.INR = true; }
+      updateFXUI();
+      return true; // cache hit — no network call needed
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const url   = `https://api.frankfurter.app/2021-01-01..${today}?from=EUR&to=USD,INR`;
     fxDiagnostics.lastAttempt = new Date().toISOString();
@@ -605,6 +627,9 @@ window.App.Portfolio = (() => {
    * @returns {Object.<string, PositionObject>}  keyed by ticker symbol
    */
   function computePositions() {
+    // FIX-14: return cached result when nothing has changed since last computation.
+    if (!_posDirty && _posCache) return _posCache;
+
     const s = _state();
     // CRITICAL: BUY before SELL on same date — prevents FIFO queue going negative
     // when a buy and sell happen on the same day (e.g. same-day flip).
@@ -709,10 +734,15 @@ window.App.Portfolio = (() => {
       };
     }
 
+    _posCache = positions;
+    _posDirty = false;
     return positions;
   }
 
   function computeSummary(positions) {
+    // FIX-17: single-pass — fees/taxes accumulated from pos.txs (already grouped
+    // by ticker in computePositions()) instead of a separate _state().transactions
+    // scan, removing one full O(n) iteration per render.
     let totalValue = 0, totalCost = 0, totalRealized = 0, weightedYears = 0;
     let totalFees = 0, totalTaxes = 0;
     const now = new Date(), byClass = {};
@@ -724,15 +754,16 @@ window.App.Portfolio = (() => {
       for (const lot of pos.openLots) weightedYears += lot.costDisp * yearsHeld(lot.date, now);
       const cls = pos.cls;
       if (!byClass[cls]) byClass[cls] = { fees:0, taxes:0, cost:0, value:0, realized:0 };
-      byClass[cls].cost  += pos.costDisp;
-      byClass[cls].value += pos.value;
+      byClass[cls].cost     += pos.costDisp;
+      byClass[cls].value    += pos.value;
       byClass[cls].realized += pos.realized;
-    }
-    for (const tx of _state().transactions) {
-      const f = +(tx.fees||0), t = +(tx.taxes||0);
-      totalFees  += f; totalTaxes += t;
-      const cls = _state().tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
-      if (byClass[cls]) { byClass[cls].fees = (byClass[cls].fees||0)+f; byClass[cls].taxes = (byClass[cls].taxes||0)+t; }
+      // Accumulate fees/taxes from this position's transaction list (no second loop needed)
+      for (const tx of pos.txs) {
+        const f = +(tx.fees||0), t = +(tx.taxes||0);
+        totalFees  += f; totalTaxes += t;
+        byClass[cls].fees   = (byClass[cls].fees  ||0) + f;
+        byClass[cls].taxes  = (byClass[cls].taxes ||0) + t;
+      }
     }
 
     const unrealized = totalValue - totalCost;
@@ -1271,6 +1302,8 @@ window.App.Portfolio = (() => {
   }
 
   function init() {
+    _invalidatePositions(); // FIX-14: ensure fresh compute after Gist load re-init
+
     // V3.1: Only seed sample data if no transactions loaded yet.
     // In modern workflow (Phase 2+), data comes from mode selection:
     //   - User Mode: Loaded from Gist via App.Shell.selectUserMode()

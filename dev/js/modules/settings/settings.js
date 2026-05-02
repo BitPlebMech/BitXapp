@@ -35,6 +35,9 @@ window.App.Settings = (() => {
 
   function el(id) { return document.getElementById(id); }
 
+  // FIX-19: store the MutationObserver so it can be disconnected if needed.
+  let _activationObserver = null;
+
   /* ── helpers ──────────────────────────────────────────────────── */
 
   function _toast(msg, type = 'info') {
@@ -432,12 +435,18 @@ window.App.Settings = (() => {
   function _observeActivation() {
     const pane = document.getElementById('mod-settings');
     if (!pane) return;
-    const obs = new MutationObserver(() => {
+    // FIX-19: store reference so disconnect() is available for cleanup.
+    if (_activationObserver) { _activationObserver.disconnect(); _activationObserver = null; }
+    _activationObserver = new MutationObserver(() => {
       if (pane.classList.contains('active')) {
         syncUI();   // refresh all fields + lazy-render Ember settings section
       }
     });
-    obs.observe(pane, { attributes: true, attributeFilter: ['class'] });
+    _activationObserver.observe(pane, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  function _disconnectObserver() {
+    if (_activationObserver) { _activationObserver.disconnect(); _activationObserver = null; }
   }
 
   /* ── Register with shell ──────────────────────────────────────── */
@@ -466,6 +475,7 @@ window.App.Settings = (() => {
   return {
     init,
     syncUI,
+    disconnectObserver: _disconnectObserver, // FIX-19: allow cleanup if pane is ever unmounted
   };
 
 })();
