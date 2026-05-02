@@ -677,65 +677,24 @@ window.App.Shell = (() => {
     }
   }
 
-  /**
-   * Enter demo mode (legacy) — used when user closes credentials popup without signing in.
-   * Uses hardcoded seed data as fallback. Kept for backward compatibility.
-   * The modern flow is: credentials → mode selection → selectDemoMode() (loads from /demo).
-   */
-  function enterDemoMode() {
-    window.App.State.clearGistCredentials();
-
-    // Reset each module via the action registry (modules register these in init)
-    runAction('portfolio:clearToSampleData');
-
-    // Habits seed data — habits-data.js (loaded at startup, before any tab visit)
-    // always exposes window.App.Habits.Data.buildSeedData().  Previously this used
-    // runAction('habits:buildSeedData') which is only registered inside habits.js
-    // init(), so it returned undefined if the user had never visited the Habits tab
-    // (the common case in demo mode), leaving Habits empty.
-    // The action registry call is kept as a fallback for future extensibility.
-    const habitsSeed = window.App.Habits?.Data?.buildSeedData?.()
-                    || runAction('habits:buildSeedData')
-                    || { habits: [], logs: [] };
-    window.App.State.setHabitsData(habitsSeed);
-
-    // Ember — no mock data exists; reset to empty (v3.0: include quotes + bookmarks)
-    window.App.State.setEmberData({ sources: [], highlights: [], quotes: [], bookmarks: [] });
-    window.App.State.setEmberSettings(window.App.State.getEmberSettings());
-
-    // Re-render any already-initialised modules
-    if (window.App.Habits?.render)  window.App.Habits.render();
-    if (window.App.Ember?.render)   window.App.Ember.render();
-
-    el('cred-ov')?.classList.remove('open');
-    toast('Demo mode — sample data loaded', 'info');
-    if (_credCallback) { _credCallback(); _credCallback = null; }
-  }
-
   function closeCredentialsPopup() {
     el('cred-ov')?.classList.remove('open');
-    // No credentials entered — fall back to demo/sample data
-    const creds  = window.App.State.getGistCredentials();
-    const hasAuth = (creds.token || '').trim() && (creds.id || '').trim();
-    if (!hasAuth) {
-      runAction('portfolio:clearToSampleData');
-    }
+    // User closed popup without signing in
     if (_credCallback) { _credCallback(); _credCallback = null; }
   }
 
   /**
-   * Sign out — clears credentials, resets to demo/sample data, reopens popup.
+   * Sign out — clears credentials, reopens credentials popup for new sign-in or mode selection.
    */
   function signOut() {
     confirmAction(
       'Sign Out?',
-      'Your credentials and locally-cached data will be cleared. Demo data will be shown until you sign in again. Your GitHub Gist is untouched.',
+      'Your credentials will be cleared. Your GitHub Gist is untouched.',
       '🚪', 'Sign Out',
       () => {
         window.App.State.clearGistCredentials();
-        runAction('portfolio:clearToSampleData');
         openCredentialsPopup(() => {});
-        toast('Signed out — showing demo data', 'info');
+        toast('Signed out', 'info');
       }
     );
   }
@@ -808,7 +767,6 @@ window.App.Shell = (() => {
     el('h-signout-btn')?.addEventListener('click', () => signOut());
     el('theme-toggle')?.addEventListener('click',  () => toggleTheme());
     el('cred-save-btn')?.addEventListener('click', () => saveCredentials());
-    el('cred-demo-btn')?.addEventListener('click', () => enterDemoMode());
     el('lock-token')?.addEventListener('keydown',   e => { if (e.key === 'Enter') saveCredentials(); });
     el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCredentials(); });
 
@@ -841,7 +799,6 @@ window.App.Shell = (() => {
     openCredentialsPopup,
     closeCredentialsPopup,
     saveCredentials,
-    enterDemoMode,
     signOut,
     /** Returns the currently active module id */
     get active() { return _active; },

@@ -1229,23 +1229,6 @@ window.App.Portfolio = (() => {
     );
   }
 
-  /**
-   * Wipe real portfolio data from localStorage and reload sample/demo data.
-   * Called on sign-out so that cached Gist data is not readable without credentials.
-   * GitHub Gist is completely untouched — only the local copy is cleared.
-   */
-  function _clearToSampleData() {
-    const s = _state();
-    s.transactions        = [];
-    s.deletedTransactions = [];
-    s.priceCache          = {};
-    s.tickerMeta          = {};
-    s.lastRefreshTS       = null;
-    _save(s);
-    seedSampleData(); // guard removed: transactions=[] so seed will run
-    render();
-  }
-
   /* ═══════════════════════════════════════════════════════════════
      SETTINGS
      ═══════════════════════════════════════════════════════════════ */
@@ -1421,7 +1404,6 @@ window.App.Portfolio = (() => {
     // can invoke portfolio behaviour without direct module coupling (Rule 3)
     window.App.Shell.registerAction('portfolio:exportCSV',          exportPortfolioCSV);
     window.App.Shell.registerAction('portfolio:undoDelete',         undoDelete);
-    window.App.Shell.registerAction('portfolio:clearToSampleData',  _clearToSampleData);
     window.App.Shell.registerAction('portfolio:render',             render);
 
     // Lock screen is owned by Shell — delegate
