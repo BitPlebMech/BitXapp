@@ -46,6 +46,14 @@ App.Utils.clamp(value, min, max)
 App.Utils.debounce(fn, ms?)
 // @param ms  {number}  delay in ms (default 300)
 // @returns {Function}  debounced version of fn
+
+App.Utils.escHtml(str)
+// HTML-escape a string before injecting into innerHTML.
+// Escapes: & < > " ' → &amp; &lt; &gt; &quot; &#39;
+// Use this on ALL user-supplied strings before innerHTML interpolation.
+// @param str  {string|*}  value to escape (non-strings are coerced via String())
+// @returns    {string}    safe HTML string
+// Example: el.innerHTML = `<span>${App.Utils.escHtml(ticker)}</span>`
 ```
 
 ---
@@ -259,15 +267,30 @@ App.Shell.toast(msg, type?)
 
 App.Shell.confirmAction(title, body, icon, confirmLabel, onConfirm)
 // Show the global confirm dialog.
-// @param onConfirm  {Function}  called if user clicks confirm
+// @param title        {string}    Dialog heading
+// @param body         {string}    Body message (plain text)
+// @param icon         {string}    Emoji or short text icon
+// @param confirmLabel {string}    Confirm button label
+// @param onConfirm    {Function}  called if user clicks confirm
 
-App.Shell.confirmDo()     // Executes the confirm callback and closes dialog
+App.Shell.promptAction(title, icon, defaultValue, confirmLabel, onConfirm)
+// Text-input variant of the confirm dialog. Replaces window.prompt().
+// Injects a styled <input> into #cd-body; onConfirm receives the trimmed value.
+// If the user submits an empty string, onConfirm is NOT called.
+// @param title        {string}    Dialog heading
+// @param icon         {string}    Emoji or short text icon
+// @param defaultValue {string}    Pre-filled input value
+// @param confirmLabel {string}    Confirm button label
+// @param onConfirm    {Function}  called with (trimmedValue: string)
+
+App.Shell.confirmDo()     // Executes the confirm callback (reads prompt input if present) and closes dialog
 App.Shell.confirmCancel() // Closes dialog without executing
 
 App.Shell.applyTheme()    // Re-reads saved theme and applies data-theme attribute
 
 App.Shell.triggerGistSave()
-// Race-condition-safe Gist save for all modules.
+// Race-condition-safe canonical Gist save for ALL modules (portfolio + ember + habits).
+// This is the only legitimate save path — modules must not own their own save functions.
 
 App.Shell.active  // getter — returns currently active module id
 ```
