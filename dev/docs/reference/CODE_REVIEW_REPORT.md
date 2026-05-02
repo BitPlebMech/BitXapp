@@ -365,13 +365,15 @@ Per ARCHITECTURE.md the documented order for ember is `ember-data.js → ember-u
 
 ## 7. Known Past Bugs — Regression Check
 
+_Updated after Phase 1 / 2 / 3 fixes (2026-05-02)._
+
 | Past Bug | Still present? | Notes |
 |----------|---------------|-------|
-| Ember books tab empty after Gist load | ✅ Fixed | `_restoreFromGist()` restores `sources` correctly; legacy recovery logic is in place |
-| Habits data saved in portfolio-data.json | ✅ Fixed | `saveHabitsData()` used throughout |
-| Ember data not loaded on sign-in | ✅ Fixed | `loadAllFiles()` fetches all 3 in one call |
-| Gist save race condition | ⚠️ Partial | Fixed on Shell path; portfolio's own save path has no lock (CRIT-01) |
+| Ember books tab empty after Gist load | ✅ Fixed | `_restoreFromGist()` restores `sources` correctly; legacy recovery logic intact |
+| Habits data saved in portfolio-data.json | ✅ Fixed | `saveHabitsData()` used throughout; verified in habits.js |
+| Ember data not loaded on sign-in | ✅ Fixed | `loadAllFiles()` is the single fetch on both sign-in paths in app-shell.js |
+| Gist save race condition | ✅ Fixed | Portfolio's own `triggerGistSave`/`_performGistSave` deleted (FIX-01/02); Shell's `_gistSaveInProgress` lock is now the only save path |
 | Currency UI not reflecting saved setting | ✅ Fixed | `_syncCurrencyUI()` called in `init()` |
-| Streak off-by-one | ✅ Fixed | `dayOffset = checkedToday ? 0 : 1` verified correct |
-| Undefined render after async load | ✅ Fixed | `render()` called after all state mutations |
-| GitHub token exposed in localStorage | ✅ Fixed | Token scrubbed before every Gist write; `_scrubToken()` verified |
+| Streak off-by-one | ✅ Fixed | `dayOffset = checkedToday ? 0 : 1` verified correct in habits.js |
+| Undefined render after async load | ✅ Fixed | `render()` called after all state mutations; `_save()` also calls `_invalidatePositions()` |
+| GitHub token exposed in localStorage | ✅ Fixed | `_scrubToken()` called before every Gist write in gist.js; verified |
