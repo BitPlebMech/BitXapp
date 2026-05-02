@@ -11,6 +11,10 @@ tmp/
 # Logs
 npm-debug.log*
 
+# tool files
+Tools/
+
+
 # Coverage output
 coverage/
 docs/fixes/PHASE-0-OVERVIEW.md

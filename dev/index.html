@@ -1230,7 +1230,39 @@
     </button>
     <button class="cancel-btn" id="cred-demo-btn"
             style="margin-top:8px;width:100%;justify-content:center">
-      Demo
+      Demo (Legacy)
+    </button>
+  </div>
+</div>
+
+<!-- Mode selection modal — shown after credentials are saved -->
+<div class="cred-ov" id="mode-ov">
+  <div class="cred-box">
+    <div class="cred-icon">🎯</div>
+    <div class="cred-title">Choose Your Mode</div>
+    <div class="cred-msg">
+      Load your personal data from GitHub Gist, or explore with demo files offline.
+    </div>
+    <button class="submit-btn" id="mode-user-btn"
+            style="margin-top:16px;width:100%;justify-content:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"
+           style="width:13px;height:13px">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      User Mode (Gist)
+    </button>
+    <button class="cancel-btn" id="mode-demo-btn"
+            style="margin-top:8px;width:100%;justify-content:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"
+           style="width:13px;height:13px">
+        <circle cx="12" cy="12" r="1"/>
+        <circle cx="12" cy="5" r="1"/>
+        <circle cx="12" cy="19" r="1"/>
+      </svg>
+      Demo Mode (Offline)
     </button>
   </div>
 </div>
