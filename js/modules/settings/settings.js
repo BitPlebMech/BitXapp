@@ -283,7 +283,12 @@ window.App.Settings = (() => {
       '⚠️', 'Reset Everything',
       () => {
         window.App.State.resetAll();
+        // FIX-09: re-render all modules that may be initialised so their UI
+        // reflects the cleared state, not stale pre-reset data.
+        // runAction() is a safe no-op if the module has not been visited yet.
         window.App.Shell.runAction('portfolio:render');
+        window.App.Shell.runAction('ember:render');
+        window.App.Shell.runAction('habits:render');
         syncUI();
         _toast('All data cleared', 'info');
       }

@@ -50,6 +50,7 @@ window.App.PortfolioUI = (() => {
   let _anSortKey = 'value';
   let _anSortAsc = false;
   let _anViewMode = 'asset';
+  let _listenersAttached = false; // FIX-13: guard against double event-listener attachment
 
   /* ── Drawer sort state ────────────────────────────────────────── */
   let _drawerTicker   = null;
@@ -578,8 +579,8 @@ window.App.PortfolioUI = (() => {
             <div style="display:flex;align-items:center;gap:10px">
               <div class="pos-icon" style="background:${color}18;color:${color}">${P().tickerInitials(p.ticker)}</div>
               <div>
-                <div class="pos-name-primary">${p.companyName || P().TICKER_NAMES?.[p.ticker] || p.ticker}</div>
-                <div class="pos-ticker-secondary"><span style="font-family:var(--font-mono)">${p.ticker}</span><span class="cls-badge ${P().CLS_CSS[p.cls]||'cb-stock'}">${p.cls}</span></div>
+                <div class="pos-name-primary">${_esc(p.companyName || P().TICKER_NAMES?.[p.ticker] || p.ticker)}</div>
+                <div class="pos-ticker-secondary"><span style="font-family:var(--font-mono)">${_esc(p.ticker)}</span><span class="cls-badge ${P().CLS_CSS[p.cls]||'cb-stock'}">${_esc(p.cls)}</span></div>
               </div>
             </div>
             <div>
@@ -947,7 +948,7 @@ window.App.PortfolioUI = (() => {
     icon.textContent = P().tickerInitials(ticker);
     icon.style.cssText = `background:${color}20;color:${color};width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:15px;font-weight:800;flex-shrink:0`;
 
-    el('drw-ticker').innerHTML = `${ticker} ${P().clsBadgeHtml(pos.cls)}`;
+    el('drw-ticker').innerHTML = `${_esc(ticker)} ${P().clsBadgeHtml(pos.cls)}`;
     el('drw-full').textContent = (P().TICKER_NAMES[ticker] || ticker) + ' · ' +
       (pos.src === 'av' ? 'Live · Alpha Vantage' : pos.src === 'yahoo' ? 'Live · Yahoo Finance' : pos.src === 'cg' ? 'Live · CoinGecko' : 'Simulated price');
 
@@ -1650,6 +1651,9 @@ window.App.PortfolioUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function setupEventListeners() {
+    if (_listenersAttached) return; // FIX-13: idempotent — safe to call more than once
+    _listenersAttached = true;
+
     // Header
     el('h-refresh')?.addEventListener('click', () => P().refreshPrices(true));
     // V4/V11 fix: wire to Shell's canonical save/load so ALL modules are saved/loaded.

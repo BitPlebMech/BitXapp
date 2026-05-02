@@ -268,7 +268,10 @@ window.App.Habits = (() => {
     if (!creds.id)    { _toast('No Gist ID configured', 'error'); return; }
     try {
       _toast('Loading habits from Gist…', 'info');
-      const parsed = await window.App.Gist.loadHabitsData(creds.token, creds.id);
+      // WARN-02 fix: use loadAllFiles() (single HTTP request) and extract the
+      // habits file instead of calling loadHabitsData() which makes its own
+      // GET /gists/:id — avoids a redundant round-trip to the GitHub API.
+      const { habits: parsed } = await window.App.Gist.loadAllFiles(creds.token, creds.id);
       if (!parsed) { _toast('No habits-data.json found in Gist yet', 'warn'); return; }
       window.App.Shell.confirmAction(
         'Load habits from Gist?',
@@ -365,6 +368,7 @@ window.App.Habits = (() => {
     window.App.Shell.registerAction('habits:exportJSON',     exportJSON);
     window.App.Shell.registerAction('habits:importJSON',     importJSON);
     window.App.Shell.registerAction('habits:buildSeedData', () => HD().buildSeedData());
+    window.App.Shell.registerAction('habits:render',        _render);
 
     _render();
     console.info('[Habits] Module initialised');

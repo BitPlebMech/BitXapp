@@ -1028,7 +1028,10 @@ window.App.Ember = (() => {
     if (!creds.id)    { _toast('No Gist ID configured', 'error'); return; }
     try {
       _toast('Loading Ember data from Gist…', 'info');
-      const parsed = await window.App.Gist.loadEmberData(creds.token, creds.id);
+      // WARN-02 fix: use loadAllFiles() (single HTTP request) and extract the
+      // ember file instead of calling loadEmberData() which makes its own
+      // GET /gists/:id — avoids a redundant round-trip to the GitHub API.
+      const { ember: parsed } = await window.App.Gist.loadAllFiles(creds.token, creds.id);
       if (!parsed) { _toast('No ember-highlights.json found in Gist yet', 'warn'); return; }
 
       const highlights = parsed.highlights || [];

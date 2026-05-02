@@ -103,6 +103,10 @@ window.App.Portfolio = (() => {
   let fxLoaded     = { USD:false, INR:false };
   let fxDiagnostics = { lastAttempt:null, lastSuccess:null, lastError:null, httpStatus:null, errorType:null };
 
+  // FIX-06: lock prevents a second concurrent refreshPrices() from starting while
+  // the first is mid-flight (e.g. after Gist load re-inits the module).
+  let _refreshInProgress = false;
+
   let histFilter   = 'all';
   let clsFilter    = 'all';
   // confirmCallback removed — confirm dialog state is now owned by App.Shell
@@ -384,71 +388,86 @@ window.App.Portfolio = (() => {
   }
 
   async function refreshPrices(force = false) {
+    // FIX-06: lock prevents concurrent refreshes (e.g. from Gist-load re-init firing
+    // a second call while the first is mid-flight with a 13-second AV sleep in progress).
+    if (_refreshInProgress) return;
+    _refreshInProgress = true;
+
     const refreshBtn = el('h-refresh');
     refreshBtn?.classList.add('spin-me');
     setHeaderStatus('load', 'Fetching prices…');
 
-    const s       = _state();
-    const tickers = [...new Set(s.transactions.map(t => t.ticker))];
-    if (!tickers.length) {
-      refreshBtn?.classList.remove('spin-me');
-      setHeaderStatus('live', 'No positions');
-      return;
-    }
+    try {
+      const s       = _state();
+      const tickers = [...new Set(s.transactions.map(t => t.ticker))];
+      if (!tickers.length) {
+        setHeaderStatus('live', 'No positions');
+        return;
+      }
 
-    const stale = tickers.filter(t => force || !isCacheValid(t));
-    if (!stale.length) {
-      refreshBtn?.classList.remove('spin-me');
-      setHeaderStatus('live', 'All prices current');
-      return;
-    }
+      const stale = tickers.filter(t => force || !isCacheValid(t));
+      if (!stale.length) {
+        setHeaderStatus('live', 'All prices current');
+        return;
+      }
 
-    const apiKey    = (_settings().apiKey || '').trim();
-    let liveCount   = 0;
+      const apiKey  = (_settings().apiKey || '').trim();
+      let liveCount = 0;
 
-    // Crypto via CoinGecko
-    const cryptoTickers = stale.filter(t => COINGECKO_IDS[t]);
-    if (cryptoTickers.length) {
-      const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
-      for (const ticker of cryptoTickers) {
-        const price = cgPrices[ticker];
-        s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
+      // Crypto via CoinGecko
+      const cryptoTickers = stale.filter(t => COINGECKO_IDS[t]);
+      if (cryptoTickers.length) {
+        const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
+        for (const ticker of cryptoTickers) {
+          const price = cgPrices[ticker];
+          s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
+          if (price) liveCount++;
+        }
+      }
+
+      // Stocks/ETFs via Yahoo + optional Alpha Vantage.
+      // FIX-06: AV free tier allows ~5 req/min (one per 12 s).  The old code slept 13 s
+      // after every successful AV hit, even when Yahoo was used for subsequent tickers
+      // — causing up to (n-1) × 13 s of unnecessary blocking.
+      // New approach: track how many AV calls have been made and sleep only before the
+      // *next* AV call (not after the current one), and only when AV was actually used.
+      const stockTickers = stale.filter(t => !COINGECKO_IDS[t]);
+      let avCallCount = 0;
+      for (let i = 0; i < stockTickers.length; i++) {
+        const ticker = stockTickers[i];
+        setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${stockTickers.length})…`);
+        let price = null, src = 'sim';
+
+        if (apiKey) {
+          // Rate-limit: sleep 13 s before each AV call after the first one
+          if (avCallCount > 0) await sleep(13000);
+          price = await fetchAlphaVantage(ticker, apiKey);
+          if (price) { src = 'av'; avCallCount++; }
+        }
+        if (!price) {
+          price = await fetchYahoo(ticker);
+          if (price) src = 'yahoo';
+        }
+
+        s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src };
         if (price) liveCount++;
       }
+
+      const total = stale.length;
+      if (liveCount === total)    setHeaderStatus('live', `Live prices · ${total} tickers updated`);
+      else if (liveCount > 0)     setHeaderStatus('live', `${liveCount}/${total} live · ${total - liveCount} simulated`);
+      else                        setHeaderStatus('live', 'All simulated — check internet connection');
+
+      s.lastRefreshTS = Date.now();
+      _save(s);
+      updateFXUI();
+      updateSourceBadge();
+      render();
+      if (activeDrawer) openDrawer(activeDrawer);
+    } finally {
+      refreshBtn?.classList.remove('spin-me');
+      _refreshInProgress = false;
     }
-
-    // Stocks/ETFs via Yahoo + optional AV
-    const stockTickers = stale.filter(t => !COINGECKO_IDS[t]);
-    for (let i = 0; i < stockTickers.length; i++) {
-      const ticker = stockTickers[i];
-      setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${stockTickers.length})…`);
-      let price = null, src = 'sim';
-
-      if (apiKey) {
-        price = await fetchAlphaVantage(ticker, apiKey);
-        if (price) { src = 'av'; if (i < stockTickers.length - 1) await sleep(13000); }
-      }
-      if (!price) {
-        price = await fetchYahoo(ticker);
-        if (price) src = 'yahoo';
-      }
-
-      s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src };
-      if (price) liveCount++;
-    }
-
-    const total = stale.length;
-    if (liveCount === total)    setHeaderStatus('live', `Live prices · ${total} tickers updated`);
-    else if (liveCount > 0)     setHeaderStatus('live', `${liveCount}/${total} live · ${total - liveCount} simulated`);
-    else                        setHeaderStatus('live', 'All simulated — check internet connection');
-
-    s.lastRefreshTS = Date.now();
-    _save(s);
-    updateFXUI();
-    updateSourceBadge();
-    refreshBtn?.classList.remove('spin-me');
-    render();
-    if (activeDrawer) openDrawer(activeDrawer);
   }
 
   function updateSourceBadge() {
@@ -951,18 +970,26 @@ window.App.Portfolio = (() => {
     toast(clean.ticker + ' transaction restored', 'success');
   }
 
+  // FIX-11: replaced browser prompt() with App.Shell.promptAction() — no blocking UI.
   function renameTicker(oldTicker) {
-    const newRaw = prompt(`Rename ticker "${oldTicker}" to:`, oldTicker);
-    if (!newRaw?.trim() || newRaw.trim().toUpperCase() === oldTicker) return;
-    const up = newRaw.trim().toUpperCase();
-    const s  = _state();
-    s.transactions.forEach(t => { if (t.ticker === oldTicker) t.ticker = up; });
-    if (s.priceCache[oldTicker]) { s.priceCache[up] = s.priceCache[oldTicker]; delete s.priceCache[oldTicker]; }
-    if (s.tickerMeta[oldTicker]) { s.tickerMeta[up] = s.tickerMeta[oldTicker]; delete s.tickerMeta[oldTicker]; }
-    if (tickerColorCache[oldTicker]) { tickerColorCache[up] = tickerColorCache[oldTicker]; delete tickerColorCache[oldTicker]; }
-    _save(s);
-    render();
-    toast(`Renamed ${oldTicker} → ${up}`, 'success');
+    window.App.Shell.promptAction(
+      `Rename ticker "${oldTicker}" to:`,
+      '✏️',
+      oldTicker,
+      'Rename',
+      (newRaw) => {
+        const up = newRaw.trim().toUpperCase();
+        if (!up || up === oldTicker) return;
+        const s = _state();
+        s.transactions.forEach(t => { if (t.ticker === oldTicker) t.ticker = up; });
+        if (s.priceCache[oldTicker])    { s.priceCache[up]    = s.priceCache[oldTicker];    delete s.priceCache[oldTicker]; }
+        if (s.tickerMeta[oldTicker])    { s.tickerMeta[up]    = s.tickerMeta[oldTicker];    delete s.tickerMeta[oldTicker]; }
+        if (tickerColorCache[oldTicker]){ tickerColorCache[up] = tickerColorCache[oldTicker]; delete tickerColorCache[oldTicker]; }
+        _save(s);
+        render();
+        toast(`Renamed ${oldTicker} → ${up}`, 'success');
+      }
+    );
   }
 
   function clearPriceCache() {
@@ -1078,140 +1105,12 @@ window.App.Portfolio = (() => {
     });
   }
 
-  function _gistCreds() {
-    // BUG-01 fix: read from the canonical _state.gist namespace, not portfolio.settings
-    const creds = window.App.State.getGistCredentials();
-    return {
-      token: (creds.token || '').trim(),
-      id:    (creds.id    || '').trim(),
-    };
-  }
-
-  async function triggerGistSave(silent = false) {
-    const { token, id } = _gistCreds();
-    if (!token) {
-      if (!silent) toast('Add your GitHub token in Settings → Gist Sync', 'error');
-      return;
-    }
-    if (!id && !silent) {
-      confirmAction(
-        'Create a new Gist?',
-        'No Gist ID set. This creates a brand-new Gist. If you already have one, paste its ID in Settings first.',
-        '☁️', 'Create new Gist',
-        () => _performGistSave(token, id, silent)
-      );
-      return;
-    }
-    _performGistSave(token, id, silent);
-  }
-
-  async function _performGistSave(token, id, silent = false) {
-    if (!silent) setGistStatus('Saving…');
-    try {
-      // Save only portfolio namespace — ember-highlights.json is managed by Ember module
-      const payload = {
-        portfolio: window.App.State.getPortfolioData(),
-        gist:      window.App.State.getGistCredentials(),
-      };
-      const result  = await window.App.Gist.savePortfolioData(payload, token, id);
-
-      if (!id) {
-        // First save — store the new Gist ID in the canonical credential namespace
-        window.App.State.setGistCredentials({ id: result.id });
-        if (el('cfg-gist-id')) el('cfg-gist-id').value = result.id;
-        setGistStatus('Gist created — ID: ' + result.id, true);
-      } else {
-        if (!silent) setGistStatus('Saved · ' + new Date().toLocaleTimeString(), true);
-      }
-
-      // Update last sync timestamp in unified state
-      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
-
-      const dot = el('h-gist-save')?.querySelector('.gist-unsaved-dot');
-      if (dot) dot.style.display = 'none';
-      if (!silent) toast('Saved to GitHub Gist', 'success');
-    } catch (e) {
-      setGistStatus('Save failed: ' + e.message, false);
-      if (!silent) toast('Gist save failed: ' + e.message, 'error');
-    }
-  }
-
-  // V6 fix: renamed to _gistLoad (private). No legitimate external caller remains —
-  // sign-in now uses App.Shell.triggerGistLoad() which restores all three modules.
-  // Keeping it public invited callers who would silently skip habits data.
-  async function _gistLoad() {
-    const { token, id } = _gistCreds();
-    if (!token) { toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
-    if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
-    setGistStatus('Loading…');
-    try {
-      // Load both files in parallel — ember-highlights.json may not exist yet (null = skip)
-      const [parsed, emberParsed] = await Promise.all([
-        window.App.Gist.loadPortfolioData(token, id),
-        window.App.Gist.loadEmberData(token, id).catch(() => null),
-      ]);
-      if (!Array.isArray(parsed.transactions) && !parsed.portfolio?.transactions) {
-        throw new Error('Invalid portfolio format in Gist');
-      }
-      const txCount    = parsed.transactions?.length || parsed.portfolio?.transactions?.length || 0;
-      const hlCount    = emberParsed?.highlights?.length || 0;
-      const emberLabel = hlCount ? ` + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '';
-      confirmAction('Load from Gist?',
-        `Replace current data with ${txCount} transactions${emberLabel} from Gist?`,
-        '☁️', 'Load',
-        () => {
-          // BUG-01/02 fix: read from canonical credential namespace before overwriting state
-          const { token: currentToken, id: currentId } = window.App.State.getGistCredentials();
-
-          // Support both new unified format and old flat format
-          if (parsed.portfolio) {
-            // mergeAll() safely handles future module additions/removals — new modules
-            // not in the Gist get default state; removed modules are silently ignored.
-            window.App.State.mergeAll(parsed);
-            // BUG-02 fix: credentials were scrubbed before saving — restore them now
-            window.App.State.setGistCredentials({ token: currentToken, id: currentId });
-          } else {
-            // Legacy flat format — migrate into portfolio namespace
-            const s = _state();
-            Object.assign(s, parsed);
-            s.settings.gistToken = currentToken;
-            s.settings.gistId    = currentId;
-            _save(s);
-          }
-
-          // Restore Ember data from ember-highlights.json — highlights, sources,
-          // streak, AND settings (email address, EmailJS credentials, toggles).
-          // Settings come from the Gist so they are consistent across browsers/devices.
-          if (emberParsed) {
-            const currentEmber = window.App.State.getEmberData?.() || {};
-            window.App.State.setEmberData?.({
-              ...currentEmber,
-              highlights: emberParsed.highlights || currentEmber.highlights || [],
-              sources:    emberParsed.sources    || currentEmber.sources   || [],
-              // v3.0: restore quotes and bookmarks; fall back to local so pre-v3
-              // Gist files (without these fields) don't wipe existing local entries.
-              quotes:    emberParsed.quotes    || currentEmber.quotes    || [],
-              bookmarks: emberParsed.bookmarks || currentEmber.bookmarks || [],
-            });
-            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
-            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-          }
-
-          render();
-          syncSettingsUI();
-          window.App.Shell.applyTheme();
-          setGistStatus('Loaded · ' + new Date().toLocaleTimeString(), true);
-          const msg = hlCount
-            ? `Loaded from Gist — portfolio + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''} ✓`
-            : 'Portfolio loaded from GitHub Gist ✓';
-          toast(msg, 'success');
-        }
-      );
-    } catch (e) {
-      setGistStatus('Load failed: ' + e.message, false);
-      toast('Gist load failed: ' + e.message, 'error');
-    }
-  }
+  // NOTE: triggerGistSave(), _performGistSave(), _gistLoad(), and _gistCreds() were
+  // removed (CRIT-01 / CRIT-02 fix).  The canonical save path is App.Shell.triggerGistSave()
+  // which saves all three modules atomically with a race-condition lock.  The canonical
+  // load path is App.Shell.triggerGistLoad() which restores all three modules.
+  // Any UI button that previously called App.Portfolio.triggerGistSave() must be
+  // re-wired to App.Shell.triggerGistSave().
 
   function gistClearCredentials() {
     confirmAction(
@@ -1448,9 +1347,8 @@ window.App.Portfolio = (() => {
     undoDelete, renameTicker, clearPriceCache,
     // Export/import
     exportData, exportPortfolioCSV, exportPositionCSV, triggerImport, importData,
-    // Gist
-    // V6 fix: gistLoad removed from exports — it is now _gistLoad() (private).
-    // Use App.Shell.triggerGistLoad() to restore all modules.
+    // Gist — save/load now fully owned by App.Shell (triggerGistSave / triggerGistLoad).
+    // Use App.Shell.triggerGistSave() to save all modules; App.Shell.triggerGistLoad() to restore.
     gistClearCredentials,
     // NOTE: signOut, openCredentialsPopup, saveCredentials, closeCredentialsPopup,
     // enterDemoMode, initLockScreen are now owned by App.Shell (not this module).

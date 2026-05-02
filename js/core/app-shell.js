@@ -264,6 +264,7 @@ window.App.Shell = (() => {
     const cdConfirm = document.getElementById('cd-confirm');
     if (cdIcon)    cdIcon.textContent    = icon || '⚠️';
     if (cdTitle)   cdTitle.textContent   = title;
+    // Reset to plain text (clears any prompt <input> left by promptAction)
     if (cdBody)    cdBody.textContent    = body;
     if (cdConfirm) cdConfirm.textContent = confirmLabel || 'Confirm';
     document.getElementById('confirm-dialog')?.classList.add('open');
@@ -271,8 +272,49 @@ window.App.Shell = (() => {
 
   /** Called when the user clicks the confirm button in the dialog. */
   function confirmDo() {
+    // If there's a prompt input in the dialog, read its value before closing
+    const input = document.querySelector('#cd-body input[data-prompt]');
+    const inputVal = input ? input.value : undefined;
     document.getElementById('confirm-dialog')?.classList.remove('open');
-    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+    if (_confirmCallback) {
+      _confirmCallback(inputVal);
+      _confirmCallback = null;
+    }
+  }
+
+  /**
+   * Prompt the user for a text value using the shared confirm dialog.
+   * FIX-11: replaces browser prompt() calls — same dialog, zero extra markup.
+   *
+   * @param {string}   title        - Dialog heading
+   * @param {string}   icon         - Emoji icon
+   * @param {string}   defaultValue - Pre-filled value in the input
+   * @param {string}   confirmLabel - Confirm button label
+   * @param {Function} onConfirm    - Called with the entered string (or '' if empty)
+   */
+  function promptAction(title, icon, defaultValue, confirmLabel, onConfirm) {
+    const cdBody = document.getElementById('cd-body');
+    // Inject a text input; sanitised default via textContent trick
+    if (cdBody) {
+      const safeDefault = String(defaultValue ?? '').replace(/"/g, '&quot;');
+      cdBody.innerHTML = `<input data-prompt type="text" value="${safeDefault}"
+        style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:1em;margin-top:4px"
+        placeholder="Enter value…">`;
+      // Focus + select so the user can type immediately
+      const inp = cdBody.querySelector('input');
+      requestAnimationFrame(() => { inp?.focus(); inp?.select(); });
+    }
+    _confirmCallback = (val) => {
+      const trimmed = (val ?? '').trim();
+      if (trimmed) onConfirm(trimmed);
+    };
+    const cdIcon    = document.getElementById('cd-icon');
+    const cdTitle   = document.getElementById('cd-title');
+    const cdConfirm = document.getElementById('cd-confirm');
+    if (cdIcon)    cdIcon.textContent    = icon || '✏️';
+    if (cdTitle)   cdTitle.textContent   = title;
+    if (cdConfirm) cdConfirm.textContent = confirmLabel || 'OK';
+    document.getElementById('confirm-dialog')?.classList.add('open');
   }
 
   /** Called when the user clicks cancel or closes the dialog. */
@@ -621,9 +663,10 @@ window.App.Shell = (() => {
   async function selectUserMode() {
     el('mode-ov')?.classList.remove('open');
 
-    // Load all Gist files silently
+    // Load all Gist files silently.
+    // FIX-12: removed duplicate "User mode — data loaded from Gist" toast here;
+    // triggerGistLoadSilent() already shows "Signed in ✓ — …" on success.
     triggerGistLoadSilent().then(() => {
-      toast('User mode — data loaded from Gist', 'info');
       if (_credCallback) { _credCallback(); _credCallback = null; }
     }).catch(e => {
       toast('Sign-in failed: ' + e.message, 'error');
@@ -633,32 +676,43 @@ window.App.Shell = (() => {
   async function selectDemoMode() {
     el('mode-ov')?.classList.remove('open');
 
-    // Load demo data from local /demo directory
+    // Load demo data from local /demo directory.
+    // FIX-05: use deep-merge (mergeAll / setEmberData with spread) instead of
+    // wholesale setPortfolioData() / setEmberData() so partial demo files can
+    // never wipe priceCache, fxDaily, settings, or other namespace fields that
+    // the demo JSON may simply omit.  Each branch validates the shape before writing.
     try {
       const portfolioRes = await fetch('./demo/portfolio-demo.json');
-      const emberRes = await fetch('./demo/ember-highlights-demo.json');
-
-      let portfolioData = null;
-      let emberData = null;
+      const emberRes     = await fetch('./demo/ember-highlights-demo.json');
 
       if (portfolioRes.ok) {
-        portfolioData = await portfolioRes.json();
-        window.App.State.setPortfolioData(portfolioData);
-        console.info('[Shell] Portfolio demo data loaded');
+        const raw = await portfolioRes.json();
+        // Accept either a full portfolio namespace or a wrapped { portfolio: … } object
+        const portfolioData = raw.portfolio || raw;
+        if (!Array.isArray(portfolioData.transactions)) {
+          console.warn('[Shell] portfolio-demo.json missing "transactions" array — skipping portfolio demo load');
+        } else {
+          // Merge into the existing namespace so default fields survive partial demo files
+          const current = window.App.State.getPortfolioData();
+          window.App.State.setPortfolioData({ ...current, ...portfolioData });
+          console.info('[Shell] Portfolio demo data loaded');
+        }
       } else {
         console.warn('[Shell] Portfolio demo file not found (404)');
       }
 
       if (emberRes.ok) {
-        emberData = await emberRes.json();
-        window.App.State.setEmberData(emberData);
+        const emberData = await emberRes.json();
+        // Merge into current ember namespace so streak/settings survive partial demo files
+        const currentEmber = window.App.State.getEmberData();
+        window.App.State.setEmberData({ ...currentEmber, ...emberData });
         console.info('[Shell] Ember demo data loaded');
       } else {
         console.warn('[Shell] Ember demo file not found (404)');
       }
 
       // Habits: Use dynamic buildSeedData() from habits-data.js
-      // (same as legacy enterDemoMode — habits doesn't have a static JSON file)
+      // (habits doesn't have a static JSON demo file)
       const habitsSeed = window.App.Habits?.Data?.buildSeedData?.()
                       || { habits: [], logs: [] };
       window.App.State.setHabitsData(habitsSeed);
@@ -788,6 +842,7 @@ window.App.Shell = (() => {
     // App-level UI services — all modules should call these instead of each other
     toast,
     confirmAction,
+    promptAction,
     confirmDo,
     confirmCancel,
     // App-level Gist sync — works for every module automatically
