@@ -110,6 +110,8 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 | DOM helper | `el(id)` → `document.getElementById(id)` |
 | Toast | `App.Shell.toast(msg, 'success'|'error'|'info'|'warn')` |
 | Confirm dialog | `App.Shell.confirmAction(title, body, icon, btnLabel, fn)` |
+| Text-input prompt | `App.Shell.promptAction(title, icon, default, btnLabel, fn)` — replaces `window.prompt()` |
+| HTML-escape | `App.Utils.escHtml(str)` — always use before `innerHTML` interpolation |
 | Module shorthand | `P()` for Portfolio, `HD()` for Habits.Data |
 | No cross-module calls | Modules never call each other — only `App.State` + `App.Shell` |
 
@@ -157,3 +159,4 @@ Daily Ember highlights email is sent **only** by GitHub Actions cron (`.github/w
 - **Phase 2:** Added Ember module, CSS split, Gist cross-module sync, spaced repetition, daily email
 - **Phase 3–6:** Core utilities (`constants`, `utils`, `formatters`, `pagination`, `filters`), 172-test Vitest suite, per-module Gist save/load buttons, Habits Gist file, books-tab Gist load fix
 - **Phase 7:** Sign-in UX overhaul (Sign In + Demo buttons, silent auto-load), email exclusively via GitHub Actions cron (duplicate email fix)
+- **Code Review Phase 1–3 (May 2026):** 20 fixes — XSS hardening (`escHtml`), duplicate Gist save path removed, `computePositions()` memoized, FX 24h TTL guard, `promptAction()` added to Shell, ember script load order corrected, `_listenersAttached` guards, single-pass `computeSummary()`, MutationObserver stored, doc sync protocol established

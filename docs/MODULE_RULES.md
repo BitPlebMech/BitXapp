@@ -105,9 +105,9 @@ Group A — pure utilities (no deps):
 Group B — infrastructure:
   state.js → gist.js → app-shell.js
 
-Group C — modules (each group: data file → business logic → UI):
+Group C — modules (each group: data → logic → UI — always this order):
   habits-data.js → habits.js → habits-ui.js
-  ember-data.js  → ember-ui.js → ember.js
+  ember-data.js  → ember.js  → ember-ui.js
   portfolio-data.js → portfolio.js → portfolio-ui.js
   settings.js   ← always last (depends on all modules being registered)
 
@@ -146,6 +146,7 @@ The following are **app-wide** and must live in `app-shell.js`, never inside any
 | Global topbar buttons (`h-signout-btn`, `theme-toggle`, `cred-save-btn`, `cred-demo-btn`) | Wired in `Shell._wireGlobalTopbar()` | `portfolio-ui.js` |
 | Toast | `App.Shell.toast()` | any module (modules have thin wrappers that delegate here) |
 | Confirm dialog | `App.Shell.confirmAction()` | any module |
+| Text-input prompt | `App.Shell.promptAction()` | any module — replaces `window.prompt()` |
 
 **Test:** If you remove `portfolio.js` from `index.html`, the sign-in popup, theme toggle, and sign-out button must still work. If they don't, you've put app-level logic in a module.
 
@@ -156,11 +157,15 @@ The following are **app-wide** and must live in `app-shell.js`, never inside any
 | Mistake | Consequence | Rule |
 |---------|-------------|------|
 | Storing new module data in `portfolio` namespace | Data lost or corrupt on save | Rule 1 |
-| Using `App.Gist.save()` (the old generic function) instead of `saveXxxData()` | Overwrites `portfolio-data.json` with wrong data | Rule 2 |
+| Using `App.Gist.save()` (deleted generic function) instead of `saveXxxData()` | Runtime error — function no longer exists | Rule 2 |
 | Restoring only `highlights` from Gist, forgetting `sources` | Books tab empty after load | Rule 2 |
 | Calling `window.App.Portfolio.toast()` from another module | Hard dependency, breaks isolation | Rule 3 |
 | Calling `localStorage.getItem()` directly in a module | Bypasses state layer, migration won't run | Rule 1 |
 | Loading scripts out of order | Silent failures — module calls function that isn't defined yet | Rule 5 |
+| Loading ember-ui.js before ember.js | Works today (event-handler-time only calls) but is a future footgun | Rule 5 |
 | Putting `initLockScreen()` / `signOut()` / `applyTheme()` inside a module | App breaks if that module is removed; Rule 7 violation | Rule 7 |
 | Wiring `h-signout-btn` or `theme-toggle` in a module-ui file | Button silently does nothing until that module is visited | Rule 7 |
 | Calling `window.App.Portfolio.exportCSV()` from `settings.js` | Direct cross-module coupling; use action registry | Rule 3 |
+| Using `window.prompt()` in a module | Synchronous, blocks JS, unstyled, broken in some webviews | Rule 7 |
+| Writing a module-owned `triggerGistSave()` with no lock | Race condition; only saves that module's file, silently loses others | Rule 2, 7 |
+| Not calling `_invalidatePositions()` after mutating portfolio state externally | `computePositions()` returns stale cache | Rule 1 |

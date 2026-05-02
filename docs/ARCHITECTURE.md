@@ -1,6 +1,6 @@
 # BiT PleB Dashboard — Architecture Guide
 
-**Last updated:** April 2026 | **Codebase:** ~14,000 LOC | **Grade: A**
+**Last updated:** May 2026 | **Codebase:** ~14,500 LOC | **Grade: A**
 
 ---
 
@@ -25,7 +25,7 @@ Browser
               │     └── app-shell.js  ← Module registry + routing + shell UI
               └── modules/
                     ├── habits/       habits-data · habits · habits-ui
-                    ├── ember/        ember-data · ember-ui · ember
+                    ├── ember/        ember-data · ember · ember-ui
                     ├── portfolio/    portfolio-data · portfolio · portfolio-ui
                     └── settings/     settings
 ```
@@ -91,8 +91,8 @@ Scripts must load in this exact order — each file depends on everything above 
 12. habits-ui.js      — DOM rendering, called by habits.js
 
 13. ember-data.js     — Kindle/book parsers for ember.js
-14. ember-ui.js       — DOM rendering, called by ember.js
-15. ember.js          — business logic, calls App.Shell.registerModule()
+14. ember.js          — business logic, calls App.Shell.registerModule()
+15. ember-ui.js       — DOM rendering, called by ember.js
 
 16. portfolio-data.js — CSV parser, called by portfolio.js
 17. portfolio.js      — business logic (FIFO, XIRR, CAGR), registerModule()
@@ -182,18 +182,24 @@ State is **not** reactive — modules must call `render()` after mutations. Ther
 ## Gist Sync Architecture
 
 ```
-triggerGistSave()  (app-shell.js or portfolio.js)
+triggerGistSave()  (app-shell.js — the ONLY save path)
     │
-    ├── _gistSaveInProgress check   ← race-condition lock (Phase 1 fix)
+    ├── _gistSaveInProgress check   ← race-condition lock
     ├── check creds → toast if missing
     │
     └── _doGistSave(token, id)
           ├── portfolioPayload = { portfolio: App.State.getPortfolioData(), gist: creds }
           ├── emberPayload     = { highlights, settings, streak }
+          ├── habitsPayload    = { habits, logs }
           ├── App.Gist.savePortfolioData(portfolioPayload, token, id) → POST/PATCH
           ├── App.Gist.saveEmberData(emberPayload, token, id)         → PATCH
+          ├── App.Gist.saveHabitsData(habitsPayload, token, id)       → PATCH
           └── App.State.setGistCredentials({ lastSync: now })
 ```
+
+> **Rule:** `portfolio.js` must never own a save path. All save/load is Shell-owned.
+> Portfolio's old `triggerGistSave()` / `_performGistSave()` were deleted (had no lock,
+> only saved 1 of 3 files). Any button that saves to Gist calls `App.Shell.triggerGistSave()`.
 
 **Three Gist files per Gist:**
 
@@ -313,6 +319,14 @@ Transactions are sorted by date ascending, with BUY before SELL on the same date
 ```
 
 This ensures same-day BUY/SELL pairs are matched correctly (buy first, then sell from the new lot).
+
+### `computePositions()` memoization (portfolio.js)
+
+`computePositions()` is O(n × m) — FIFO lot matching + Newton-Raphson XIRR runs for every position. Results are cached in `_posCache` and only recomputed when `_posDirty = true`. The dirty flag is set by `_save()` (called by every mutation) and by `init()` (after Gist load). On a typical render with no state change, the function returns the cached object in O(1).
+
+**Invalidation:** `_save()` → `_invalidatePositions()` → `_posDirty = true`. Never manually set `_posCache = null` from outside — always go through `_save()`.
+
+---
 
 ### XIRR (portfolio.js — `calcXIRR`)
 
