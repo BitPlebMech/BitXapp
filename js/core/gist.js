@@ -18,8 +18,7 @@
  *
  * DESIGN RATIONALE
  *   Keeping Gist logic here (not in portfolio.js) means every future
- *   module (habits, financecalc, …) gets sync capability for free —
- *   just call App.Gist.save() with the full state payload.
+ *   module gets sync capability for free — just add a save/load pair here.
  *   No code duplication, no cross-module imports.
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -27,6 +26,8 @@ window.App = window.App || {};
 
 window.App.Gist = (() => {
 
+  // One Gist, three files.  Each module owns its own filename — no cross-module
+  // collisions even if two modules save simultaneously to the same Gist.
   const FILENAME        = 'portfolio-data.json';
   const EMBER_FILENAME  = 'ember-highlights.json';
   const HABITS_FILENAME = 'habits-data.json';
@@ -140,86 +141,8 @@ window.App.Gist = (() => {
     return clone;
   }
 
-  /* ── Public API ───────────────────────────────────────────────── */
-
-  /**
-   * Save a JSON payload to a GitHub Gist.
-   *
-   * @param {object} payload  - The data to persist (full App.State.getAll() recommended)
-   * @param {string} token    - GitHub Personal Access Token (gist scope)
-   * @param {string} [id]     - Existing Gist ID to update; omit to create a new Gist
-   * @returns {Promise<{ id: string, url: string }>}
-   * @throws {Error} on network failure or bad credentials
-   */
-  async function save(payload, token, id) {
-    if (!token) throw new Error('GitHub token is required');
-
-    const safePayload = _scrubToken(payload);
-    const body = {
-      description: 'BiT PleB Dashboard — saved ' + new Date().toISOString(),
-      public: false,
-      files: {
-        [FILENAME]: {
-          content: JSON.stringify({ ...safePayload, _saved: new Date().toISOString() }, null, 2),
-        },
-      },
-    };
-
-    const url    = id ? `https://api.github.com/gists/${id}` : 'https://api.github.com/gists';
-    const method = id ? 'PATCH' : 'POST';
-
-    const resp = await fetch(url, {
-      method,
-      headers: _headers(token),
-      body: JSON.stringify(body),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    return {
-      id:  data.id,
-      url: data.html_url,
-    };
-  }
-
-  /**
-   * Load a JSON payload from a GitHub Gist.
-   *
-   * @param {string} token - GitHub Personal Access Token
-   * @param {string} id    - Gist ID to load from
-   * @returns {Promise<object>} Parsed JSON payload
-   * @throws {Error} if Gist not found, file missing, or JSON invalid
-   */
-  async function load(token, id) {
-    if (!token) throw new Error('GitHub token is required');
-    if (!id)    throw new Error('Gist ID is required');
-
-    const resp = await fetch(`https://api.github.com/gists/${id}`, {
-      headers: _headers(token),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    const raw  = data.files?.[FILENAME]?.content;
-    if (!raw) throw new Error(`"${FILENAME}" not found in this Gist`);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      throw new Error('Gist file is not valid JSON');
-    }
-
-    return parsed;
-  }
+  // FIX-16: deprecated save() and load() deleted — git history has the bodies.
+  // Use savePortfolioData() / loadPortfolioData() / loadAllFiles() instead.
 
   /**
    * Save Ember-specific data to a dedicated `ember-highlights.json` file
@@ -236,10 +159,12 @@ window.App.Gist = (() => {
     const payload = {
       sources:    emberData.sources    || [],   // ← books; was missing, caused empty Books tab
       highlights: emberData.highlights || [],
+      quotes:     emberData.quotes     || [],   // v3.0: manually added quotes
+      bookmarks:  emberData.bookmarks  || [],   // v3.0: saved articles + videos
       settings:   emberData.settings   || {},
       streak:     emberData.streak     || {},
       metadata: {
-        version:  '2.1',
+        version:  '3.0',
         lastSync: new Date().toISOString(),
       },
     };
@@ -384,13 +309,72 @@ window.App.Gist = (() => {
     }
   }
 
+  /* ── Unified loader — single Gist fetch, all files extracted ──── */
+
+  /**
+   * Fetch the Gist ONCE and extract all module files.
+   * Returns { portfolio, ember, habits } where each value is:
+   *   - parsed JSON object if the file exists
+   *   - null if the file doesn't exist yet (first save)
+   *
+   * This replaces calling loadPortfolioData + loadEmberData + loadHabitsData
+   * in parallel (which made 3 identical HTTP requests).
+   *
+   * @param {string} token - GitHub PAT
+   * @param {string} id    - Gist ID
+   * @returns {Promise<{ portfolio: object, ember: object|null, habits: object|null }>}
+   */
+  async function loadAllFiles(token, id) {
+    if (!token) throw new Error('GitHub token is required');
+    if (!id)    throw new Error('Gist ID is required');
+
+    const resp = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: _headers(token),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+
+    // Extract portfolio (required — throws if missing)
+    const portfolioRaw = data.files?.[FILENAME]?.content;
+    if (!portfolioRaw) throw new Error(`"${FILENAME}" not found in this Gist`);
+    let portfolio;
+    try { portfolio = JSON.parse(portfolioRaw); }
+    catch { throw new Error('portfolio-data.json is not valid JSON'); }
+
+    // Extract ember (optional — null if not present yet)
+    // v3.0: ember payload now includes quotes[] and bookmarks[] alongside
+    // existing sources[], highlights[], settings{}, streak{}.
+    // Callers that merge via App.State.mergeAll() get new fields for free.
+    let ember = null;
+    const emberRaw = data.files?.[EMBER_FILENAME]?.content;
+    if (emberRaw) {
+      try { ember = JSON.parse(emberRaw); }
+      catch { throw new Error('ember-highlights.json is not valid JSON'); }
+    }
+
+    // Extract habits (optional — null if not present yet)
+    let habits = null;
+    const habitsRaw = data.files?.[HABITS_FILENAME]?.content;
+    if (habitsRaw) {
+      try { habits = JSON.parse(habitsRaw); }
+      catch { throw new Error('habits-data.json is not valid JSON'); }
+    }
+
+    return { portfolio, ember, habits };
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
   return {
-    save, load,
     savePortfolioData, loadPortfolioData,
     saveEmberData,     loadEmberData,
     saveHabitsData,    loadHabitsData,
+    loadAllFiles,
   };
 
 })();

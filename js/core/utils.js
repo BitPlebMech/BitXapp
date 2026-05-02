@@ -75,7 +75,26 @@ window.App.Utils = (function () {
     };
   }
 
+  /* ── escHtml ────────────────────────────────────────────────────
+   * Escape HTML special characters to prevent XSS when inserting
+   * into innerHTML.  Use this whenever user-controlled text (notes,
+   * names, imported data) goes into a template literal that will be
+   * assigned to innerHTML.
+   *
+   * @param {*} str - value to escape (null/undefined return '')
+   * @returns {string} escaped string safe for HTML insertion
+   * ─────────────────────────────────────────────────────────────── */
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   /* ── Public API ─────────────────────────────────────────────── */
-  return Object.freeze({ trySafe, generateId, clamp, debounce });
+  return Object.freeze({ trySafe, generateId, clamp, debounce, escHtml });
 
 }());

@@ -1,6 +1,19 @@
 'use strict';
 
 /**
+ * MODULE RULES — read docs/MODULE_RULES.md before editing
+ *
+ * 1. State: read/write ONLY your own namespace via App.State.getXxxData() / setXxxData()
+ * 2. Gist:  use your own file via App.Gist.saveXxxData() — never the generic save()
+ * 3. Isolation: never call another module directly — use App.State (data) or App.Shell (UI)
+ * 4. Shell: app-level concerns (theme, toast, confirm, sign-in) belong to App.Shell
+ * 5. Actions: register callable actions with App.Shell.registerAction('mod:action', fn)
+ * 6. Render: export a public render() so Shell can re-render after Gist load
+ * 7. Save button: wire header Gist Save to App.Shell.triggerGistSave(), not module save
+ * 8. No localStorage: only js/core/state.js touches localStorage directly
+ */
+
+/**
  * ═══════════════════════════════════════════════════════════════════
  * PORTFOLIO MODULE  —  Business logic, calculations, price engine
  * ═══════════════════════════════════════════════════════════════════
@@ -90,19 +103,28 @@ window.App.Portfolio = (() => {
   let fxLoaded     = { USD:false, INR:false };
   let fxDiagnostics = { lastAttempt:null, lastSuccess:null, lastError:null, httpStatus:null, errorType:null };
 
+  // FIX-06: lock prevents a second concurrent refreshPrices() from starting while
+  // the first is mid-flight (e.g. after Gist load re-inits the module).
+  let _refreshInProgress = false;
+
+  // FIX-14: computePositions() memoization — invalidated by any CRUD op or price write.
+  // Saves FIFO + XIRR re-computation on every render() when nothing has changed.
+  let _posCache = null;
+  let _posDirty = true;
+  function _invalidatePositions() { _posDirty = true; }
+
   let histFilter   = 'all';
   let clsFilter    = 'all';
   // confirmCallback removed — confirm dialog state is now owned by App.Shell
   let activeDrawer = null;
   let modalType    = 'BUY';
   let _idMode      = 'ticker';
-  let _credCallback = null;
   const tickerColorCache = {};
 
   /* ── State accessors ──────────────────────────────────────────── */
 
   function _state()   { return window.App.State.getPortfolioData(); }
-  function _save(s)   { window.App.State.setPortfolioData(s); }
+  function _save(s)   { _invalidatePositions(); window.App.State.setPortfolioData(s); }
   function _settings(){ return _state().settings; }
 
   /**
@@ -191,6 +213,22 @@ window.App.Portfolio = (() => {
   }
 
   async function fetchFX() {
+    // FIX-15: skip the multi-megabyte bulk fetch if data is less than 24 h old.
+    // fxLastFetch is already persisted in state so the guard survives page reloads.
+    const ONE_DAY_MS = 86_400_000;
+    const cached = _state().fxLastFetch;
+    if (cached && Date.now() - cached < ONE_DAY_MS) {
+      // Re-populate in-memory fxLatest from the already-loaded fxDaily so FX
+      // conversions work without a network round-trip.
+      const s = _state();
+      const latestUSD = Object.keys(s.fxDaily.USD || {}).sort().at(-1);
+      const latestINR = Object.keys(s.fxDaily.INR || {}).sort().at(-1);
+      if (latestUSD) { fxLatest.USD = s.fxDaily.USD[latestUSD]; fxLoaded.USD = true; }
+      if (latestINR) { fxLatest.INR = s.fxDaily.INR[latestINR]; fxLoaded.INR = true; }
+      updateFXUI();
+      return true; // cache hit — no network call needed
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const url   = `https://api.frankfurter.app/2021-01-01..${today}?from=EUR&to=USD,INR`;
     fxDiagnostics.lastAttempt = new Date().toISOString();
@@ -305,11 +343,17 @@ window.App.Portfolio = (() => {
      PRICE ENGINE
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * Generate a stable mock price for tickers without live data.
+   * The price is deterministic per (ticker, calendar-day) so the portfolio
+   * totals do not flutter on every render.  The ±4% daily jitter makes the
+   * UI feel realistic during demos without introducing meaningful daily swings.
+   */
   function getMockPrice(ticker) {
     const base = MOCK_PRICES_USD[ticker] || 50;
     const seed = ticker.split('').reduce((acc, ch, i) => acc + ch.charCodeAt(0) * (i + 3), 0);
-    const dayOffset = Math.floor(Date.now() / 86400000) % 97;
-    const pctChange = ((seed * 7919 + dayOffset * 1013) % 800 - 400) / 10000;
+    const dayOffset = Math.floor(Date.now() / 86400000) % 97;  // advances once per day
+    const pctChange = ((seed * 7919 + dayOffset * 1013) % 800 - 400) / 10000;  // -4% to +4%
     return +(base * (1 + pctChange)).toFixed(4);
   }
 
@@ -366,71 +410,86 @@ window.App.Portfolio = (() => {
   }
 
   async function refreshPrices(force = false) {
+    // FIX-06: lock prevents concurrent refreshes (e.g. from Gist-load re-init firing
+    // a second call while the first is mid-flight with a 13-second AV sleep in progress).
+    if (_refreshInProgress) return;
+    _refreshInProgress = true;
+
     const refreshBtn = el('h-refresh');
     refreshBtn?.classList.add('spin-me');
     setHeaderStatus('load', 'Fetching prices…');
 
-    const s       = _state();
-    const tickers = [...new Set(s.transactions.map(t => t.ticker))];
-    if (!tickers.length) {
-      refreshBtn?.classList.remove('spin-me');
-      setHeaderStatus('live', 'No positions');
-      return;
-    }
+    try {
+      const s       = _state();
+      const tickers = [...new Set(s.transactions.map(t => t.ticker))];
+      if (!tickers.length) {
+        setHeaderStatus('live', 'No positions');
+        return;
+      }
 
-    const stale = tickers.filter(t => force || !isCacheValid(t));
-    if (!stale.length) {
-      refreshBtn?.classList.remove('spin-me');
-      setHeaderStatus('live', 'All prices current');
-      return;
-    }
+      const stale = tickers.filter(t => force || !isCacheValid(t));
+      if (!stale.length) {
+        setHeaderStatus('live', 'All prices current');
+        return;
+      }
 
-    const apiKey    = (_settings().apiKey || '').trim();
-    let liveCount   = 0;
+      const apiKey  = (_settings().apiKey || '').trim();
+      let liveCount = 0;
 
-    // Crypto via CoinGecko
-    const cryptoTickers = stale.filter(t => COINGECKO_IDS[t]);
-    if (cryptoTickers.length) {
-      const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
-      for (const ticker of cryptoTickers) {
-        const price = cgPrices[ticker];
-        s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
+      // Crypto via CoinGecko
+      const cryptoTickers = stale.filter(t => COINGECKO_IDS[t]);
+      if (cryptoTickers.length) {
+        const cgPrices = await fetchCoinGeckoBatch(cryptoTickers);
+        for (const ticker of cryptoTickers) {
+          const price = cgPrices[ticker];
+          s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src: price ? 'cg' : 'sim' };
+          if (price) liveCount++;
+        }
+      }
+
+      // Stocks/ETFs via Yahoo + optional Alpha Vantage.
+      // FIX-06: AV free tier allows ~5 req/min (one per 12 s).  The old code slept 13 s
+      // after every successful AV hit, even when Yahoo was used for subsequent tickers
+      // — causing up to (n-1) × 13 s of unnecessary blocking.
+      // New approach: track how many AV calls have been made and sleep only before the
+      // *next* AV call (not after the current one), and only when AV was actually used.
+      const stockTickers = stale.filter(t => !COINGECKO_IDS[t]);
+      let avCallCount = 0;
+      for (let i = 0; i < stockTickers.length; i++) {
+        const ticker = stockTickers[i];
+        setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${stockTickers.length})…`);
+        let price = null, src = 'sim';
+
+        if (apiKey) {
+          // Rate-limit: sleep 13 s before each AV call after the first one
+          if (avCallCount > 0) await sleep(13000);
+          price = await fetchAlphaVantage(ticker, apiKey);
+          if (price) { src = 'av'; avCallCount++; }
+        }
+        if (!price) {
+          price = await fetchYahoo(ticker);
+          if (price) src = 'yahoo';
+        }
+
+        s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src };
         if (price) liveCount++;
       }
+
+      const total = stale.length;
+      if (liveCount === total)    setHeaderStatus('live', `Live prices · ${total} tickers updated`);
+      else if (liveCount > 0)     setHeaderStatus('live', `${liveCount}/${total} live · ${total - liveCount} simulated`);
+      else                        setHeaderStatus('live', 'All simulated — check internet connection');
+
+      s.lastRefreshTS = Date.now();
+      _save(s);
+      updateFXUI();
+      updateSourceBadge();
+      render();
+      if (activeDrawer) openDrawer(activeDrawer);
+    } finally {
+      refreshBtn?.classList.remove('spin-me');
+      _refreshInProgress = false;
     }
-
-    // Stocks/ETFs via Yahoo + optional AV
-    const stockTickers = stale.filter(t => !COINGECKO_IDS[t]);
-    for (let i = 0; i < stockTickers.length; i++) {
-      const ticker = stockTickers[i];
-      setHeaderStatus('load', `Fetching ${ticker} (${i + 1}/${stockTickers.length})…`);
-      let price = null, src = 'sim';
-
-      if (apiKey) {
-        price = await fetchAlphaVantage(ticker, apiKey);
-        if (price) { src = 'av'; if (i < stockTickers.length - 1) await sleep(13000); }
-      }
-      if (!price) {
-        price = await fetchYahoo(ticker);
-        if (price) src = 'yahoo';
-      }
-
-      s.priceCache[ticker] = { price: price ? usdToEur(price) : getMockPrice(ticker), ts: Date.now(), src };
-      if (price) liveCount++;
-    }
-
-    const total = stale.length;
-    if (liveCount === total)    setHeaderStatus('live', `Live prices · ${total} tickers updated`);
-    else if (liveCount > 0)     setHeaderStatus('live', `${liveCount}/${total} live · ${total - liveCount} simulated`);
-    else                        setHeaderStatus('live', 'All simulated — check internet connection');
-
-    s.lastRefreshTS = Date.now();
-    _save(s);
-    updateFXUI();
-    updateSourceBadge();
-    refreshBtn?.classList.remove('spin-me');
-    render();
-    if (activeDrawer) openDrawer(activeDrawer);
   }
 
   function updateSourceBadge() {
@@ -449,8 +508,24 @@ window.App.Portfolio = (() => {
      XIRR
      ═══════════════════════════════════════════════════════════════ */
 
+  /**
+   * XIRR via Newton-Raphson iteration.
+   *
+   * XIRR solves for the annualised internal rate of return r such that:
+   *   Σ CF[j] / (1 + r)^t[j]  =  0
+   * where t[j] is the time from the first cashflow in fractional years.
+   *
+   * Multiple seed points are tried because Newton-Raphson can converge to the
+   * wrong root or diverge if the initial guess is too far from the solution.
+   * Returns the first rate > -1 that converges; returns null if none do.
+   *
+   * @param {number[]} cashflows  - Negative for outflows (BUY), positive for inflows (SELL/current value)
+   * @param {Date[]}   dates      - Corresponding dates, same length as cashflows
+   * @returns {number|null}       - Annualised return as a percentage, or null if inconclusive
+   */
   function calcXIRR(cashflows, dates) {
     if (cashflows.length < 2) return null;
+    // XIRR is undefined without at least one inflow and one outflow.
     if (!cashflows.some(c => c < 0) || !cashflows.some(c => c > 0)) return null;
 
     const baseTime = dates[0].getTime();
@@ -462,14 +537,15 @@ window.App.Portfolio = (() => {
       for (let iter = 0; iter < MAX_ITER; iter++) {
         let npv = 0, dnpv = 0;
         for (let j = 0; j < cashflows.length; j++) {
+          // t[j]=0 means same-day cashflow — just add directly (avoids 0-division)
           if (years[j] === 0) { npv += cashflows[j]; continue; }
           const df = Math.pow(1 + rate, years[j]);
           npv  +=  cashflows[j] / df;
           dnpv -= years[j] * cashflows[j] / ((1 + rate) * df);
         }
-        if (Math.abs(dnpv) < 1e-14) break;
+        if (Math.abs(dnpv) < 1e-14) break;      // Flat derivative — cannot step
         const next = rate - npv / dnpv;
-        if (!isFinite(next) || Math.abs(next) > 1000) break;
+        if (!isFinite(next) || Math.abs(next) > 1000) break;  // Diverged
         if (Math.abs(next - rate) < EPSILON) { converged = true; rate = next; break; }
         rate = next;
       }
@@ -478,6 +554,12 @@ window.App.Portfolio = (() => {
     return null;
   }
 
+  /**
+   * Convert transactions into the signed cashflow arrays XIRR expects.
+   * BUY:  cash leaves the portfolio → negative cashflow (cost + fees)
+   * SELL: cash enters the portfolio → positive cashflow (proceeds − fees)
+   * Mid-day timestamp (T12:00:00) avoids DST edge-cases on boundary dates.
+   */
   function buildCashflows(txs) {
     const cashflows = [], dates = [];
     for (const tx of txs) {
@@ -531,9 +613,26 @@ window.App.Portfolio = (() => {
     return 'Stock';
   }
 
+  /**
+   * Core calculation engine — builds per-ticker position data from raw transactions.
+   *
+   * Algorithm:
+   *   1. Sort transactions chronologically; BUY before SELL on same date (FIFO safety).
+   *   2. For each ticker, walk transactions in order:
+   *        BUY  → push a lot onto the FIFO queue (price includes per-share fee allocation)
+   *        SELL → pop lots from the front of the queue, accumulate realised gain
+   *   3. Sum remaining open lots for unrealised P&L and current market value.
+   *   4. Compute CAGR (weighted by cost), XIRR (Newton-Raphson), and effectiveBuyAvg.
+   *
+   * @returns {Object.<string, PositionObject>}  keyed by ticker symbol
+   */
   function computePositions() {
+    // FIX-14: return cached result when nothing has changed since last computation.
+    if (!_posDirty && _posCache) return _posCache;
+
     const s = _state();
-    // CRITICAL: BUY before SELL on same date — prevents overselling in FIFO
+    // CRITICAL: BUY before SELL on same date — prevents FIFO queue going negative
+    // when a buy and sell happen on the same day (e.g. same-day flip).
     const sorted = [...s.transactions].sort((a, b) => {
       const d = a.date.localeCompare(b.date);
       if (d !== 0) return d;
@@ -601,8 +700,13 @@ window.App.Portfolio = (() => {
       const unrealized  = marketValue - totalCostD;
       const avgHoldYears = totalCostD > 0 ? weightedYears / totalCostD : 0;
 
-      // Effective Buy Average = (all cash invested − all sale proceeds) / remaining shares
-      // Correctly surfaces hidden realized losses from tax-loss harvesting
+      // Effective Buy Average (EBA):
+      //   = (total cash paid for all BUYs − total cash received from all SELLs)
+      //     / remaining open shares
+      //
+      // Unlike Open Lots Average (which only looks at remaining lots), EBA
+      // reflects the full trading history and surfaces the true per-share cost
+      // even after partial sells, tax-loss harvesting, or round-trips.
       const effectiveBuyAvg = totalShares > 0 ? (totalInvested - totalProceeds) / totalShares : 0;
 
       positions[ticker] = {
@@ -630,10 +734,15 @@ window.App.Portfolio = (() => {
       };
     }
 
+    _posCache = positions;
+    _posDirty = false;
     return positions;
   }
 
   function computeSummary(positions) {
+    // FIX-17: single-pass — fees/taxes accumulated from pos.txs (already grouped
+    // by ticker in computePositions()) instead of a separate _state().transactions
+    // scan, removing one full O(n) iteration per render.
     let totalValue = 0, totalCost = 0, totalRealized = 0, weightedYears = 0;
     let totalFees = 0, totalTaxes = 0;
     const now = new Date(), byClass = {};
@@ -645,15 +754,16 @@ window.App.Portfolio = (() => {
       for (const lot of pos.openLots) weightedYears += lot.costDisp * yearsHeld(lot.date, now);
       const cls = pos.cls;
       if (!byClass[cls]) byClass[cls] = { fees:0, taxes:0, cost:0, value:0, realized:0 };
-      byClass[cls].cost  += pos.costDisp;
-      byClass[cls].value += pos.value;
+      byClass[cls].cost     += pos.costDisp;
+      byClass[cls].value    += pos.value;
       byClass[cls].realized += pos.realized;
-    }
-    for (const tx of _state().transactions) {
-      const f = +(tx.fees||0), t = +(tx.taxes||0);
-      totalFees  += f; totalTaxes += t;
-      const cls = _state().tickerMeta[tx.ticker]?.cls || guessClass(tx.ticker);
-      if (byClass[cls]) { byClass[cls].fees = (byClass[cls].fees||0)+f; byClass[cls].taxes = (byClass[cls].taxes||0)+t; }
+      // Accumulate fees/taxes from this position's transaction list (no second loop needed)
+      for (const tx of pos.txs) {
+        const f = +(tx.fees||0), t = +(tx.taxes||0);
+        totalFees  += f; totalTaxes += t;
+        byClass[cls].fees   = (byClass[cls].fees  ||0) + f;
+        byClass[cls].taxes  = (byClass[cls].taxes ||0) + t;
+      }
     }
 
     const unrealized = totalValue - totalCost;
@@ -891,18 +1001,26 @@ window.App.Portfolio = (() => {
     toast(clean.ticker + ' transaction restored', 'success');
   }
 
+  // FIX-11: replaced browser prompt() with App.Shell.promptAction() — no blocking UI.
   function renameTicker(oldTicker) {
-    const newRaw = prompt(`Rename ticker "${oldTicker}" to:`, oldTicker);
-    if (!newRaw?.trim() || newRaw.trim().toUpperCase() === oldTicker) return;
-    const up = newRaw.trim().toUpperCase();
-    const s  = _state();
-    s.transactions.forEach(t => { if (t.ticker === oldTicker) t.ticker = up; });
-    if (s.priceCache[oldTicker]) { s.priceCache[up] = s.priceCache[oldTicker]; delete s.priceCache[oldTicker]; }
-    if (s.tickerMeta[oldTicker]) { s.tickerMeta[up] = s.tickerMeta[oldTicker]; delete s.tickerMeta[oldTicker]; }
-    if (tickerColorCache[oldTicker]) { tickerColorCache[up] = tickerColorCache[oldTicker]; delete tickerColorCache[oldTicker]; }
-    _save(s);
-    render();
-    toast(`Renamed ${oldTicker} → ${up}`, 'success');
+    window.App.Shell.promptAction(
+      `Rename ticker "${oldTicker}" to:`,
+      '✏️',
+      oldTicker,
+      'Rename',
+      (newRaw) => {
+        const up = newRaw.trim().toUpperCase();
+        if (!up || up === oldTicker) return;
+        const s = _state();
+        s.transactions.forEach(t => { if (t.ticker === oldTicker) t.ticker = up; });
+        if (s.priceCache[oldTicker])    { s.priceCache[up]    = s.priceCache[oldTicker];    delete s.priceCache[oldTicker]; }
+        if (s.tickerMeta[oldTicker])    { s.tickerMeta[up]    = s.tickerMeta[oldTicker];    delete s.tickerMeta[oldTicker]; }
+        if (tickerColorCache[oldTicker]){ tickerColorCache[up] = tickerColorCache[oldTicker]; delete tickerColorCache[oldTicker]; }
+        _save(s);
+        render();
+        toast(`Renamed ${oldTicker} → ${up}`, 'success');
+      }
+    );
   }
 
   function clearPriceCache() {
@@ -980,15 +1098,19 @@ window.App.Portfolio = (() => {
           `Replace current data with ${parsed.transactions.length} transactions from file?`,
           '📂', 'Import',
           () => {
+            // Preserve canonical credentials before overwriting state
+            const savedCreds = window.App.State.getGistCredentials();
             const s = _state();
-            const token = s.settings.gistToken, id = s.settings.gistId;
             Object.assign(s, parsed);
-            s.settings.gistToken = token;
-            s.settings.gistId    = id;
+            // Wipe any credentials from the imported file (security)
+            s.settings.gistToken = '';
+            s.settings.gistId    = '';
             _save(s);
+            // Restore the user's own credentials
+            window.App.State.setGistCredentials(savedCreds);
             render();
             syncSettingsUI();
-            applyTheme();
+            window.App.Shell.applyTheme();
             toast('Portfolio imported', 'success');
           }
         );
@@ -1014,136 +1136,12 @@ window.App.Portfolio = (() => {
     });
   }
 
-  function _gistCreds() {
-    // BUG-01 fix: read from the canonical _state.gist namespace, not portfolio.settings
-    const creds = window.App.State.getGistCredentials();
-    return {
-      token: (creds.token || '').trim(),
-      id:    (creds.id    || '').trim(),
-    };
-  }
-
-  async function triggerGistSave(silent = false) {
-    const { token, id } = _gistCreds();
-    if (!token) {
-      if (!silent) toast('Add your GitHub token in Settings → Gist Sync', 'error');
-      return;
-    }
-    if (!id && !silent) {
-      confirmAction(
-        'Create a new Gist?',
-        'No Gist ID set. This creates a brand-new Gist. If you already have one, paste its ID in Settings first.',
-        '☁️', 'Create new Gist',
-        () => _performGistSave(token, id, silent)
-      );
-      return;
-    }
-    _performGistSave(token, id, silent);
-  }
-
-  async function _performGistSave(token, id, silent = false) {
-    if (!silent) setGistStatus('Saving…');
-    try {
-      // Save only portfolio namespace — ember-highlights.json is managed by Ember module
-      const payload = {
-        portfolio: window.App.State.getPortfolioData(),
-        gist:      window.App.State.getGistCredentials(),
-      };
-      const result  = await window.App.Gist.savePortfolioData(payload, token, id);
-
-      if (!id) {
-        // First save — store the new Gist ID in the canonical credential namespace
-        window.App.State.setGistCredentials({ id: result.id });
-        if (el('cfg-gist-id')) el('cfg-gist-id').value = result.id;
-        setGistStatus('Gist created — ID: ' + result.id, true);
-      } else {
-        if (!silent) setGistStatus('Saved · ' + new Date().toLocaleTimeString(), true);
-      }
-
-      // Update last sync timestamp in unified state
-      window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
-
-      const dot = el('h-gist-save')?.querySelector('.gist-unsaved-dot');
-      if (dot) dot.style.display = 'none';
-      if (!silent) toast('Saved to GitHub Gist', 'success');
-    } catch (e) {
-      setGistStatus('Save failed: ' + e.message, false);
-      if (!silent) toast('Gist save failed: ' + e.message, 'error');
-    }
-  }
-
-  // V6 fix: renamed to _gistLoad (private). No legitimate external caller remains —
-  // sign-in now uses App.Shell.triggerGistLoad() which restores all three modules.
-  // Keeping it public invited callers who would silently skip habits data.
-  async function _gistLoad() {
-    const { token, id } = _gistCreds();
-    if (!token) { toast('Add your GitHub token in Settings → Gist Sync', 'error'); return; }
-    if (!id)    { toast('Enter a Gist ID to load from', 'error'); return; }
-    setGistStatus('Loading…');
-    try {
-      // Load both files in parallel — ember-highlights.json may not exist yet (null = skip)
-      const [parsed, emberParsed] = await Promise.all([
-        window.App.Gist.loadPortfolioData(token, id),
-        window.App.Gist.loadEmberData(token, id).catch(() => null),
-      ]);
-      if (!Array.isArray(parsed.transactions) && !parsed.portfolio?.transactions) {
-        throw new Error('Invalid portfolio format in Gist');
-      }
-      const txCount    = parsed.transactions?.length || parsed.portfolio?.transactions?.length || 0;
-      const hlCount    = emberParsed?.highlights?.length || 0;
-      const emberLabel = hlCount ? ` + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '';
-      confirmAction('Load from Gist?',
-        `Replace current data with ${txCount} transactions${emberLabel} from Gist?`,
-        '☁️', 'Load',
-        () => {
-          // BUG-01/02 fix: read from canonical credential namespace before overwriting state
-          const { token: currentToken, id: currentId } = window.App.State.getGistCredentials();
-
-          // Support both new unified format and old flat format
-          if (parsed.portfolio) {
-            // mergeAll() safely handles future module additions/removals — new modules
-            // not in the Gist get default state; removed modules are silently ignored.
-            window.App.State.mergeAll(parsed);
-            // BUG-02 fix: credentials were scrubbed before saving — restore them now
-            window.App.State.setGistCredentials({ token: currentToken, id: currentId });
-          } else {
-            // Legacy flat format — migrate into portfolio namespace
-            const s = _state();
-            Object.assign(s, parsed);
-            s.settings.gistToken = currentToken;
-            s.settings.gistId    = currentId;
-            _save(s);
-          }
-
-          // Restore Ember data from ember-highlights.json — highlights, sources,
-          // streak, AND settings (email address, EmailJS credentials, toggles).
-          // Settings come from the Gist so they are consistent across browsers/devices.
-          if (emberParsed) {
-            const currentEmber = window.App.State.getEmberData?.() || {};
-            window.App.State.setEmberData?.({
-              ...currentEmber,
-              highlights: emberParsed.highlights || currentEmber.highlights || [],
-              sources:    emberParsed.sources    || currentEmber.sources   || [],
-            });
-            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
-            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-          }
-
-          render();
-          syncSettingsUI();
-          applyTheme();
-          setGistStatus('Loaded · ' + new Date().toLocaleTimeString(), true);
-          const msg = hlCount
-            ? `Loaded from Gist — portfolio + ${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''} ✓`
-            : 'Portfolio loaded from GitHub Gist ✓';
-          toast(msg, 'success');
-        }
-      );
-    } catch (e) {
-      setGistStatus('Load failed: ' + e.message, false);
-      toast('Gist load failed: ' + e.message, 'error');
-    }
-  }
+  // NOTE: triggerGistSave(), _performGistSave(), _gistLoad(), and _gistCreds() were
+  // removed (CRIT-01 / CRIT-02 fix).  The canonical save path is App.Shell.triggerGistSave()
+  // which saves all three modules atomically with a race-condition lock.  The canonical
+  // load path is App.Shell.triggerGistLoad() which restores all three modules.
+  // Any UI button that previously called App.Portfolio.triggerGistSave() must be
+  // re-wired to App.Shell.triggerGistSave().
 
   function gistClearCredentials() {
     confirmAction(
@@ -1159,99 +1157,6 @@ window.App.Portfolio = (() => {
         toast('Gist credentials cleared', 'info');
       }
     );
-  }
-
-  /**
-   * Wipe real portfolio data from localStorage and reload sample/demo data.
-   * Called on sign-out so that cached Gist data is not readable without credentials.
-   * GitHub Gist is completely untouched — only the local copy is cleared.
-   */
-  function _clearToSampleData() {
-    const s = _state();
-    s.transactions        = [];
-    s.deletedTransactions = [];
-    s.priceCache          = {};
-    s.tickerMeta          = {};
-    s.lastRefreshTS       = null;
-    _save(s);
-    seedSampleData(); // guard removed: transactions=[] so seed will run
-    render();
-  }
-
-  /**
-   * Sign out of Gist — clears credentials AND wipes the locally-cached real
-   * portfolio data, then loads demo/sample data.
-   * This ensures that without a token + Gist ID the real portfolio is never
-   * visible, which matters on public hosting (e.g. GitHub Pages).
-   * GitHub Gist is completely untouched.
-   */
-  function signOut() {
-    confirmAction(
-      'Sign Out?',
-      'Your credentials and locally-cached portfolio data will be cleared. Demo data will be shown until you sign in again. Your GitHub Gist is untouched.',
-      '🚪', 'Sign Out',
-      () => {
-        window.App.State.clearGistCredentials();
-        _clearToSampleData();
-        openCredentialsPopup(() => {});
-        toast('Signed out — showing demo data', 'info');
-      }
-    );
-  }
-
-  /* ═══════════════════════════════════════════════════════════════
-     CREDENTIALS / LOCK SCREEN
-     ═══════════════════════════════════════════════════════════════ */
-
-  function initLockScreen() {
-    // BUG-01 fix: read from canonical credential namespace
-    const creds = window.App.State.getGistCredentials();
-    if (!(creds.token||'').trim() || !(creds.id||'').trim()) {
-      openCredentialsPopup(() => {});
-    }
-  }
-
-  function openCredentialsPopup(callback) {
-    _credCallback = callback;
-    if (el('lock-token'))   el('lock-token').value   = '';
-    if (el('lock-gist-id')) el('lock-gist-id').value = '';
-    if (el('cred-hint'))    { el('cred-hint').textContent = ''; el('cred-hint').style.color = 'var(--muted)'; }
-    el('cred-ov')?.classList.add('open');
-    setTimeout(() => el('lock-token')?.focus(), 80);
-  }
-
-  function saveCredentials() {
-    const token  = (el('lock-token')?.value   || '').trim();
-    const gistId = (el('lock-gist-id')?.value || '').trim();
-    const hint   = el('cred-hint');
-    if (!token)  { if (hint) { hint.textContent = 'GitHub token is required'; hint.style.color = 'var(--red)'; } return; }
-    if (!gistId) { if (hint) { hint.textContent = 'Gist ID is required'; hint.style.color = 'var(--red)'; } return; }
-
-    // BUG-01 fix: write to canonical credential namespace
-    window.App.State.setGistCredentials({ token, id: gistId });
-    el('cred-ov')?.classList.remove('open');
-
-    // Offer to load from Gist — use Shell's canonical loader so ALL modules
-    // (portfolio, ember settings, habits) are restored in one shot.
-    // _gistLoad() is private and portfolio-only — never call it from here.
-    confirmAction(
-      'Load from Gist?',
-      'Load your saved portfolio from GitHub Gist, or cancel to browse with demo data. You can load from Gist anytime via Refresh.',
-      '☁️', 'Load from Gist',
-      () => { window.App.Shell.triggerGistLoad().then(() => { if (_credCallback) _credCallback(); }); }
-    );
-  }
-
-  function closeCredentialsPopup() {
-    el('cred-ov')?.classList.remove('open');
-    // If skipped with no credentials, ensure only demo data is visible.
-    // This is the privacy guarantee: real Gist data requires a valid token + ID.
-    const creds = window.App.State.getGistCredentials();
-    const hasAuth = (creds.token || '').trim() && (creds.id || '').trim();
-    if (!hasAuth) {
-      _clearToSampleData();
-    }
-    if (_credCallback) { _credCallback(); _credCallback = null; }
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -1285,30 +1190,30 @@ window.App.Portfolio = (() => {
     toast('Settings saved', 'success');
   }
 
-  function applyTheme() {
-    const theme = _settings().theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    // Sun shown in dark mode (click → go light); Moon shown in light mode (click → go dark)
-    const sun  = el('theme-icon-sun');
-    const moon = el('theme-icon-moon');
-    if (sun)  sun.style.display  = theme === 'dark'  ? '' : 'none';
-    if (moon) moon.style.display = theme === 'light' ? '' : 'none';
-  }
-
-  function toggleTheme() {
-    // V3 fix: delegate to Shell which now owns the state write and applyTheme call.
-    // applyTheme() is called after so the local icon state (sun/moon) stays in sync.
-    window.App.Shell.toggleTheme();
-  }
+  // applyTheme and toggleTheme removed — Shell owns both (Rule 4).
+  // All callers within this module use window.App.Shell.applyTheme() directly.
 
   /* ═══════════════════════════════════════════════════════════════
      SAMPLE DATA
-     ═══════════════════════════════════════════════════════════════ */
+     ═══════════════════════════════════════════════════════════════
+
+     V3.1 (Phase 2 refactor): Hardcoded sample data removed.
+     Demo data now stored in /demo/portfolio-demo.json (version-controlled).
+
+     When user enters Demo Mode, App.Shell.selectDemoMode() fetches from
+     /demo directory. When user enters User Mode or closes credentials popup,
+     this module's init() will not call seedSampleData() — data comes from
+     Gist or demo JSON instead.
+
+     seedSampleData() is kept for backward compatibility (legacy Demo button).
+     ═════════════════════════════════════════════════════════════════ */
 
   function seedSampleData() {
     const s = _state();
     if (s.transactions.length > 0) return; // Don't overwrite existing data on normal init
 
+    // Fallback hardcoded seed (used by legacy Demo button in app-shell.js)
+    // For new workflows, data comes from /demo/portfolio-demo.json instead
     s.transactions = [
       { id: generateId(), date:'2022-03-15', ticker:'AAPL', type:'BUY',  qty:10,  price:155.00, fees:1.50, taxes:0,     notes:'Initial position' },
       { id: generateId(), date:'2022-08-10', ticker:'NVDA', type:'BUY',  qty:5,   price:178.00, fees:1.50, taxes:0,     notes:'' },
@@ -1397,8 +1302,19 @@ window.App.Portfolio = (() => {
   }
 
   function init() {
-    seedSampleData();
-    applyTheme();
+    _invalidatePositions(); // FIX-14: ensure fresh compute after Gist load re-init
+
+    // V3.1: Only seed sample data if no transactions loaded yet.
+    // In modern workflow (Phase 2+), data comes from mode selection:
+    //   - User Mode: Loaded from Gist via App.Shell.selectUserMode()
+    //   - Demo Mode: Loaded from /demo via App.Shell.selectDemoMode()
+    // Legacy path: closing credentials popup without signing in still seeds sample data
+    const currentData = _state();
+    if (!currentData.transactions || currentData.transactions.length === 0) {
+      seedSampleData();
+    }
+
+    window.App.Shell.applyTheme();
     syncSettingsUI();
     _syncCurrencyUI();   // Sync saved currency to header dropdown
     updateStorageStatus();
@@ -1416,8 +1332,14 @@ window.App.Portfolio = (() => {
     fetchFX();
     refreshPrices();
 
-    // Show credentials popup if Gist token/ID are missing
-    initLockScreen();
+    // Register Shell actions so settings.js and other app-level code
+    // can invoke portfolio behaviour without direct module coupling (Rule 3)
+    window.App.Shell.registerAction('portfolio:exportCSV',          exportPortfolioCSV);
+    window.App.Shell.registerAction('portfolio:undoDelete',         undoDelete);
+    window.App.Shell.registerAction('portfolio:render',             render);
+
+    // Lock screen is owned by Shell — delegate
+    window.App.Shell.initLockScreen();
 
     console.info('[Portfolio] Module initialised');
   }
@@ -1427,7 +1349,7 @@ window.App.Portfolio = (() => {
   window.App.Shell?.registerModule({
     id: 'portfolio',
     label: 'Portfolio',
-    icon: `<svg viewBox="0 0 264 264" fill="none" stroke="#00C3AF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28" shape-rendering="geometricPrecision"><rect x="32" y="40" width="200" height="184" rx="36"/><path d="M78 170v-40"/><path d="M118 170v-70"/><path d="M158 170v-55"/><path d="M198 170v-85"/></svg>`,
+    icon: `<svg viewBox="0 0 264 264" fill="none" stroke="#02ffc4" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" width="28" height="28" shape-rendering="geometricPrecision"><rect x="32" y="40" width="200" height="184" rx="36"/><path d="M78 170v-40"/><path d="M118 170v-70"/><path d="M158 170v-55"/><path d="M198 170v-85"/></svg>`,
     init,
   });
 
@@ -1458,14 +1380,13 @@ window.App.Portfolio = (() => {
     undoDelete, renameTicker, clearPriceCache,
     // Export/import
     exportData, exportPortfolioCSV, exportPositionCSV, triggerImport, importData,
-    // Gist
-    // V6 fix: gistLoad removed from exports — it is now _gistLoad() (private).
-    // Use App.Shell.triggerGistLoad() to restore all modules.
-    triggerGistSave, gistClearCredentials, signOut,
-    // Credentials
-    openCredentialsPopup, saveCredentials, closeCredentialsPopup,
-    // Settings
-    syncSettingsUI, applySettings, applyTheme, toggleTheme,
+    // Gist — save/load now fully owned by App.Shell (triggerGistSave / triggerGistLoad).
+    // Use App.Shell.triggerGistSave() to save all modules; App.Shell.triggerGistLoad() to restore.
+    gistClearCredentials,
+    // NOTE: signOut, openCredentialsPopup, saveCredentials, closeCredentialsPopup,
+    // enterDemoMode, initLockScreen are now owned by App.Shell (not this module).
+    // Settings (applyTheme/toggleTheme removed — use App.Shell.applyTheme/toggleTheme)
+    syncSettingsUI, applySettings,
     // UI helpers
     toast, confirmAction, confirmDo, confirmCancel, setHeaderStatus,
     setGistStatus, updateFXUI, updateStorageStatus, updateGistSaveIndicator, updateSourceBadge,

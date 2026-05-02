@@ -27,6 +27,22 @@ window.App.PortfolioUI = (() => {
   /* ── Aliases ──────────────────────────────────────────────────── */
   const P  = () => window.App.Portfolio;      // Business logic
   const PD = () => window.App.Portfolio.Data; // CSV data helpers
+  const _esc = (s) => window.App.Utils?.escHtml?.(s) ?? String(s ?? '');
+
+  /**
+   * Sanitise a ticker before embedding it inside an onclick="..." attribute.
+   * Valid ticker symbols only ever contain A-Z, 0-9, dot, or hyphen.
+   * Any other character (quotes, parens, semicolons, …) is stripped so that
+   * a malicious CSV-imported ticker cannot break out of the attribute context
+   * and inject arbitrary JS (stored-XSS defence-in-depth).
+   *
+   * @param {string} t - raw ticker string
+   * @returns {string} - safe ticker (empty string if input is not a string)
+   */
+  function _safeTicker(t) {
+    if (typeof t !== 'string') return '';
+    return t.replace(/[^A-Z0-9.\-]/gi, '');
+  }
 
   function el(id) { return document.getElementById(id); }
 
@@ -34,6 +50,7 @@ window.App.PortfolioUI = (() => {
   let _anSortKey = 'value';
   let _anSortAsc = false;
   let _anViewMode = 'asset';
+  let _listenersAttached = false; // FIX-13: guard against double event-listener attachment
 
   /* ── Drawer sort state ────────────────────────────────────────── */
   let _drawerTicker   = null;
@@ -229,7 +246,7 @@ window.App.PortfolioUI = (() => {
         const x3 = cx + innerR * Math.cos(ea), y3 = cy + innerR * Math.sin(ea);
         const x4 = cx + innerR * Math.cos(sa), y4 = cy + innerR * Math.sin(sa);
         const la = sweep > Math.PI ? 1 : 0;
-        const click = slice.ticker ? `onclick="App.Portfolio.openDrawer('${slice.ticker}')"` : '';
+        const click = slice.ticker ? `onclick="App.Portfolio.openDrawer('${_safeTicker(slice.ticker)}')"` : '';
         paths += `<path d="M${x1} ${y1} A${outerR} ${outerR} 0 ${la} 1 ${x2} ${y2} L${x3} ${y3} A${innerR} ${innerR} 0 ${la} 0 ${x4} ${y4}Z"
           fill="${slice.color}" style="cursor:${slice.ticker?'pointer':'default'};transition:opacity .15s" ${click}
           onmouseover="this.style.opacity='.78'" onmouseout="this.style.opacity='1'">
@@ -250,7 +267,7 @@ window.App.PortfolioUI = (() => {
 
     const legEl = el(legendId);
     if (legEl) legEl.innerHTML = slices.map(s => `
-      <div class="leg-row" ${s.ticker ? `onclick="App.Portfolio.openDrawer('${s.ticker}')"` : ''} style="${!s.ticker?'cursor:default':''}">
+      <div class="leg-row" ${s.ticker ? `onclick="App.Portfolio.openDrawer('${_safeTicker(s.ticker)}')"` : ''} style="${!s.ticker?'cursor:default':''}">
         <div class="leg-left">
           <div class="leg-dot" style="background:${s.color}"></div>
           <span class="leg-ticker">${s.label}</span>
@@ -320,7 +337,7 @@ window.App.PortfolioUI = (() => {
       const nameCol = isAsset
         ? `<span style="color:${P().tickerColor(r.ticker)}">${r.ticker}</span> <span class="cls-badge ${P().CLS_CSS[r.cls]||'cb-stock'}">${r.cls}</span>`
         : `<span class="cls-badge ${P().CLS_CSS[r.cls]||'cb-stock'}">${r.cls}</span> <span style="color:var(--text2);font-size:10px;margin-left:4px">${r.count} position${r.count!==1?'s':''}</span>`;
-      const clickAttr = isAsset ? `onclick="App.Portfolio.openDrawer('${r.ticker}')"` : '';
+      const clickAttr = isAsset ? `onclick="App.Portfolio.openDrawer('${_safeTicker(r.ticker)}')"` : '';
       return `<tr ${clickAttr} style="${isAsset ? 'cursor:pointer' : ''}">
         <td>${nameCol}</td>
         <td style="color:${gc}">${P().fmtPct(r.unrealizedPct)}</td>
@@ -562,8 +579,8 @@ window.App.PortfolioUI = (() => {
             <div style="display:flex;align-items:center;gap:10px">
               <div class="pos-icon" style="background:${color}18;color:${color}">${P().tickerInitials(p.ticker)}</div>
               <div>
-                <div class="pos-name-primary">${p.companyName || P().TICKER_NAMES?.[p.ticker] || p.ticker}</div>
-                <div class="pos-ticker-secondary"><span style="font-family:var(--font-mono)">${p.ticker}</span><span class="cls-badge ${P().CLS_CSS[p.cls]||'cb-stock'}">${p.cls}</span></div>
+                <div class="pos-name-primary">${_esc(p.companyName || P().TICKER_NAMES?.[p.ticker] || p.ticker)}</div>
+                <div class="pos-ticker-secondary"><span style="font-family:var(--font-mono)">${_esc(p.ticker)}</span><span class="cls-badge ${P().CLS_CSS[p.cls]||'cb-stock'}">${_esc(p.cls)}</span></div>
               </div>
             </div>
             <div>
@@ -598,17 +615,17 @@ window.App.PortfolioUI = (() => {
         </div>
         <div class="pos-card-foot">
           <div class="pos-actions">
-            <button class="pos-btn" onclick="App.Portfolio.openDrawer('${p.ticker}')">
+            <button class="pos-btn" onclick="App.Portfolio.openDrawer('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Details
             </button>
-            ${!isLiquidated ? `<button class="pos-btn" onclick="App.PortfolioUI.openEditModal(null,'${p.ticker}')">
+            ${!isLiquidated ? `<button class="pos-btn" onclick="App.PortfolioUI.openEditModal(null,'${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>` : ''}
-            <button class="pos-btn" title="Rename ticker" onclick="App.Portfolio.renameTicker('${p.ticker}')">
+            <button class="pos-btn" title="Rename ticker" onclick="App.Portfolio.renameTicker('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="pos-btn danger" onclick="App.Portfolio.confirmDeletePos('${p.ticker}')">
+            <button class="pos-btn danger" onclick="App.Portfolio.confirmDeletePos('${_safeTicker(p.ticker)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -721,13 +738,13 @@ window.App.PortfolioUI = (() => {
         <td style="color:var(--dim)">${txs.length - i}</td>
         <td style="color:var(--text2)">${P().fmtDate(tx.date)}</td>
         <td><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${tx.notes}</div>` : ''}</td>
+        <td><span style="font-weight:800;color:${color};font-family:var(--font-ui)">${tx.ticker}</span>${tx.notes ? `<div style="font-size:9px;color:var(--dim)">${_esc(tx.notes)}</div>` : ''}</td>
         <td><span class="cls-badge ${P().CLS_CSS[cls]||'cb-stock'}">${cls}</span></td>
         <td style="color:var(--text)">${P().fmtQty(tx.qty)}</td>
         <td style="color:var(--text)">${P().fmtCompact(buyPriceD)}</td>
         <td style="color:var(--text)">${P().fmtValue(totalD)}</td>
         <td>${plHTML}</td>
-        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete transaction">
+        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${_safeTicker(tx.ticker)}',${tx.qty})" title="Delete transaction">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button></td>
       </tr>`;
@@ -931,7 +948,7 @@ window.App.PortfolioUI = (() => {
     icon.textContent = P().tickerInitials(ticker);
     icon.style.cssText = `background:${color}20;color:${color};width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:15px;font-weight:800;flex-shrink:0`;
 
-    el('drw-ticker').innerHTML = `${ticker} ${P().clsBadgeHtml(pos.cls)}`;
+    el('drw-ticker').innerHTML = `${_esc(ticker)} ${P().clsBadgeHtml(pos.cls)}`;
     el('drw-full').textContent = (P().TICKER_NAMES[ticker] || ticker) + ' · ' +
       (pos.src === 'av' ? 'Live · Alpha Vantage' : pos.src === 'yahoo' ? 'Live · Yahoo Finance' : pos.src === 'cg' ? 'Live · CoinGecko' : 'Simulated price');
 
@@ -1061,14 +1078,14 @@ window.App.PortfolioUI = (() => {
       return `<tr>
         <td><span class="lot-num" style="background:${color}22;color:${color}">${i + 1}</span></td>
         <td style="text-align:center"><span class="type-badge ${isBuy ? 'buy' : 'sell'}">${tx.type}</span></td>
-        <td style="text-align:left;color:var(--text2)">${P().fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${tx.notes}</div>` : ''}</td>
+        <td style="text-align:left;color:var(--text2)">${P().fmtDate(tx.date)}${tx.notes ? `<div style='font-size:9px;color:var(--dim)'>${_esc(tx.notes)}</div>` : ''}</td>
         <td>${P().fmtQty(tx.qty)}</td>
         <td>${P().fmtCompact(txPriceD)}</td>
         <td>${P().fmtValue(tx.qty * txPriceD)}</td>
         <td style="color:var(--amber);font-size:10px">${fees > 0 ? '−' + P().fmtValue(fees) : '—'}</td>
         <td style="color:${pnlColor}">${pnlStr}${pnlLabel ? `<div style="font-size:9px;opacity:.6">${pnlLabel}</div>` : ''}</td>
         <td style="color:${pnlColor}">${pnlPctStr}</td>
-        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${tx.ticker}',${tx.qty})" title="Delete"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
+        <td><button class="del-btn" onclick="App.Portfolio.confirmDelTx('${tx.id}','${_safeTicker(tx.ticker)}',${tx.qty})" title="Delete"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg></button></td>
       </tr>`;
     }).join('');
 
@@ -1634,6 +1651,9 @@ window.App.PortfolioUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function setupEventListeners() {
+    if (_listenersAttached) return; // FIX-13: idempotent — safe to call more than once
+    _listenersAttached = true;
+
     // Header
     el('h-refresh')?.addEventListener('click', () => P().refreshPrices(true));
     // V4/V11 fix: wire to Shell's canonical save/load so ALL modules are saved/loaded.
@@ -1641,8 +1661,7 @@ window.App.PortfolioUI = (() => {
     // Portfolio.gistLoad() only restored portfolio + ember, silently omitting habits.
     el('h-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
     el('h-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
-    el('h-signout-btn')?.addEventListener('click', () => P().signOut());
-    el('theme-toggle')?.addEventListener('click', P().toggleTheme);
+    // h-signout-btn and theme-toggle are global topbar buttons — wired by App.Shell.init()
     el('h-currency')?.addEventListener('change', function() {
       const s = window.App.State.getPortfolioData();
       s.settings.currency = this.value;
@@ -1742,10 +1761,7 @@ window.App.PortfolioUI = (() => {
     el('cd-confirm')?.addEventListener('click', P().confirmDo);
     document.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', P().confirmCancel));
 
-    // Credentials popup
-    el('cred-save-btn')?.addEventListener('click', P().saveCredentials);
-    el('lock-token')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
-    el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') P().saveCredentials(); });
+    // Credentials popup buttons are wired by App.Shell.init() — not here
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {

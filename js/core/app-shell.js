@@ -34,6 +34,51 @@ window.App.Shell = (() => {
   const _initialised = new Set();
   let _active = null;
 
+  /* ── Action registry ──────────────────────────────────────────────
+   *
+   * Modules register named actions at init time so that app-level code
+   * (Shell, Settings) can invoke module behaviour without direct coupling.
+   *
+   * Pattern:
+   *   // In module init():
+   *   App.Shell.registerAction('portfolio:exportCSV', exportPortfolioCSV);
+   *
+   *   // In settings.js or Shell:
+   *   App.Shell.runAction('portfolio:exportCSV');
+   *
+   * This replaces all window.App.Portfolio.xxx() / window.App.Habits.xxx()
+   * calls in settings.js (Rule 3 violations).
+   * ─────────────────────────────────────────────────────────────── */
+
+  const _actions = {};
+
+  /**
+   * Register a named action.  Called from each module's init().
+   * @param {string}   id  — namespaced action id, e.g. 'portfolio:exportCSV'
+   * @param {Function} fn  — the function to invoke
+   */
+  function registerAction(id, fn) {
+    if (typeof fn !== 'function') {
+      console.warn(`[Shell] registerAction: "${id}" is not a function`);
+      return;
+    }
+    _actions[id] = fn;
+  }
+
+  /**
+   * Run a registered action by id.  Fails silently with a warning if not registered.
+   * @param {string} id     — action id
+   * @param {...*}   args   — forwarded to the registered function
+   * @returns {*} return value of the action function, or undefined if not found
+   */
+  function runAction(id, ...args) {
+    if (!_actions[id]) {
+      console.warn(`[Shell] runAction: "${id}" is not registered — module may not be initialised yet`);
+      return undefined;
+    }
+    return _actions[id](...args);
+  }
+
   /* ── DOM helpers ──────────────────────────────────────────────── */
 
   function el(id) { return document.getElementById(id); }
@@ -181,12 +226,11 @@ window.App.Shell = (() => {
    * @param {string} type  - 'info' | 'success' | 'warn' | 'error'
    */
   function toast(msg, type = 'info') {
-    const container = el('toast-container') || (() => {
-      const div = Object.assign(document.createElement('div'), { id: 'toast-container' });
-      Object.assign(div.style, {
-        position: 'fixed', bottom: '24px', right: '24px', zIndex: '9999',
-        display: 'flex', flexDirection: 'column', gap: '8px',
-      });
+    // Use the pre-existing #toast-wrap from index.html (has .toast-wrap CSS).
+    // The old fallback created #toast-container with inline styles which
+    // bypassed all .toast-* CSS rules, producing unstyled / invisible toasts.
+    const container = el('toast-wrap') || (() => {
+      const div = Object.assign(document.createElement('div'), { id: 'toast-wrap', className: 'toast-wrap' });
       document.body.appendChild(div);
       return div;
     })();
@@ -220,6 +264,7 @@ window.App.Shell = (() => {
     const cdConfirm = document.getElementById('cd-confirm');
     if (cdIcon)    cdIcon.textContent    = icon || '⚠️';
     if (cdTitle)   cdTitle.textContent   = title;
+    // Reset to plain text (clears any prompt <input> left by promptAction)
     if (cdBody)    cdBody.textContent    = body;
     if (cdConfirm) cdConfirm.textContent = confirmLabel || 'Confirm';
     document.getElementById('confirm-dialog')?.classList.add('open');
@@ -227,8 +272,49 @@ window.App.Shell = (() => {
 
   /** Called when the user clicks the confirm button in the dialog. */
   function confirmDo() {
+    // If there's a prompt input in the dialog, read its value before closing
+    const input = document.querySelector('#cd-body input[data-prompt]');
+    const inputVal = input ? input.value : undefined;
     document.getElementById('confirm-dialog')?.classList.remove('open');
-    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+    if (_confirmCallback) {
+      _confirmCallback(inputVal);
+      _confirmCallback = null;
+    }
+  }
+
+  /**
+   * Prompt the user for a text value using the shared confirm dialog.
+   * FIX-11: replaces browser prompt() calls — same dialog, zero extra markup.
+   *
+   * @param {string}   title        - Dialog heading
+   * @param {string}   icon         - Emoji icon
+   * @param {string}   defaultValue - Pre-filled value in the input
+   * @param {string}   confirmLabel - Confirm button label
+   * @param {Function} onConfirm    - Called with the entered string (or '' if empty)
+   */
+  function promptAction(title, icon, defaultValue, confirmLabel, onConfirm) {
+    const cdBody = document.getElementById('cd-body');
+    // Inject a text input; sanitised default via textContent trick
+    if (cdBody) {
+      const safeDefault = String(defaultValue ?? '').replace(/"/g, '&quot;');
+      cdBody.innerHTML = `<input data-prompt type="text" value="${safeDefault}"
+        style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:1em;margin-top:4px"
+        placeholder="Enter value…">`;
+      // Focus + select so the user can type immediately
+      const inp = cdBody.querySelector('input');
+      requestAnimationFrame(() => { inp?.focus(); inp?.select(); });
+    }
+    _confirmCallback = (val) => {
+      const trimmed = (val ?? '').trim();
+      if (trimmed) onConfirm(trimmed);
+    };
+    const cdIcon    = document.getElementById('cd-icon');
+    const cdTitle   = document.getElementById('cd-title');
+    const cdConfirm = document.getElementById('cd-confirm');
+    if (cdIcon)    cdIcon.textContent    = icon || '✏️';
+    if (cdTitle)   cdTitle.textContent   = title;
+    if (cdConfirm) cdConfirm.textContent = confirmLabel || 'OK';
+    document.getElementById('confirm-dialog')?.classList.add('open');
   }
 
   /** Called when the user clicks cancel or closes the dialog. */
@@ -274,31 +360,41 @@ window.App.Shell = (() => {
     try {
       toast('Saving to Gist…', 'info');
 
-      // 1. portfolio-data.json
+      // Step 1: portfolio-data.json — must go first because it creates the Gist
+      // (POST) if id is empty and returns the new Gist ID for the steps that follow.
       const portfolioPayload = {
         portfolio: window.App.State.getPortfolioData(),
         gist:      window.App.State.getGistCredentials(),
+        // Note: gist.token is scrubbed inside savePortfolioData() before writing
       };
       const result = await window.App.Gist.savePortfolioData(portfolioPayload, token, id);
-      const gistId = result.id || id;
+      const gistId = result.id || id;   // use newly-created ID if this was a first save
 
-      // 2. ember-highlights.json
+      // Persist the new Gist ID immediately after step 1 — before steps 2/3.
+      // Previously this was deferred to after all three saves, so if ember or
+      // habits threw the newly-created Gist existed on GitHub but the app had
+      // no record of its ID, causing the next save to POST again (duplicate Gist).
+      if (!id && gistId) window.App.State.setGistCredentials({ id: gistId });
+
+      // Step 2: ember-highlights.json — uses PATCH so it coexists with portfolio-data.json
       const emberData = window.App.State.getEmberData?.() || {};
       await window.App.Gist.saveEmberData({
-        sources:    emberData.sources    || [],   // ← books
+        sources:    emberData.sources    || [],   // ← books (needed for Books tab on load)
         highlights: emberData.highlights || [],
+        quotes:     emberData.quotes     || [],   // v3.0: manually added quotes
+        bookmarks:  emberData.bookmarks  || [],   // v3.0: saved articles + videos
         settings:   window.App.State.getEmberSettings?.() || {},
         streak:     window.App.State.getEmberStreak?.()   || {},
       }, token, gistId);
 
-      // 3. habits-data.json
+      // Step 3: habits-data.json — also PATCH on the same Gist
       const habitsData = window.App.State.getHabitsData?.() || {};
       await window.App.Gist.saveHabitsData({
         habits: habitsData.habits || [],
         logs:   habitsData.logs   || [],
       }, token, gistId);
 
-      if (!id) window.App.State.setGistCredentials({ id: gistId });
+      // lastSync only written when all three files saved successfully
       window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
       toast('Saved to Gist ✓  (portfolio + ember + habits)', 'success');
     } catch (e) {
@@ -317,6 +413,96 @@ window.App.Shell = (() => {
 
   let _gistLoadInProgress = false;
 
+  /* ── Shared Gist restore logic ───────────────────────────────────
+   *
+   * Extracted from triggerGistLoad/triggerGistLoadSilent to eliminate
+   * duplication.  Both call this after fetching and (optionally) confirming.
+   * ─────────────────────────────────────────────────────────────── */
+
+  function _restoreFromGist(portfolioParsed, emberParsed, habitsParsed) {
+    // Snapshot credentials before any state overwrite.
+    // Gist files are saved with tokens scrubbed (GitHub auto-revokes them otherwise),
+    // so we must re-inject the user's live credentials after restoring state.
+    const { token: tok, id: gid } = window.App.State.getGistCredentials();
+
+    // mergeAll() deep-merges with DEFAULT_STATE so new keys get defaults and
+    // unknown keys from older/future saves are silently dropped.
+    if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
+    // Re-inject credentials that were intentionally stripped before saving.
+    window.App.State.setGistCredentials({ token: tok, id: gid });
+
+    // Restore Ember from ember-highlights.json
+    if (emberParsed) {
+      let emberHighlights = emberParsed.highlights || [];
+      let emberSources    = emberParsed.sources    || [];
+
+      // Legacy recovery: pre-v2.1 Gist saves stored only highlights, not sources.
+      // Build synthetic source stubs from the unique sourceIds found in highlights
+      // so the Books tab is not empty after load.  highlightCount is used for
+      // sorting/display; it's exact because we count in the loop below.
+      if (emberSources.length === 0 && emberHighlights.length > 0) {
+        const seenIds = new Map();
+        const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
+          '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
+          '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
+        ];
+        for (const hl of emberHighlights) {
+          if (hl.sourceId && !seenIds.has(hl.sourceId)) {
+            seenIds.set(hl.sourceId, {
+              id:             hl.sourceId,
+              title:          `Book (${hl.sourceId.slice(-6)})`,
+              author:         '',
+              format:         'kindle',
+              color:          palette[seenIds.size % palette.length],
+              importedAt:     hl.addedAt || new Date().toISOString(),
+              lastImportAt:   hl.addedAt || new Date().toISOString(),
+              highlightCount: 0,
+            });
+          }
+        }
+        for (const hl of emberHighlights) {
+          const src = seenIds.get(hl.sourceId);
+          if (src) src.highlightCount++;
+        }
+        emberSources = Array.from(seenIds.values());
+      }
+
+      const currentEmber = window.App.State.getEmberData?.() || {};
+      window.App.State.setEmberData?.({
+        ...currentEmber,
+        highlights: emberHighlights,
+        sources:    emberSources,
+        // v3.0: restore quotes and bookmarks; fall back to current local data
+        // so a pre-v3 Gist (without these fields) doesn't wipe existing local entries.
+        quotes:     emberParsed.quotes    || currentEmber.quotes    || [],
+        bookmarks:  emberParsed.bookmarks || currentEmber.bookmarks || [],
+      });
+      if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
+      if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
+    }
+
+    // Restore Habits from habits-data.json
+    if (habitsParsed) {
+      window.App.State.setHabitsData?.({
+        habits: habitsParsed.habits || [],
+        logs:   habitsParsed.logs   || [],
+      });
+    }
+
+    // Re-render all loaded modules so their UI reflects the freshly-restored state.
+    // FIX-18: use the action registry for all three modules instead of the old
+    // _initialised.delete(activeId) + switchModule(activeId) pattern.
+    // The delete+switchModule approach re-triggered init(), which re-ran
+    // seedSampleData() — a problem when the Gist portfolio is intentionally empty
+    // (new user's first save). runAction('portfolio:render') calls render() directly,
+    // which is all that's needed after _restoreFromGist() has already written state.
+    if (window.App.Ember?.render)  window.App.Ember.render();
+    if (window.App.Habits?.render) window.App.Habits.render();
+    runAction('portfolio:render');
+
+    window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+  }
+
   async function triggerGistLoad() {
     if (_gistLoadInProgress) {
       toast('Load already in progress…', 'info');
@@ -334,20 +520,22 @@ window.App.Shell = (() => {
     _gistLoadInProgress = true;
     try {
       toast('Loading from Gist…', 'info');
-      // Fetch all three files in parallel — ember/habits may not exist yet (null = skip)
-      const [portfolioParsed, emberParsed, habitsParsed] = await Promise.all([
-        window.App.Gist.loadPortfolioData(creds.token, creds.id),
-        window.App.Gist.loadEmberData(creds.token, creds.id).catch(() => null),
-        window.App.Gist.loadHabitsData(creds.token, creds.id).catch(() => null),
-      ]);
+
+      // Single fetch — all three files extracted from one API call
+      const { portfolio: portfolioParsed, ember: emberParsed, habits: habitsParsed }
+        = await window.App.Gist.loadAllFiles(creds.token, creds.id);
 
       const txCount     = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
-      const hlCount     = emberParsed?.highlights?.length || 0;
-      const habitCount  = habitsParsed?.habits?.length || 0;
+      const hlCount     = emberParsed?.highlights?.length  || 0;
+      const qtCount     = emberParsed?.quotes?.length      || 0;
+      const bmCount     = emberParsed?.bookmarks?.length   || 0;
+      const habitCount  = habitsParsed?.habits?.length     || 0;
       const detail = [
         `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
-        hlCount     ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}`   : '',
-        habitCount  ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`       : '',
+        hlCount    ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}`  : '',
+        qtCount    ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`            : '',
+        bmCount    ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`         : '',
+        habitCount ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`      : '',
       ].filter(Boolean).join(' + ');
 
       confirmAction(
@@ -355,81 +543,7 @@ window.App.Shell = (() => {
         `Replace all local data with: ${detail}. This cannot be undone.`,
         '☁️', 'Load everything',
         () => {
-          const { token: tok, id: gid } = window.App.State.getGistCredentials();
-
-          // Restore portfolio namespace
-          if (portfolioParsed.portfolio) window.App.State.mergeAll(portfolioParsed);
-          // Always restore credentials (scrubbed before saving)
-          window.App.State.setGistCredentials({ token: tok, id: gid });
-
-          // Restore Ember from ember-highlights.json
-          if (emberParsed) {
-            let emberHighlights = emberParsed.highlights || [];
-            let emberSources    = emberParsed.sources    || [];
-
-            // Legacy recovery: Gist was saved before sources were included (old bug).
-            // Reconstruct synthetic stubs from sourceIds in highlights so the Books
-            // tab is not left blank after load. A re-import will overwrite stubs.
-            if (emberSources.length === 0 && emberHighlights.length > 0) {
-              const seenIds = new Map();
-              const palette = window.App.ThemeTokens?.SPINE_PALETTE || [
-                '#E86A4A','#4AB5E8','#A8C97F','#9B7FE8','#E8A14A',
-                '#4AE8C9','#E87F9B','#7FA8E8','#5BD178','#D17FE8',
-              ];
-              for (const hl of emberHighlights) {
-                if (hl.sourceId && !seenIds.has(hl.sourceId)) {
-                  seenIds.set(hl.sourceId, {
-                    id:             hl.sourceId,
-                    title:          `Book (${hl.sourceId.slice(-6)})`,
-                    author:         '',
-                    format:         'kindle',
-                    color:          palette[seenIds.size % palette.length],
-                    importedAt:     hl.addedAt || new Date().toISOString(),
-                    lastImportAt:   hl.addedAt || new Date().toISOString(),
-                    highlightCount: 0,
-                  });
-                }
-              }
-              for (const hl of emberHighlights) {
-                const src = seenIds.get(hl.sourceId);
-                if (src) src.highlightCount++;
-              }
-              emberSources = Array.from(seenIds.values());
-            }
-
-            const currentEmber = window.App.State.getEmberData?.() || {};
-            window.App.State.setEmberData?.({
-              ...currentEmber,
-              highlights: emberHighlights,
-              sources:    emberSources,
-            });
-            if (emberParsed.settings) window.App.State.setEmberSettings?.(emberParsed.settings);
-            if (emberParsed.streak)   window.App.State.setEmberStreak?.(emberParsed.streak);
-          }
-
-          // Restore Habits from habits-data.json
-          if (habitsParsed) {
-            window.App.State.setHabitsData?.({
-              habits: habitsParsed.habits || [],
-              logs:   habitsParsed.logs   || [],
-            });
-          }
-
-          // Re-render: call each module's public render() so we do not re-run
-          // init() (which would duplicate event listeners).
-          // V14 fix: was calling App.EmberUI / App.HabitsUI directly (Shell
-          // reaching into module sub-layers). Now routes through the module's
-          // own public render() which each module added to its exports.
-          if (window.App.Ember?.render)   window.App.Ember.render();
-          if (window.App.Habits?.render)  window.App.Habits.render();
-          // Re-initialise the active pane in case it is Portfolio or another module
-          const activeId = _active;
-          if (activeId && activeId !== 'ember' && activeId !== 'habits') {
-            _initialised.delete(activeId);
-            switchModule(activeId);
-          }
-
-          window.App.State.setGistCredentials({ lastSync: new Date().toISOString() });
+          _restoreFromGist(portfolioParsed, emberParsed, habitsParsed);
           toast(`Loaded from Gist ✓ — ${detail}`, 'success');
         }
       );
@@ -440,6 +554,204 @@ window.App.Shell = (() => {
     }
   }
 
+  /* ── Gist load (silent) ──────────────────────────────────────────
+   *
+   * Same as triggerGistLoad() but skips the confirm dialog.
+   * Used by the sign-in flow: credentials are already entered by the user,
+   * so we load immediately without asking for confirmation.
+   * ─────────────────────────────────────────────────────────────── */
+
+  async function triggerGistLoadSilent() {
+    if (_gistLoadInProgress) {
+      toast('Load already in progress…', 'info');
+      return;
+    }
+    const creds = window.App.State.getGistCredentials();
+    if (!creds.token) { toast('GitHub token is required', 'error'); return; }
+    if (!creds.id)    { toast('Gist ID is required', 'error'); return; }
+
+    _gistLoadInProgress = true;
+    try {
+      toast('Signing in…', 'info');
+
+      // Single fetch — all three files extracted from one API call
+      const { portfolio: portfolioParsed, ember: emberParsed, habits: habitsParsed }
+        = await window.App.Gist.loadAllFiles(creds.token, creds.id);
+
+      _restoreFromGist(portfolioParsed, emberParsed, habitsParsed);
+
+      const txCount    = portfolioParsed.portfolio?.transactions?.length || portfolioParsed.transactions?.length || 0;
+      const hlCount    = emberParsed?.highlights?.length || 0;
+      const qtCount    = emberParsed?.quotes?.length     || 0;
+      const bmCount    = emberParsed?.bookmarks?.length  || 0;
+      const habitCount = habitsParsed?.habits?.length    || 0;
+      const detail = [
+        `${txCount} transaction${txCount !== 1 ? 's' : ''}`,
+        hlCount    ? `${hlCount} Ember highlight${hlCount !== 1 ? 's' : ''}` : '',
+        qtCount    ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`           : '',
+        bmCount    ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`        : '',
+        habitCount ? `${habitCount} habit${habitCount !== 1 ? 's' : ''}`     : '',
+      ].filter(Boolean).join(' + ');
+
+      toast(`Signed in ✓ — ${detail}`, 'success');
+    } catch (e) {
+      toast('Sign-in failed: ' + e.message, 'error');
+      throw e;
+    } finally {
+      _gistLoadInProgress = false;
+    }
+  }
+
+  /* ── Credentials / Lock screen ───────────────────────────────────
+   *
+   * App-level sign-in popup.  Owned by the Shell — not by any module.
+   * Any module that needs to gate on credentials calls
+   *   App.Shell.initLockScreen()   — show popup if no creds stored
+   *   App.Shell.openCredentialsPopup()
+   *   App.Shell.signOut()
+   * ─────────────────────────────────────────────────────────────── */
+
+  let _credCallback = null;
+
+  /**
+   * Show the credentials popup if token+id are not stored.
+   * Called once from each module that requires authentication (currently Portfolio).
+   */
+  function initLockScreen() {
+    const creds = window.App.State.getGistCredentials();
+    if (!(creds.token || '').trim() || !(creds.id || '').trim()) {
+      openCredentialsPopup(() => {});
+    }
+  }
+
+  function openCredentialsPopup(callback) {
+    _credCallback = callback;
+    const lockToken  = el('lock-token');
+    const lockGistId = el('lock-gist-id');
+    const hint       = el('cred-hint');
+    if (lockToken)   lockToken.value   = '';
+    if (lockGistId)  lockGistId.value  = '';
+    if (hint) { hint.textContent = ''; hint.style.color = 'var(--muted)'; }
+    el('cred-ov')?.classList.add('open');
+    setTimeout(() => el('lock-token')?.focus(), 80);
+  }
+
+  function saveCredentials() {
+    const token  = (el('lock-token')?.value  || '').trim();
+    const gistId = (el('lock-gist-id')?.value || '').trim();
+    const hint   = el('cred-hint');
+    if (!token)  { if (hint) { hint.textContent = 'GitHub token is required'; hint.style.color = 'var(--red)'; } return; }
+    if (!gistId) { if (hint) { hint.textContent = 'Gist ID is required';      hint.style.color = 'var(--red)'; } return; }
+
+    window.App.State.setGistCredentials({ token, id: gistId });
+    el('cred-ov')?.classList.remove('open');
+
+    // Show mode selection screen
+    showModeSelection();
+  }
+
+  /**
+   * Mode Selection Screen — appears after credentials are saved.
+   * User chooses between "User Mode" (load from Gist) or "Demo Mode" (load from /demo).
+   */
+  function showModeSelection() {
+    el('mode-ov')?.classList.add('open');
+    setTimeout(() => el('mode-user-btn')?.focus(), 80);
+  }
+
+  async function selectUserMode() {
+    el('mode-ov')?.classList.remove('open');
+
+    // Load all Gist files silently.
+    // FIX-12: removed duplicate "User mode — data loaded from Gist" toast here;
+    // triggerGistLoadSilent() already shows "Signed in ✓ — …" on success.
+    triggerGistLoadSilent().then(() => {
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    }).catch(e => {
+      toast('Sign-in failed: ' + e.message, 'error');
+    });
+  }
+
+  async function selectDemoMode() {
+    el('mode-ov')?.classList.remove('open');
+
+    // Load demo data from local /demo directory.
+    // FIX-05: use deep-merge (mergeAll / setEmberData with spread) instead of
+    // wholesale setPortfolioData() / setEmberData() so partial demo files can
+    // never wipe priceCache, fxDaily, settings, or other namespace fields that
+    // the demo JSON may simply omit.  Each branch validates the shape before writing.
+    try {
+      const portfolioRes = await fetch('./demo/portfolio-demo.json');
+      const emberRes     = await fetch('./demo/ember-highlights-demo.json');
+
+      if (portfolioRes.ok) {
+        const raw = await portfolioRes.json();
+        // Accept either a full portfolio namespace or a wrapped { portfolio: … } object
+        const portfolioData = raw.portfolio || raw;
+        if (!Array.isArray(portfolioData.transactions)) {
+          console.warn('[Shell] portfolio-demo.json missing "transactions" array — skipping portfolio demo load');
+        } else {
+          // Merge into the existing namespace so default fields survive partial demo files
+          const current = window.App.State.getPortfolioData();
+          window.App.State.setPortfolioData({ ...current, ...portfolioData });
+          console.info('[Shell] Portfolio demo data loaded');
+        }
+      } else {
+        console.warn('[Shell] Portfolio demo file not found (404)');
+      }
+
+      if (emberRes.ok) {
+        const emberData = await emberRes.json();
+        // Merge into current ember namespace so streak/settings survive partial demo files
+        const currentEmber = window.App.State.getEmberData();
+        window.App.State.setEmberData({ ...currentEmber, ...emberData });
+        console.info('[Shell] Ember demo data loaded');
+      } else {
+        console.warn('[Shell] Ember demo file not found (404)');
+      }
+
+      // Habits: Use dynamic buildSeedData() from habits-data.js
+      // (habits doesn't have a static JSON demo file)
+      const habitsSeed = window.App.Habits?.Data?.buildSeedData?.()
+                      || { habits: [], logs: [] };
+      window.App.State.setHabitsData(habitsSeed);
+      console.info('[Shell] Habits demo data generated');
+
+      // Clear credentials since we're in demo mode
+      window.App.State.clearGistCredentials();
+
+      toast('Demo mode — demo files loaded', 'info');
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    } catch (e) {
+      console.error('[Shell] Demo mode error:', e);
+      toast('Demo mode — no demo data files. Starting with empty slate.', 'info');
+      window.App.State.clearGistCredentials();
+      if (_credCallback) { _credCallback(); _credCallback = null; }
+    }
+  }
+
+  function closeCredentialsPopup() {
+    el('cred-ov')?.classList.remove('open');
+    // User closed popup without signing in
+    if (_credCallback) { _credCallback(); _credCallback = null; }
+  }
+
+  /**
+   * Sign out — clears credentials, reopens credentials popup for new sign-in or mode selection.
+   */
+  function signOut() {
+    confirmAction(
+      'Sign Out?',
+      'Your credentials will be cleared. Your GitHub Gist is untouched.',
+      '🚪', 'Sign Out',
+      () => {
+        window.App.State.clearGistCredentials();
+        openCredentialsPopup(() => {});
+        toast('Signed out', 'info');
+      }
+    );
+  }
+
   /* ── Theme application ────────────────────────────────────────── */
 
   /**
@@ -447,8 +759,8 @@ window.App.Shell = (() => {
    * Called once on startup; modules may call this again after settings change.
    */
   function applyTheme() {
-    const settings = window.App.State?.getPortfolioSettings?.() || {};
-    const theme = settings.theme || 'dark';
+    const appSettings = window.App.State?.getAppSettings?.() || {};
+    const theme = appSettings.theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   }
 
@@ -456,17 +768,14 @@ window.App.Shell = (() => {
    * Toggle between dark and light theme.
    * V3 fix: Shell now owns toggleTheme so settings.js can call App.Shell.toggleTheme()
    * instead of App.Portfolio.toggleTheme() (cross-module call).
-   * Theme storage stays in portfolio.settings.theme for now (V9 is the full migration).
+   * V9 fix: Theme storage moved from portfolio.settings.theme to app.theme namespace.
    */
   function toggleTheme() {
-    const s    = window.App.State?.getPortfolioData?.() || {};
-    const next = (s.settings?.theme || 'dark') === 'dark' ? 'light' : 'dark';
-    if (s.settings) {
-      s.settings.theme = next;
-      window.App.State.setPortfolioData(s);
-    }
+    const appSettings = window.App.State?.getAppSettings?.() || {};
+    const next = (appSettings.theme || 'dark') === 'dark' ? 'light' : 'dark';
+    window.App.State.setAppSettings({ ...appSettings, theme: next });
     applyTheme();
-    // Sync the theme-toggle icon in the Portfolio header if it is in the DOM
+    // Sync the theme-toggle icon in the header
     const sun  = document.getElementById('theme-icon-sun');
     const moon = document.getElementById('theme-icon-moon');
     if (sun)  sun.style.display  = next === 'dark'  ? '' : 'none';
@@ -494,6 +803,7 @@ window.App.Shell = (() => {
     applyTheme();
     _renderSidebar();
     _setupKeyboard();
+    _wireGlobalTopbar();
 
     // Activate default module
     switchModule(defaultModule);
@@ -501,10 +811,29 @@ window.App.Shell = (() => {
     console.info('[Shell] Ready. Active module:', defaultModule);
   }
 
+  /**
+   * Wire global topbar buttons that are outside all module panes.
+   * These live in the shared <div class="topbar"> and must be owned by Shell.
+   * Called once from init() — never from any module.
+   */
+  function _wireGlobalTopbar() {
+    el('h-signout-btn')?.addEventListener('click', () => signOut());
+    el('theme-toggle')?.addEventListener('click',  () => toggleTheme());
+    el('cred-save-btn')?.addEventListener('click', () => saveCredentials());
+    el('lock-token')?.addEventListener('keydown',   e => { if (e.key === 'Enter') saveCredentials(); });
+    el('lock-gist-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCredentials(); });
+
+    // Mode selection buttons (shown after credentials are saved)
+    el('mode-user-btn')?.addEventListener('click', () => selectUserMode());
+    el('mode-demo-btn')?.addEventListener('click', () => selectDemoMode());
+  }
+
   /* ── Exports ──────────────────────────────────────────────────── */
 
   return {
     registerModule,
+    registerAction,
+    runAction,
     switchModule,
     applyTheme,
     toggleTheme,   // V3 fix: Shell owns theme toggling; settings.js calls this instead of App.Portfolio.toggleTheme()
@@ -512,11 +841,19 @@ window.App.Shell = (() => {
     // App-level UI services — all modules should call these instead of each other
     toast,
     confirmAction,
+    promptAction,
     confirmDo,
     confirmCancel,
     // App-level Gist sync — works for every module automatically
     triggerGistSave,
     triggerGistLoad,
+    triggerGistLoadSilent,
+    // App-level credentials / lock screen — owned by Shell, not by any module
+    initLockScreen,
+    openCredentialsPopup,
+    closeCredentialsPopup,
+    saveCredentials,
+    signOut,
     /** Returns the currently active module id */
     get active() { return _active; },
   };

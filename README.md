@@ -14,7 +14,6 @@ python3 -m http.server 8080
 | Portfolio — FIFO, XIRR, CAGR, live prices, CSV import | ✅ |
 | Habits — streaks, heatmap, completion rate | ✅ |
 | Ember — Kindle highlights, spaced repetition, daily email | ✅ |
-| Finance Calculator | 🔲 planned |
 
 ## Data & Sync
 

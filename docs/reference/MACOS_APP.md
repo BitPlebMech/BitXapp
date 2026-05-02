@@ -143,7 +143,6 @@ Your web app is a modular personal finance dashboard written in vanilla JavaScri
 | **Portfolio** | FIFO lot matching, XIRR, CAGR, multi-currency, live prices, CSV import | ✅ Complete |
 | **Habits** | Streak tracking, heatmaps, completion rates | ✅ Complete |
 | **Ember** | Kindle highlight import, searchable library, daily reviews | ✅ Complete |
-| **Finance Calc** | Compound interest, SIP, loan amortization (planned) | 🔄 Stub |
 
 ### Key Technical Characteristics
 
@@ -554,7 +553,7 @@ NavigationStack {
 We will keep the same modular pattern:
 
 - **Core layer:** App state management, Gist sync, API wrappers
-- **Module layer:** Portfolio, Habits, Ember, Finance Calc
+- **Module layer:** Portfolio, Habits, Ember
 - **UI layer:** SwiftUI views per module
 
 ### Folder Structure
@@ -603,11 +602,6 @@ BiTPleB/
 │   │       ├── BooksView.swift
 │   │       └── LibraryView.swift
 │   │
-│   └── FinanceCalc/
-│       ├── Models/
-│       ├── ViewModels/
-│       └── Views/
-│
 └── Utilities/
     ├── Extensions.swift           # String, Double, Date helpers
     ├── Formatters.swift           # Number formatting
@@ -734,8 +728,7 @@ Each module will have:
 **Goal:** Complete the app
 
 1. Ember module (Kindle import, daily reviews)
-2. Finance Calculator (compound interest, SIP, loan EMI)
-3. Polish UI, add dark mode support
+2. Polish UI, add dark mode support
 4. Add CSV export functionality
 5. Test thoroughly
 

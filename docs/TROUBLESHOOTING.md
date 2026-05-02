@@ -122,6 +122,11 @@ The app couldn't fetch live EUR/USD and EUR/INR rates from `open.er-api.com`. It
 ### XIRR shows "—" for INR or USD portfolio
 The historical FX rates (needed for accurate XIRR) haven't been fetched yet. Wait for the async `fetchFX()` to complete on page load, then click Refresh.
 
+### FX rates look stale (more than a day old)
+`fetchFX()` has a 24-hour TTL cache — it skips the bulk Frankfurter fetch if data was loaded less than 24h ago. If you think rates are stale:
+1. Check `App.State.getPortfolioData().fxLastFetch` in the console (Unix ms timestamp)
+2. If it's > 24h old and rates are still not refreshing, clear the price cache in Settings — this resets `fxLastFetch` and forces a fresh fetch on next load
+
 ### Currency dropdown resets to EUR on reload
 **This was a bug fixed in Phase 1.** If you're seeing it, make sure you have the latest version of `portfolio.js` with `_syncCurrencyUI()` in `init()`.
 

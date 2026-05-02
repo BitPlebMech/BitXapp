@@ -1,6 +1,19 @@
 'use strict';
 
 /**
+ * MODULE RULES — read docs/MODULE_RULES.md before editing
+ *
+ * 1. State: read/write ONLY your own namespace via App.State.getXxxData() / setXxxData()
+ * 2. Gist:  use your own file via App.Gist.saveXxxData() — never the generic save()
+ * 3. Isolation: never call another module directly — use App.State (data) or App.Shell (UI)
+ * 4. Shell: app-level concerns (theme, toast, confirm, sign-in) belong to App.Shell
+ * 5. Actions: register callable actions with App.Shell.registerAction('mod:action', fn)
+ * 6. Render: export a public render() so Shell can re-render after Gist load
+ * 7. Save button: wire header Gist Save to App.Shell.triggerGistSave(), not module save
+ * 8. No localStorage: only js/core/state.js touches localStorage directly
+ */
+
+/**
  * ═══════════════════════════════════════════════════════════════════
  * SETTINGS MODULE  —  Unified settings for all modules
  * ═══════════════════════════════════════════════════════════════════
@@ -21,6 +34,9 @@ window.App = window.App || {};
 window.App.Settings = (() => {
 
   function el(id) { return document.getElementById(id); }
+
+  // FIX-19: store the MutationObserver so it can be disconnected if needed.
+  let _activationObserver = null;
 
   /* ── helpers ──────────────────────────────────────────────────── */
 
@@ -76,25 +92,24 @@ window.App.Settings = (() => {
   /* ── FX chips ─────────────────────────────────────────────────── */
 
   function _updateFXChips() {
-    // Mirror the FX chip rendering from portfolio module if available
-    const portfolioFX = window.App.Portfolio?.updateFXUI;
-    if (typeof portfolioFX === 'function') {
-      // Portfolio owns FX — just copy the rendered chips across
-      const src = document.getElementById('h-fx');
-      const dst = el('stg-fx-chips');
-      if (src && dst) {
-        // Show the same rates from state
-        const fxData = window.App.State.getPortfolioData()?.fxDaily || {};
-        const cur    = window.App.State.getPortfolioData()?.settings?.currency || 'EUR';
-        const pairs  = [
-          { pair: 'USD/EUR', val: fxData.USD?.[Object.keys(fxData.USD||{})[0]] },
-          { pair: 'INR/EUR', val: fxData.INR?.[Object.keys(fxData.INR||{})[0]] },
-        ];
-        dst.innerHTML = pairs.map(p =>
-          `<div class="fx-chip"><span>${p.pair}</span><span>${p.val ? (1/p.val).toFixed(4) : '—'}</span></div>`
-        ).join('');
-      }
-    }
+    const dst = el('stg-fx-chips');
+    if (!dst) return;
+    // Read FX data from state (Rule 3 — reading via App.State is allowed).
+    // fxDaily stores EUR→currency rates (e.g. fxDaily.USD['2025-04-29'] = 1.09
+    // means 1 EUR = 1.09 USD).  We read the LATEST date entry (sorted descending)
+    // and display it directly.  Previously this read the FIRST key and inverted
+    // the value (1/p.val), which showed the wrong direction and wrong number.
+    const fxData  = window.App.State.getPortfolioData()?.fxDaily || {};
+    const usdKeys = Object.keys(fxData.USD || {}).sort();
+    const inrKeys = Object.keys(fxData.INR || {}).sort();
+    const usdVal  = usdKeys.length ? fxData.USD[usdKeys.at(-1)] : null;
+    const inrVal  = inrKeys.length ? fxData.INR[inrKeys.at(-1)] : null;
+    const lastDate = usdKeys.at(-1) || '—';
+
+    dst.innerHTML = `
+      <div class="fx-chip"><span class="src">EUR → USD</span><strong>${usdVal ? (1 * usdVal).toFixed(4) + ' USD' : '—'}</strong></div>
+      <div class="fx-chip"><span class="src">EUR → INR</span><strong>${inrVal ? '₹' + (1 * inrVal).toFixed(2) : '—'}</strong></div>
+      <div class="fx-chip"><span class="src">Last ECB date</span><strong>${lastDate}</strong></div>`;
   }
 
   /* ── Ember settings section ───────────────────────────────────── */
@@ -102,11 +117,24 @@ window.App.Settings = (() => {
   function _renderEmberSettingsSection() {
     const container = el('stg-ember-settings-content');
     if (!container) return;
-    // Ask EmberUI to render its settings form into this container if available
-    if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
-      window.App.EmberUI.renderSettingsInto(container);
-    } else {
-      container.innerHTML = '<span style="color:var(--muted);font-size:12px">Ember settings load when you visit the Ember module first.</span>';
+    // Route through the Shell action registry — avoids direct EmberUI coupling (Rule 3).
+    // The 'ember:renderSettingsInto' action is registered by Ember.init() on the first
+    // visit to the Ember tab.  If it hasn't been registered yet, runAction() returns
+    // undefined and we show a helpful placeholder instead of a blank panel.
+    const result = window.App.Shell.runAction('ember:renderSettingsInto', container);
+    if (result === undefined) {
+      // Action not registered yet — Ember module hasn't been initialised.
+      // Show a click-to-load prompt instead of a blank panel.
+      container.innerHTML = `
+        <div style="padding:12px 0;display:flex;align-items:center;gap:10px">
+          <span style="color:var(--muted);font-size:12px">
+            Ember settings are available after visiting the Ember tab once.
+          </span>
+          <button class="abtn outline" style="font-size:11px;padding:3px 10px"
+            onclick="window.App.Shell.switchModule('ember');setTimeout(()=>window.App.Shell.switchModule('settings'),400)">
+            Open Ember
+          </button>
+        </div>`;
     }
   }
 
@@ -169,7 +197,7 @@ window.App.Settings = (() => {
     const hCur = document.getElementById('h-currency');
     if (hCur) hCur.value = s.settings.currency;
     // Re-render portfolio if active
-    window.App.Portfolio?.render?.();
+    window.App.Shell.runAction('portfolio:render');
     _toast('Portfolio settings saved', 'success');
   }
 
@@ -186,13 +214,9 @@ window.App.Settings = (() => {
   }
 
   function exportPortfolioCSV() {
-    // ARCH-DEBT (V7): exportPortfolioCSV() requires Portfolio's internal FIFO
-    // and FX state — it cannot be replicated here without duplicating logic.
-    // Accepted temporary coupling until an App.Shell.registerAction() pattern
-    // is implemented. Portfolio must be initialised before this button is usable.
-    if (typeof window.App.Portfolio?.exportPortfolioCSV === 'function') {
-      window.App.Portfolio.exportPortfolioCSV();
-    } else {
+    // Routes through Shell action registry — no direct Portfolio coupling (Rule 3)
+    const result = window.App.Shell.runAction('portfolio:exportCSV');
+    if (result === undefined) {
       _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
@@ -224,7 +248,7 @@ window.App.Settings = (() => {
               gistId:    current.settings.gistId,
             };
             window.App.State.setPortfolioData(merged);
-            window.App.Portfolio?.render?.();
+            window.App.Shell.runAction('portfolio:render');
             syncUI();
             _toast('Portfolio imported successfully', 'success');
           }
@@ -243,17 +267,14 @@ window.App.Settings = (() => {
     const s = window.App.State.getPortfolioData();
     s.priceCache = {};
     window.App.State.setPortfolioData(s);
-    window.App.Portfolio?.render?.();  // re-render if loaded; safe no-op if not
+    window.App.Shell.runAction('portfolio:render');  // re-render if loaded; safe no-op if not
     _toast('Price cache cleared', 'info');
   }
 
   function undoDelete() {
-    // ARCH-DEBT (V7): undoDelete() needs Portfolio's render() and toast() context.
-    // Accepted temporary coupling until an App.Shell.registerAction() pattern
-    // is implemented. Portfolio must be initialised before this button is usable.
-    if (typeof window.App.Portfolio?.undoDelete === 'function') {
-      window.App.Portfolio.undoDelete();
-    } else {
+    // Routes through Shell action registry — no direct Portfolio coupling (Rule 3)
+    const result = window.App.Shell.runAction('portfolio:undoDelete');
+    if (result === undefined) {
       _toast('Portfolio module not ready — visit Portfolio tab first', 'warn');
     }
   }
@@ -265,7 +286,12 @@ window.App.Settings = (() => {
       '⚠️', 'Reset Everything',
       () => {
         window.App.State.resetAll();
-        window.App.Portfolio?.render?.();
+        // FIX-09: re-render all modules that may be initialised so their UI
+        // reflects the cleared state, not stale pre-reset data.
+        // runAction() is a safe no-op if the module has not been visited yet.
+        window.App.Shell.runAction('portfolio:render');
+        window.App.Shell.runAction('ember:render');
+        window.App.Shell.runAction('habits:render');
         syncUI();
         _toast('All data cleared', 'info');
       }
@@ -294,19 +320,29 @@ window.App.Settings = (() => {
       try {
         const parsed = JSON.parse(e.target.result);
         const hlCount = (parsed.highlights || []).length;
+        const qtCount = (parsed.quotes    || []).length;
+        const bmCount = (parsed.bookmarks || []).length;
+        const importDetail = [
+          `${hlCount} highlight${hlCount !== 1 ? 's' : ''}`,
+          qtCount ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`    : '',
+          bmCount ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}` : '',
+        ].filter(Boolean).join(', ');
         _confirm(
           'Import Ember JSON?',
-          `Replace current Ember data with ${hlCount} highlights from file?`,
+          `Replace current Ember data with ${importDetail} from file?`,
           '📥', 'Import',
           () => {
             const current = window.App.State.getEmberData();
             const merged  = { ...current };
             if (Array.isArray(parsed.highlights)) merged.highlights = parsed.highlights;
             if (Array.isArray(parsed.sources))    merged.sources    = parsed.sources;
+            // v3.0: also restore quotes and bookmarks if present in the file
+            if (Array.isArray(parsed.quotes))     merged.quotes     = parsed.quotes;
+            if (Array.isArray(parsed.bookmarks))  merged.bookmarks  = parsed.bookmarks;
             window.App.State.setEmberData(merged);
             if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
             if (parsed.streak)   window.App.State.setEmberStreak?.(parsed.streak);
-            window.App.Ember?.render?.();
+            window.App.Shell.runAction('ember:render');
             _toast('Ember data imported successfully', 'success');
           }
         );
@@ -320,19 +356,19 @@ window.App.Settings = (() => {
   /* ── Habits section ──────────────────────────────────────────── */
 
   function exportHabitsJSON() {
-    if (typeof window.App.Habits?.exportJSON === 'function') {
-      window.App.Habits.exportJSON();
-    } else {
-      _toast('Habits module not loaded', 'error');
+    // Routes through Shell action registry — no direct Habits coupling (Rule 3)
+    const result = window.App.Shell.runAction('habits:exportJSON');
+    if (result === undefined) {
+      _toast('Habits module not loaded — visit Habits tab first', 'warn');
     }
   }
 
   function importHabitsJSON(file) {
     if (!file) return;
-    if (typeof window.App.Habits?.importJSON === 'function') {
-      window.App.Habits.importJSON(file);
-    } else {
-      _toast('Habits module not loaded', 'error');
+    // Routes through Shell action registry — no direct Habits coupling (Rule 3)
+    const result = window.App.Shell.runAction('habits:importJSON', file);
+    if (result === undefined) {
+      _toast('Habits module not loaded — visit Habits tab first', 'warn');
     }
   }
 
@@ -389,19 +425,28 @@ window.App.Settings = (() => {
   }
 
   /**
-   * Called each time the Settings module is made visible (shell lazy-init
-   * only fires once, so we hook switchModule via a MutationObserver on the
-   * active class to re-sync on every visit).
+   * Re-sync the Settings UI on every visit, not just the first.
+   *
+   * Shell's lazy-init pattern calls mod.init() exactly once (the first visit),
+   * so init() alone would leave field values stale when the user toggles away
+   * and comes back.  A MutationObserver on the 'active' CSS class fires every
+   * time the pane is shown, keeping fields fresh without any router coupling.
    */
   function _observeActivation() {
     const pane = document.getElementById('mod-settings');
     if (!pane) return;
-    const obs = new MutationObserver(() => {
+    // FIX-19: store reference so disconnect() is available for cleanup.
+    if (_activationObserver) { _activationObserver.disconnect(); _activationObserver = null; }
+    _activationObserver = new MutationObserver(() => {
       if (pane.classList.contains('active')) {
-        syncUI();                         // refresh fields + ember settings
+        syncUI();   // refresh all fields + lazy-render Ember settings section
       }
     });
-    obs.observe(pane, { attributes: true, attributeFilter: ['class'] });
+    _activationObserver.observe(pane, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  function _disconnectObserver() {
+    if (_activationObserver) { _activationObserver.disconnect(); _activationObserver = null; }
   }
 
   /* ── Register with shell ──────────────────────────────────────── */
@@ -430,6 +475,7 @@ window.App.Settings = (() => {
   return {
     init,
     syncUI,
+    disconnectObserver: _disconnectObserver, // FIX-19: allow cleanup if pane is ever unmounted
   };
 
 })();

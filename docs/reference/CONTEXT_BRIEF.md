@@ -24,7 +24,6 @@ python3 -m http.server 8080
 | Portfolio | ✅ Complete | Investment tracking — FIFO, XIRR, CAGR, multi-asset, CSV import, live prices, Gist sync |
 | Habits | ✅ Complete | Daily habit tracking — streaks, heatmap, completion rate, Gist sync |
 | Ember | ✅ Complete | Kindle highlight import — searchable library, spaced repetition, daily digest email |
-| Finance Calc | 🔲 Stub | Registered in shell, no UI yet — SIP, compound interest, loan EMI planned |
 
 ---
 
@@ -44,8 +43,7 @@ DashBoard/
 │   └── modules/
 │       ├── portfolio.css
 │       ├── habits.css
-│       ├── ember.css
-│       └── financecalc.css
+│       └── ember.css
 │
 ├── js/
 │   ├── core/
@@ -62,7 +60,6 @@ DashBoard/
 │       ├── portfolio/            ← portfolio-data · portfolio · portfolio-ui
 │       ├── habits/               ← habits-data · habits · habits-ui
 │       ├── ember/                ← ember-data · ember-ui · ember
-│       ├── financecalc/          ← calc (stub)
 │       └── settings/             ← settings
 │
 ├── tests/
@@ -98,7 +95,6 @@ Module       localStorage namespace    Gist file
 portfolio    state.portfolio           portfolio-data.json
 habits       state.habits              habits-data.json
 ember        state.ember               ember-highlights.json
-financecalc  state.financecalc         (no Gist yet)
 ```
 
 Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug caused by breaking this rule.
@@ -114,8 +110,23 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 | DOM helper | `el(id)` → `document.getElementById(id)` |
 | Toast | `App.Shell.toast(msg, 'success'|'error'|'info'|'warn')` |
 | Confirm dialog | `App.Shell.confirmAction(title, body, icon, btnLabel, fn)` |
+| Text-input prompt | `App.Shell.promptAction(title, icon, default, btnLabel, fn)` — replaces `window.prompt()` |
+| HTML-escape | `App.Utils.escHtml(str)` — always use before `innerHTML` interpolation |
 | Module shorthand | `P()` for Portfolio, `HD()` for Habits.Data |
 | No cross-module calls | Modules never call each other — only `App.State` + `App.Shell` |
+
+---
+
+## Sign-In Flow
+
+On first open (no credentials in `localStorage`), the credentials popup is shown. Two paths:
+
+- **Sign In** — enter token + Gist ID → `saveCredentials()` → `App.Shell.triggerGistLoadSilent()` loads all three Gist files (portfolio, ember, habits) silently, no confirm dialog
+- **Demo** — `enterDemoMode()` → clears credentials → portfolio seed data + habits mock data loaded; Ember stays empty (no mock data exists)
+
+## Email Automation
+
+Daily Ember highlights email is sent **only** by GitHub Actions cron (`.github/workflows/ember-email.yml`, 06:00 UTC). The browser never sends email. `checkAndSendEmail()` has been removed from `ember.js init()` to prevent duplicates when the app is opened on multiple sessions.
 
 ---
 
@@ -125,7 +136,7 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 - **XIRR** — Newton-Raphson, 7 seed points, 300 max iterations, returns `null` on no convergence
 - **Habits streak** — walks back from today (or yesterday if not checked); each loop iteration = one confirmed day
 - **Ember spaced repetition** — SM-2 variant; correct → ease factor up; wrong → reset to 1 day
-- **Ember daily review** — date-seeded shuffle (same 5 highlights all day, different each day)
+- **Ember daily review** — date-seeded LCG shuffle (same 10 highlights all day, different each day)
 
 ---
 
@@ -133,7 +144,6 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 
 | Feature | Notes |
 |---------|-------|
-| Finance Calculator | Stub registered; SIP, compound interest, loan EMI planned |
 | PDF highlight import | Ember supports Kindle only; PDF OCR planned |
 | Benchmarking | Compare portfolio vs S&P 500, Nifty, etc. |
 | Tax lot optimization | Suggest which lot to sell to minimize tax |
@@ -148,3 +158,5 @@ Read `docs/MODULE_RULES.md` before touching anything. It lists every past bug ca
 - **Modular refactor:** Split into core + per-module data/logic/UI files, storage key migrated to `super_app_v1`
 - **Phase 2:** Added Ember module, CSS split, Gist cross-module sync, spaced repetition, daily email
 - **Phase 3–6:** Core utilities (`constants`, `utils`, `formatters`, `pagination`, `filters`), 172-test Vitest suite, per-module Gist save/load buttons, Habits Gist file, books-tab Gist load fix
+- **Phase 7:** Sign-in UX overhaul (Sign In + Demo buttons, silent auto-load), email exclusively via GitHub Actions cron (duplicate email fix)
+- **Code Review Phase 1–3 (May 2026):** 20 fixes — XSS hardening (`escHtml`), duplicate Gist save path removed, `computePositions()` memoized, FX 24h TTL guard, `promptAction()` added to Shell, ember script load order corrected, `_listenersAttached` guards, single-pass `computeSummary()`, MutationObserver stored, doc sync protocol established

@@ -1,0 +1,141 @@
+{
+  "sources": [
+    {
+      "id": "src_lean_startup",
+      "title": "The Lean Startup",
+      "author": "Eric Ries",
+      "format": "kindle-txt"
+    },
+    {
+      "id": "src_thinking_fast_slow",
+      "title": "Thinking, Fast and Slow",
+      "author": "Daniel Kahneman",
+      "format": "kindle-txt"
+    },
+    {
+      "id": "src_atomic_habits",
+      "title": "Atomic Habits",
+      "author": "James Clear",
+      "format": "kindle-txt"
+    },
+    {
+      "id": "src_deep_work",
+      "title": "Deep Work",
+      "author": "Cal Newport",
+      "format": "kindle-txt"
+    }
+  ],
+  "highlights": [
+    {
+      "id": "hl_lean_001",
+      "sourceId": "src_lean_startup",
+      "text": "The only way to win is to learn faster than anyone else.",
+      "chapter": "Chapter 1: Start",
+      "location": "Loc 145",
+      "page": null,
+      "color": "yellow",
+      "addedAt": "2023-06-15T10:30:00Z",
+      "hash": "h1a2b3c4d5e"
+    },
+    {
+      "id": "hl_lean_002",
+      "sourceId": "src_lean_startup",
+      "text": "Learning and validated learning are the outcomes, not inputs.",
+      "chapter": "Chapter 2: Define",
+      "location": "Loc 287",
+      "page": null,
+      "color": "yellow",
+      "addedAt": "2023-06-15T11:15:00Z",
+      "hash": "h2b3c4d5e6f"
+    },
+    {
+      "id": "hl_thinking_001",
+      "sourceId": "src_thinking_fast_slow",
+      "text": "The mind is indeed shallow, and its resources are limited.",
+      "chapter": "Part I: Two Systems",
+      "location": "Loc 456",
+      "page": null,
+      "color": "blue",
+      "addedAt": "2023-07-20T14:45:00Z",
+      "hash": "h3c4d5e6f7g"
+    },
+    {
+      "id": "hl_thinking_002",
+      "sourceId": "src_thinking_fast_slow",
+      "text": "System 1 operates automatically and quickly, with little effort.",
+      "chapter": "Part I: Two Systems",
+      "location": "Loc 512",
+      "page": null,
+      "color": "blue",
+      "addedAt": "2023-07-20T15:10:00Z",
+      "hash": "h4d5e6f7g8h"
+    },
+    {
+      "id": "hl_atomic_001",
+      "sourceId": "src_atomic_habits",
+      "text": "You do not rise to the level of your goals. You fall to the level of your systems.",
+      "chapter": "Chapter 1: The Surprising Power of Atomic Habits",
+      "location": "Loc 198",
+      "page": null,
+      "color": "yellow",
+      "addedAt": "2023-08-10T09:20:00Z",
+      "hash": "h5e6f7g8h9i"
+    },
+    {
+      "id": "hl_atomic_002",
+      "sourceId": "src_atomic_habits",
+      "text": "Tiny changes, remarkable results.",
+      "chapter": "Chapter 1: The Surprising Power of Atomic Habits",
+      "location": "Loc 205",
+      "page": null,
+      "color": "yellow",
+      "addedAt": "2023-08-10T09:25:00Z",
+      "hash": "h6f7g8h9i0j"
+    },
+    {
+      "id": "hl_deepwork_001",
+      "sourceId": "src_deep_work",
+      "text": "Deep work is professional activity performed in a state of distraction-free concentration.",
+      "chapter": "Chapter 1: Deep Work is Valuable",
+      "location": "Loc 134",
+      "page": null,
+      "color": "orange",
+      "addedAt": "2023-09-05T16:40:00Z",
+      "hash": "h7g8h9i0j1k"
+    },
+    {
+      "id": "hl_deepwork_002",
+      "sourceId": "src_deep_work",
+      "text": "The ability to perform deep work is becoming increasingly rare at exactly the same time it is becoming increasingly valuable.",
+      "chapter": "Chapter 1: Deep Work is Valuable",
+      "location": "Loc 156",
+      "page": null,
+      "color": "orange",
+      "addedAt": "2023-09-05T17:05:00Z",
+      "hash": "h8h9i0j1k2l"
+    }
+  ],
+  "quotes": [],
+  "bookmarks": [],
+  "settings": {
+    "email": "",
+    "emails": [],
+    "emailEnabled": false,
+    "emailFrequency": "daily",
+    "emailTime": "08:00",
+    "emailJSConfig": {
+      "serviceId": "",
+      "templateId": "",
+      "publicKey": ""
+    },
+    "dailyGoal": 10,
+    "lastEmailSentDate": null
+  },
+  "streak": {
+    "currentStreak": 0,
+    "longestStreak": 0,
+    "lastReviewDate": null,
+    "totalReviewDays": 0,
+    "reviewHistory": []
+  }
+}

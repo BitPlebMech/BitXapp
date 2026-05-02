@@ -14,8 +14,9 @@
  *     portfolio: { transactions, deletedTransactions, priceCache,
  *                  tickerMeta, lastRefreshTS, fxDaily, fxLastFetch, settings },
  *     habits:    { habits, logs },
- *     financecalc: { saved, history },
- *     gist:      { token, id, lastSync }
+ *     ember:     { sources, highlights, settings, streak },
+ *     gist:      { token, id, lastSync },
+ *     app:       { theme }
  *   }
  *
  * RULES
@@ -59,15 +60,14 @@ window.App.State = (() => {
       habits: [],
       logs: [],
     },
-    financecalc: {
-      saved: [],
-      history: [],
-    },
     ember: {
       sources: [],    // [{ id, title, author, format, importedAt, highlightCount }]
       highlights: [], // [{ id, sourceId, text, chapter, location, page, color, hash, addedAt, category, srData }]
+      quotes: [],     // [{ id, type:'quote', text, url, tags, starred, addedAt }]
+      bookmarks: [],  // [{ id, type:'article'|'video', title, url, tags, status:'unread'|'done', note, addedAt }]
       settings: {
-        email: '',
+        email: '',          // legacy — kept for backward compat; migrate to emails[] on load
+        emails: [],         // v3.1: multiple recipient addresses
         emailEnabled: false,
         emailFrequency: 'daily',  // 'daily' | 'weekdays' | 'weekly'
         emailTime: '08:00',
@@ -88,6 +88,9 @@ window.App.State = (() => {
       id: '',
       lastSync: '',
     },
+    app: {
+      theme: 'dark',
+    },
   };
 
   /* ── Internal state ───────────────────────────────────────────── */
@@ -96,7 +99,12 @@ window.App.State = (() => {
 
   /* ── Private helpers ──────────────────────────────────────────── */
 
-  /** Deep-merge source into target (one level deep for nested objects). */
+  /**
+   * Recursive deep-merge: source values overwrite target values.
+   * Arrays are replaced wholesale (not concatenated) — this is intentional
+   * because arrays in our state are data collections (transactions, logs),
+   * not configuration that needs merging.
+   */
   function _deepMerge(target, source) {
     const result = { ...target };
     for (const key of Object.keys(source)) {
@@ -108,7 +116,8 @@ window.App.State = (() => {
         target[key] !== null &&
         !Array.isArray(target[key])
       ) {
-        result[key] = { ...target[key], ...source[key] };
+        // Recurse into nested objects
+        result[key] = _deepMerge(target[key], source[key]);
       } else {
         result[key] = source[key];
       }
@@ -129,14 +138,6 @@ window.App.State = (() => {
             merged[ns] = _deepMerge(DEFAULT_STATE[ns], saved[ns]);
           }
         }
-        // Extra: merge portfolio.settings deeply (it has many evolving keys)
-        if (saved.portfolio?.settings) {
-          merged.portfolio.settings = {
-            ...DEFAULT_PORTFOLIO_SETTINGS,
-            ...saved.portfolio.settings,
-          };
-        }
-
         // ── One-time migration (BUG-01 / SCALE-02) ───────────────────────────
         // Credentials were previously stored in portfolio.settings.gistToken/Id.
         // Canonical storage is now _state.gist.  If the new location is still
@@ -149,6 +150,20 @@ window.App.State = (() => {
           merged.gist.id = merged.portfolio.settings.gistId;
         }
         // ─────────────────────────────────────────────────────────────────────
+
+        // ── Theme migration (V9 fix) ────────────────────────────────────
+        // Theme was previously stored in portfolio.settings.theme.
+        // Canonical location is now _state.app.theme.
+        // FIX-08: only migrate when the saved data pre-dates the 'app' namespace
+        // (i.e. saved['app'] is absent), so we don't re-run on every load for
+        // users who legitimately have app.theme === 'dark'.
+        // The old condition `merged.app?.theme === 'dark'` was always true for
+        // dark-mode users because DEFAULT_STATE.app.theme is 'dark', causing
+        // the migration to fire on every single page load.
+        if (!saved.app && merged.portfolio?.settings?.theme) {
+          merged.app.theme = merged.portfolio.settings.theme;
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         _state = merged;
       } else {
@@ -209,18 +224,15 @@ window.App.State = (() => {
         merged[ns] = _deepMerge(DEFAULT_STATE[ns], incoming[ns]);
       }
     }
-    // Re-apply settings deep merge (many evolving keys)
-    if (incoming.portfolio?.settings) {
-      merged.portfolio.settings = {
-        ...DEFAULT_PORTFOLIO_SETTINGS,
-        ...incoming.portfolio.settings,
-      };
-    }
     _state = merged;
     _save();
   }
 
   // ─── Portfolio namespace ────────────────────────────────────────
+  //
+  // getPortfolioData() returns the LIVE reference — callers that mutate it
+  // (e.g. s.priceCache[ticker] = ...) must call setPortfolioData(s) afterwards.
+  // This avoids the overhead of deep-cloning on every read.
 
   function getPortfolioData() {
     _ensure();
@@ -266,19 +278,6 @@ window.App.State = (() => {
     _save();
   }
 
-  // ─── Finance Calc namespace ─────────────────────────────────────
-
-  function getFinanceCalcData() {
-    _ensure();
-    return _state.financecalc;
-  }
-
-  function setFinanceCalcData(calcObj) {
-    _ensure();
-    _state.financecalc = calcObj;
-    _save();
-  }
-
   // ─── Ember namespace ────────────────────────────────────────────
 
   /**
@@ -307,6 +306,15 @@ window.App.State = (() => {
     if (!_state.ember.settings.emailJSConfig) {
       _state.ember.settings.emailJSConfig = { serviceId: '', templateId: '', publicKey: '' };
     }
+    // v3.1 migration: move legacy single-email string into the emails[] array.
+    // Only runs once — after this, email is cleared and emails[] is the source of truth.
+    const s = _state.ember.settings;
+    if (!Array.isArray(s.emails)) s.emails = [];
+    if (s.email && s.emails.length === 0) {
+      s.emails = [s.email];
+      s.email  = '';   // clear legacy field; emails[] is now canonical
+      _save();
+    }
     return _state.ember.settings;
   }
 
@@ -333,17 +341,61 @@ window.App.State = (() => {
     _save();
   }
 
+  /**
+   * Returns the ember quotes array.
+   * Lazy-initialises to [] if missing (backward compat with pre-v3 saves).
+   * quotes: [{ id, type:'quote', text, url, tags, starred, addedAt }]
+   */
+  function getEmberQuotes() {
+    _ensure();
+    if (!Array.isArray(_state.ember.quotes)) {
+      _state.ember.quotes = [];
+    }
+    return _state.ember.quotes;
+  }
+
+  /** Persist the ember quotes array. */
+  function setEmberQuotes(quotesArr) {
+    _ensure();
+    _state.ember.quotes = quotesArr;
+    _save();
+  }
+
+  /**
+   * Returns the ember bookmarks array.
+   * Lazy-initialises to [] if missing (backward compat with pre-v3 saves).
+   * bookmarks: [{ id, type:'article'|'video', title, url, tags, status:'unread'|'done', note, addedAt }]
+   */
+  function getEmberBookmarks() {
+    _ensure();
+    if (!Array.isArray(_state.ember.bookmarks)) {
+      _state.ember.bookmarks = [];
+    }
+    return _state.ember.bookmarks;
+  }
+
+  /** Persist the ember bookmarks array. */
+  function setEmberBookmarks(bookmarksArr) {
+    _ensure();
+    _state.ember.bookmarks = bookmarksArr;
+    _save();
+  }
+
   // ─── Gist credential namespace ──────────────────────────────────
 
+  // getGistCredentials() returns a SHALLOW COPY (not the live ref) so callers
+  // cannot accidentally mutate stored credentials by modifying the returned object.
   function getGistCredentials() {
     _ensure();
     return { ..._state.gist };
   }
 
+  // setGistCredentials accepts a partial object — only the provided keys are updated.
+  // This lets callers write just { lastSync } without clobbering token or id.
   function setGistCredentials({ token, id, lastSync }) {
     _ensure();
-    if (token   !== undefined) _state.gist.token    = token;
-    if (id      !== undefined) _state.gist.id       = id;
+    if (token    !== undefined) _state.gist.token    = token;
+    if (id       !== undefined) _state.gist.id       = id;
     if (lastSync !== undefined) _state.gist.lastSync = lastSync;
     _save();
   }
@@ -360,6 +412,24 @@ window.App.State = (() => {
     _save();
   }
 
+  // ─── App-level settings namespace ───────────────────────────────
+  //
+  // app.theme is the canonical theme preference (P3 migration — was portfolio.settings.theme).
+  // Shell reads and writes through these accessors; no module touches app directly.
+
+  function getAppSettings() {
+    _ensure();
+    // Lazy-init guard: very old saves pre-dating P3 may lack the 'app' key entirely.
+    if (!_state.app) _state.app = { theme: 'dark' };
+    return _state.app;
+  }
+
+  function setAppSettings(appObj) {
+    _ensure();
+    _state.app = { ...appObj };
+    _save();
+  }
+
   // ─── Utility ────────────────────────────────────────────────────
 
   /**
@@ -370,9 +440,10 @@ window.App.State = (() => {
    * Callers that previously used the string return value should use .display.
    */
   function storageInfo() {
-    const raw = localStorage.getItem(STORAGE_KEY) || '';
-    const kb  = (new Blob([raw]).size / 1024).toFixed(1);
-    const pct = ((raw.length / 5120000) * 100).toFixed(1);
+    const raw   = localStorage.getItem(STORAGE_KEY) || '';
+    const bytes = new Blob([raw]).size;
+    const kb    = (bytes / 1024).toFixed(1);
+    const pct   = ((bytes / (5 * 1024 * 1024)) * 100).toFixed(1);
     return { kb, pct, display: `${kb} KB (~${pct}% of 5 MB)` };
   }
 
@@ -405,9 +476,6 @@ window.App.State = (() => {
     // Habits
     getHabitsData,
     setHabitsData,
-    // FinanceCalc
-    getFinanceCalcData,
-    setFinanceCalcData,
     // Ember
     getEmberData,
     setEmberData,
@@ -415,10 +483,17 @@ window.App.State = (() => {
     setEmberSettings,
     getEmberStreak,
     setEmberStreak,
+    getEmberQuotes,
+    setEmberQuotes,
+    getEmberBookmarks,
+    setEmberBookmarks,
     // Gist credentials
     getGistCredentials,
     setGistCredentials,
     clearGistCredentials,
+    // App-level settings
+    getAppSettings,
+    setAppSettings,
     // Utility
     storageInfo,
     resetAll,

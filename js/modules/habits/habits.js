@@ -1,6 +1,19 @@
 'use strict';
 
 /**
+ * MODULE RULES — read docs/MODULE_RULES.md before editing
+ *
+ * 1. State: read/write ONLY your own namespace via App.State.getXxxData() / setXxxData()
+ * 2. Gist:  use your own file via App.Gist.saveXxxData() — never the generic save()
+ * 3. Isolation: never call another module directly — use App.State (data) or App.Shell (UI)
+ * 4. Shell: app-level concerns (theme, toast, confirm, sign-in) belong to App.Shell
+ * 5. Actions: register callable actions with App.Shell.registerAction('mod:action', fn)
+ * 6. Render: export a public render() so Shell can re-render after Gist load
+ * 7. Save button: wire header Gist Save to App.Shell.triggerGistSave(), not module save
+ * 8. No localStorage: only js/core/state.js touches localStorage directly
+ */
+
+/**
  * ═══════════════════════════════════════════════════════════════════
  * HABITS MODULE  —  Business logic and state management
  * ═══════════════════════════════════════════════════════════════════
@@ -16,7 +29,7 @@
  * DATA FLOW (proves the full modular architecture):
  *   1. init() → App.State.getHabitsData() → seed if empty
  *   2. checkIn() → mutates habits data → App.State.setHabitsData() → re-render
- *   3. triggerGistSave() → App.Gist.save(App.State.getAll(), token, id)
+ *   3. triggerGistSave() → App.Gist.saveHabitsData(habitsData, token, id)
  *      (saves the FULL unified state, so ALL modules persist together)
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -60,17 +73,21 @@ window.App.Habits = (() => {
     const today = _today();
     const checkedToday = checked.has(today);
 
-    // Current streak: walk back from today (or yesterday if not checked today)
-    // Using a while-loop avoids off-by-one: each iteration = one confirmed day.
+    // Current streak: walk backwards one day at a time from the most recent
+    // checked-in day.  If today is checked we start at offset 0 (today); if not,
+    // we start at offset 1 (yesterday) so a user who hasn't checked in yet today
+    // does not see their streak reset to 0 mid-day.
     let current = 0;
-    let dayOffset = checkedToday ? 0 : 1;  // Start from today or yesterday
+    let dayOffset = checkedToday ? 0 : 1;
 
     while (dayOffset < 365 && checked.has(_daysAgo(dayOffset))) {
       current++;
       dayOffset++;
     }
 
-    // Longest streak: scan all dates
+    // Longest streak: scan the full sorted log history looking for unbroken
+    // consecutive-day runs.  Mid-day timestamp (T12:00:00) avoids DST ambiguity
+    // when diffing dates across clock changes.
     const allDates = [...checked].sort();
     let longest = 0, run = 0, prevDate = null;
 
@@ -81,7 +98,7 @@ window.App.Habits = (() => {
         const prev = new Date(prevDate + 'T12:00:00');
         const curr = new Date(dateStr   + 'T12:00:00');
         const diffDays = Math.round((curr - prev) / 86400000);
-        run = diffDays === 1 ? run + 1 : 1;
+        run = diffDays === 1 ? run + 1 : 1;   // consecutive → extend; gap → reset
       }
       if (run > longest) longest = run;
       prevDate = dateStr;
@@ -251,7 +268,10 @@ window.App.Habits = (() => {
     if (!creds.id)    { _toast('No Gist ID configured', 'error'); return; }
     try {
       _toast('Loading habits from Gist…', 'info');
-      const parsed = await window.App.Gist.loadHabitsData(creds.token, creds.id);
+      // WARN-02 fix: use loadAllFiles() (single HTTP request) and extract the
+      // habits file instead of calling loadHabitsData() which makes its own
+      // GET /gists/:id — avoids a redundant round-trip to the GitHub API.
+      const { habits: parsed } = await window.App.Gist.loadAllFiles(creds.token, creds.id);
       if (!parsed) { _toast('No habits-data.json found in Gist yet', 'warn'); return; }
       window.App.Shell.confirmAction(
         'Load habits from Gist?',
@@ -343,6 +363,12 @@ window.App.Habits = (() => {
     if (window.App.HabitsUI?.setupEventListeners) {
       window.App.HabitsUI.setupEventListeners();
     }
+
+    // Register Shell actions so settings.js can call these without direct coupling (Rule 3)
+    window.App.Shell.registerAction('habits:exportJSON',     exportJSON);
+    window.App.Shell.registerAction('habits:importJSON',     importJSON);
+    window.App.Shell.registerAction('habits:buildSeedData', () => HD().buildSeedData());
+    window.App.Shell.registerAction('habits:render',        _render);
 
     _render();
     console.info('[Habits] Module initialised');

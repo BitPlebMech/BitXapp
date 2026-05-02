@@ -96,7 +96,10 @@ window.App.Portfolio.Data = (() => {
 
   /* ── Helpers ──────────────────────────────────────────────────── */
 
-  /** Find the column index for a semantic field in a header row */
+  /**
+   * Find the column index for a semantic field in a header row.
+   * Returns -1 if no alias matches, same as Array.indexOf() convention.
+   */
   function _findCol(headers, field) {
     const aliases = COL_ALIASES[field] || [field];
     for (let i = 0; i < headers.length; i++) {
@@ -176,7 +179,9 @@ window.App.Portfolio.Data = (() => {
       ? ';'
       : firstLine.includes('\t') ? '\t' : ',';
 
-    // Simple CSV tokenizer (handles quoted fields)
+    // Simple RFC-4180-compatible tokenizer that handles:
+    //   • Quoted fields with embedded delimiters:  "Smith, John"
+    //   • Escaped quotes inside quoted fields:     "He said ""hello"""
     function tokenize(line) {
       const fields = [];
       let cur = '';

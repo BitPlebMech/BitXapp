@@ -11,5 +11,17 @@ tmp/
 # Logs
 npm-debug.log*
 
+# tool files
+Tools/
+
+
 # Coverage output
 coverage/
+docs/fixes/PHASE-0-OVERVIEW.md
+docs/fixes/PHASE-1-DATA-SAFETY.md
+docs/fixes/PHASE-2-GIST-EFFICIENCY.md
+docs/fixes/PHASE-3-ARCHITECTURE-CLEANUP.md
+docs/fixes/PHASE-4-MODULE-DECOUPLING.md
+docs/fixes/PHASE-5-HARDENING.md
+PROJECT_DESCRIPTION_V2.md
+docs/PROJECT_DESCRIPTION_V2.md

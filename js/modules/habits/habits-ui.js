@@ -24,6 +24,7 @@ window.App.HabitsUI = (() => {
   /* ── Add form state ───────────────────────────────────────────── */
 
   let _addFormOpen = false;
+  let _listenersAttached = false; // FIX-13: guard against double-attachment
 
   /* ═══════════════════════════════════════════════════════════════
      MASTER RENDER
@@ -292,6 +293,9 @@ window.App.HabitsUI = (() => {
      ═══════════════════════════════════════════════════════════════ */
 
   function setupEventListeners() {
+    if (_listenersAttached) return; // FIX-13: idempotent — safe to call more than once
+    _listenersAttached = true;
+
     // Keyboard shortcut: Enter in add form
     document.addEventListener('keydown', e => {
       if (e.key === 'Enter' && document.activeElement?.id === 'hab-new-name') {
@@ -300,8 +304,8 @@ window.App.HabitsUI = (() => {
     });
 
     // Habits header Gist buttons
-    document.getElementById('habits-gist-save')?.addEventListener('click', () => window.App.Habits.triggerGistSave());
-    document.getElementById('habits-gist-load')?.addEventListener('click', () => window.App.Habits.triggerGistLoad());
+    document.getElementById('habits-gist-save')?.addEventListener('click', () => window.App.Shell.triggerGistSave());
+    document.getElementById('habits-gist-load')?.addEventListener('click', () => window.App.Shell.triggerGistLoad());
   }
 
   /* ── Exports ──────────────────────────────────────────────────── */

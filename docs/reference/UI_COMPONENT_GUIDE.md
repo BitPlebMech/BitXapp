@@ -17,7 +17,6 @@
 | `css/modules/portfolio.css` | ~476 lines | Portfolio-specific: KPI grid, position cards, overview charts, analytics tables |
 | `css/modules/habits.css` | ~279 lines | Habit cards, heatmap grid, archive section |
 | `css/modules/ember.css` | ~2,016 lines | Book spines, library cards, daily review, import wizard |
-| `css/modules/financecalc.css` | 6 lines | Stub — placeholder only |
 | **JS — Core** | | |
 | `js/core/state.js` | ~365 lines | localStorage read/write, all namespaces (`super_app_v1`) |
 | `js/core/gist.js` | ~148 lines | GitHub Gist API — save and load only |
@@ -34,8 +33,6 @@
 | `js/modules/ember/ember.js` | ~360 lines | Source/highlight CRUD, daily review shuffle, Gist sync |
 | `js/modules/ember/ember-ui.js` | ~745 lines | Books tab, library tab, daily review tab, import modal |
 | `js/modules/ember/ember-data.js` | ~282 lines | Kindle TXT/HTML parsers, deduplication by hash |
-| **JS — Finance Calc** | | |
-| `js/modules/financecalc/calc.js` | ~46 lines | Stub — registered module, logic coming in Phase 2 |
 
 ---
 
@@ -60,9 +57,7 @@ The following order in `index.html` must be maintained or modules will fail:
 11. js/modules/portfolio/portfolio.js
 12. js/modules/portfolio/portfolio-ui.js
 
-13. js/modules/financecalc/calc.js
-
-14. Inline <script>: App.State.init() → App.Shell.init('portfolio')
+13. Inline <script>: App.State.init() → App.Shell.init('portfolio')
 ```
 
 ---
@@ -477,21 +472,11 @@ Step 3: Preview & confirm import
 
 ---
 
-## Finance Calculator (Stub — Phase 2)
-
-| Status | Details |
-|--------|---------|
-| Current state | Registered with App.Shell, shows placeholder pane |
-| Planned features | Compound interest, SIP returns, loan amortization |
-| Files | `js/modules/financecalc/calc.js`, `css/modules/financecalc.css` |
-
----
-
 ## Core Layer
 
 | Feature | File | Notes |
 |---------|------|-------|
-| localStorage read/write | `js/core/state.js` | Key: `super_app_v1`. Namespaces: `portfolio`, `habits`, `ember`, `financecalc`, `gist` |
+| localStorage read/write | `js/core/state.js` | Key: `super_app_v1`. Namespaces: `portfolio`, `habits`, `ember`, `gist`, `app` |
 | GitHub Gist save | `js/core/gist.js` | `App.Gist.save(payload, token, id)` → strips tokens before write |
 | GitHub Gist load | `js/core/gist.js` | `App.Gist.load(token, id)` |
 | Module registration | `js/core/app-shell.js` | `App.Shell.registerModule({id, label, icon, init})` |
@@ -548,8 +533,8 @@ The single localStorage key `super_app_v1` stores:
     sources: [{id, title, author, format, importedAt, highlightCount, spineColor}],
     highlights: [{id, sourceId, text, chapter, location, page, color, hash, addedAt}]
   },
-  financecalc: { saved: [], history: [] },
-  gist: { token: '', id: '', lastSync: '' }
+  gist: { token: '', id: '', lastSync: '' },
+  app: { theme: 'dark' }
 }
 ```
 

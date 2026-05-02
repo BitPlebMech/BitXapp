@@ -1,6 +1,19 @@
 'use strict';
 
 /**
+ * MODULE RULES — read docs/MODULE_RULES.md before editing
+ *
+ * 1. State: read/write ONLY your own namespace via App.State.getXxxData() / setXxxData()
+ * 2. Gist:  use your own file via App.Gist.saveXxxData() — never the generic save()
+ * 3. Isolation: never call another module directly — use App.State (data) or App.Shell (UI)
+ * 4. Shell: app-level concerns (theme, toast, confirm, sign-in) belong to App.Shell
+ * 5. Actions: register callable actions with App.Shell.registerAction('mod:action', fn)
+ * 6. Render: export a public render() so Shell can re-render after Gist load
+ * 7. Save button: wire header Gist Save to App.Shell.triggerGistSave(), not module save
+ * 8. No localStorage: only js/core/state.js touches localStorage directly
+ */
+
+/**
  * ═══════════════════════════════════════════════════════════════════
  * EMBER MODULE  —  Business logic & state management
  * ═══════════════════════════════════════════════════════════════════
@@ -206,12 +219,13 @@ window.App.Ember = (() => {
     // 1. Stable sort by id so order is reproducible regardless of insertion order
     const sorted = [...highlights].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-    // 2. Shuffle once with a fixed seed so the deck stays constant between days
-    //    (changes only when new highlights are imported — which is fine).
+    // 2. Deterministic Fisher-Yates shuffle using an LCG (glibc constants).
+    //    Fixed seed → same shuffle order every time → the day-window in step 3
+    //    picks a consistent slice regardless of when the page is opened.
     const FIXED_SEED = 0xD15EA5E;
     let s = FIXED_SEED >>> 0;
     for (let i = sorted.length - 1; i > 0; i--) {
-      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;  // next LCG value
       const j = s % (i + 1);
       [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
     }
@@ -279,10 +293,13 @@ window.App.Ember = (() => {
         interval = Math.round(interval * easeFactor);
       }
 
-      // Update ease factor
+      // SM-2 ease factor adjustment formula (Wozniak 1990):
+      //   EF' = EF + (0.1 − (5 − q) × (0.08 + (5 − q) × 0.02))
+      // Easy (q=5) → EF increases; Hard (q=3) → EF decreases slightly.
+      // Clamped to [1.3, 3.0] and rounded to 2 dp for stable serialisation.
       easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
       easeFactor = Math.max(1.3, Math.min(3.0, easeFactor));
-      easeFactor = Math.round(easeFactor * 100) / 100; // 2 decimal places
+      easeFactor = Math.round(easeFactor * 100) / 100;
 
       repetitions++;
     }
@@ -626,11 +643,29 @@ window.App.Ember = (() => {
    * Send the daily digest email via EmailJS.
    * @param {boolean} [isTest=false] — if true, bypasses day-dedup check
    */
+  /**
+   * Send the daily digest email to all configured recipient addresses.
+   *
+   * v3.1: supports multiple recipients via settings.emails[].
+   * Each address receives its own EmailJS send() call so that:
+   *   • Free-tier EmailJS quotas are correctly counted per send
+   *   • Recipient privacy is preserved (no CC/BCC leakage)
+   *   • A failure for one address does not block others
+   *
+   * @param {boolean} [isTest=false] — if true, bypasses day-dedup check
+   * @returns {Promise<{ sent: number, failed: number, errors: string[] }>}
+   */
   async function sendDailyEmail(isTest = false) {
     const settings = window.App.State.getEmberSettings();
     const config   = settings.emailJSConfig || {};
 
-    if (!settings.email) throw new Error('No recipient email address configured');
+    // v3.1: canonical recipient list is emails[]; fall back to legacy email string
+    const recipients = (settings.emails || []).filter(e => e && e.trim());
+    if (recipients.length === 0 && settings.email) recipients.push(settings.email);
+    if (recipients.length === 0) {
+      throw new Error('No recipient email addresses configured');
+    }
+
     if (!config.serviceId || !config.templateId || !config.publicKey) {
       throw new Error('EmailJS credentials not fully configured (Service ID, Template ID, and Public Key are required)');
     }
@@ -651,7 +686,7 @@ window.App.Ember = (() => {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    // Build per-slot plain-text variables for 10 slots.
+    // Build per-slot plain-text variables for 10 slots (shared across all sends).
     // EmailJS HTML-escapes {{variable}} content so we send plain text only —
     // the template itself provides all the HTML structure.
     const ACCENT_COLORS = [
@@ -660,8 +695,7 @@ window.App.Ember = (() => {
     ];
     const sources = getSources();
 
-    const params = {
-      to_email:         settings.email,
+    const baseParams = {
       subject:          `Ember — ${highlights.length} highlights for ${dateStr}`,
       date_string:      dateStr,
       highlights_count: String(highlights.length),
@@ -671,21 +705,46 @@ window.App.Ember = (() => {
       const hl = highlights[i - 1];
       if (hl) {
         const src = sources.find(s => s.id === hl.sourceId);
-        params[`h${i}_text`]   = hl.text   || '';
-        params[`h${i}_book`]   = src?.title  || 'Unknown Book';
-        params[`h${i}_author`] = src?.author ? ` — ${src.author}` : '';
-        params[`h${i}_color`]  = ACCENT_COLORS[(i - 1) % ACCENT_COLORS.length];
-        params[`h${i}_show`]   = 'block';
+        baseParams[`h${i}_text`]   = hl.text    || '';
+        baseParams[`h${i}_book`]   = src?.title  || 'Unknown Book';
+        baseParams[`h${i}_author`] = src?.author ? ` — ${src.author}` : '';
+        baseParams[`h${i}_color`]  = ACCENT_COLORS[(i - 1) % ACCENT_COLORS.length];
+        baseParams[`h${i}_show`]   = 'block';
       } else {
-        params[`h${i}_text`]   = '';
-        params[`h${i}_book`]   = '';
-        params[`h${i}_author`] = '';
-        params[`h${i}_color`]  = '#cccccc';
-        params[`h${i}_show`]   = 'none';
+        baseParams[`h${i}_text`]   = '';
+        baseParams[`h${i}_book`]   = '';
+        baseParams[`h${i}_author`] = '';
+        baseParams[`h${i}_color`]  = '#cccccc';
+        baseParams[`h${i}_show`]   = 'none';
       }
     }
 
-    await emailjs.send(config.serviceId, config.templateId, params);
+    // Send one email per recipient — collect results
+    let sent   = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const address of recipients) {
+      try {
+        await emailjs.send(config.serviceId, config.templateId, {
+          ...baseParams,
+          to_email: address,
+        });
+        sent++;
+      } catch (e) {
+        failed++;
+        const msg = e.message || e.text || (typeof e === 'string' ? e : JSON.stringify(e));
+        errors.push(`${address}: ${msg}`);
+        console.warn('[Ember] Email send failed for', address, e);
+      }
+    }
+
+    // If every send failed, throw so the caller shows an error
+    if (sent === 0 && failed > 0) {
+      throw new Error(errors.join('\n'));
+    }
+
+    return { sent, failed, errors };
   }
 
   /**
@@ -693,8 +752,9 @@ window.App.Ember = (() => {
    * Called from init() — fails silently on error.
    */
   async function checkAndSendEmail() {
-    const settings = window.App.State.getEmberSettings();
-    if (!settings.emailEnabled || !settings.email) return;
+    const settings    = window.App.State.getEmberSettings();
+    const hasRecipient = (settings.emails || []).some(e => e && e.trim()) || !!settings.email;
+    if (!settings.emailEnabled || !hasRecipient) return;
 
     const today    = new Date().toISOString().split('T')[0];
     // V1 fix: was localStorage.getItem('ember_last_email_sent') — a raw key outside
@@ -735,7 +795,164 @@ window.App.Ember = (() => {
     return {
       sourceCount:    d.sources.length,
       highlightCount: d.highlights.length,
+      quoteCount:     (d.quotes    || []).length,
+      bookmarkCount:  (d.bookmarks || []).length,
     };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     QUOTES  —  Manually added quotes with tag-based organisation
+     ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * Return all quotes, optionally filtered.
+   * @param {{ tag?: string, search?: string, starred?: boolean }} [filters]
+   */
+  function getQuotes(filters = {}) {
+    let quotes = window.App.State.getEmberQuotes();
+    if (filters.tag && filters.tag !== 'all') {
+      quotes = quotes.filter(q => (q.tags || []).includes(filters.tag));
+    }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      quotes = quotes.filter(qt =>
+        qt.text.toLowerCase().includes(q) ||
+        (qt.tags || []).some(t => t.toLowerCase().includes(q)),
+      );
+    }
+    if (filters.starred) {
+      quotes = quotes.filter(q => q.starred);
+    }
+    // Newest first
+    return quotes.slice().sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  }
+
+  /**
+   * Add a new quote.
+   * @param {{ text: string, tags?: string[], url?: string }} data
+   * @returns {object} the created quote
+   */
+  function addQuote({ text, tags = [], url = '' }) {
+    if (!text || !text.trim()) throw new Error('Quote text is required');
+    const quote = {
+      id:      ED().genId('qt'),
+      type:    'quote',
+      text:    text.trim(),
+      tags:    tags.map(t => t.trim()).filter(Boolean),
+      url:     url.trim() || '',
+      starred: false,
+      addedAt: new Date().toISOString(),
+    };
+    const current = window.App.State.getEmberQuotes();
+    window.App.State.setEmberQuotes([quote, ...current]);
+    return quote;
+  }
+
+  /**
+   * Delete a quote by id.
+   */
+  function deleteQuote(id) {
+    const updated = window.App.State.getEmberQuotes().filter(q => q.id !== id);
+    window.App.State.setEmberQuotes(updated);
+  }
+
+  /**
+   * Toggle the starred flag on a quote.
+   */
+  function toggleQuoteStar(id) {
+    const updated = window.App.State.getEmberQuotes().map(q =>
+      q.id === id ? { ...q, starred: !q.starred } : q,
+    );
+    window.App.State.setEmberQuotes(updated);
+  }
+
+  /**
+   * Return every unique tag across all quotes, sorted alphabetically.
+   * Used to populate the tag filter strip and autocomplete suggestions.
+   */
+  function getAllQuoteTags() {
+    const quotes = window.App.State.getEmberQuotes();
+    const seen = new Set();
+    for (const q of quotes) {
+      for (const t of (q.tags || [])) seen.add(t);
+    }
+    return [...seen].sort();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     BOOKMARKS  —  Saved articles and videos
+     ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * Return all bookmarks, optionally filtered.
+   * @param {{ type?: string, tag?: string, status?: string }} [filters]
+   */
+  function getBookmarks(filters = {}) {
+    let bms = window.App.State.getEmberBookmarks();
+    if (filters.type && filters.type !== 'all') {
+      bms = bms.filter(b => b.type === filters.type);
+    }
+    if (filters.tag && filters.tag !== 'all') {
+      bms = bms.filter(b => (b.tags || []).includes(filters.tag));
+    }
+    if (filters.status && filters.status !== 'all') {
+      bms = bms.filter(b => b.status === filters.status);
+    }
+    // Newest first
+    return bms.slice().sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  }
+
+  /**
+   * Add a new bookmark.
+   * @param {{ type: 'article'|'video', title: string, url: string, tags?: string[], note?: string }} data
+   * @returns {object} the created bookmark
+   */
+  function addBookmark({ type, title, url, tags = [], note = '' }) {
+    if (!url || !url.trim())   throw new Error('URL is required');
+    if (!title || !title.trim()) throw new Error('Title is required');
+    const bookmark = {
+      id:      ED().genId('bm'),
+      type:    type === 'video' ? 'video' : 'article',
+      title:   title.trim(),
+      url:     url.trim(),
+      tags:    tags.map(t => t.trim()).filter(Boolean),
+      note:    note.trim() || '',
+      status:  'unread',
+      addedAt: new Date().toISOString(),
+    };
+    const current = window.App.State.getEmberBookmarks();
+    window.App.State.setEmberBookmarks([bookmark, ...current]);
+    return bookmark;
+  }
+
+  /**
+   * Delete a bookmark by id.
+   */
+  function deleteBookmark(id) {
+    const updated = window.App.State.getEmberBookmarks().filter(b => b.id !== id);
+    window.App.State.setEmberBookmarks(updated);
+  }
+
+  /**
+   * Toggle bookmark status between 'unread' and 'done'.
+   */
+  function toggleBookmarkStatus(id) {
+    const updated = window.App.State.getEmberBookmarks().map(b =>
+      b.id === id ? { ...b, status: b.status === 'done' ? 'unread' : 'done' } : b,
+    );
+    window.App.State.setEmberBookmarks(updated);
+  }
+
+  /**
+   * Return every unique tag across all bookmarks, sorted alphabetically.
+   */
+  function getAllBookmarkTags() {
+    const bms = window.App.State.getEmberBookmarks();
+    const seen = new Set();
+    for (const b of bms) {
+      for (const t of (b.tags || [])) seen.add(t);
+    }
+    return [...seen].sort();
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -761,8 +978,10 @@ window.App.Ember = (() => {
     try {
       const d        = _data();
       const emberData = {
-        sources:    d.sources,             // ← books
+        sources:    d.sources,              // ← books
         highlights: d.highlights,
+        quotes:     d.quotes    || [],      // v3.0: manually added quotes
+        bookmarks:  d.bookmarks || [],      // v3.0: saved articles + videos
         settings:   window.App.State.getEmberSettings(),
         streak:     window.App.State.getEmberStreak(),
       };
@@ -809,7 +1028,10 @@ window.App.Ember = (() => {
     if (!creds.id)    { _toast('No Gist ID configured', 'error'); return; }
     try {
       _toast('Loading Ember data from Gist…', 'info');
-      const parsed = await window.App.Gist.loadEmberData(creds.token, creds.id);
+      // WARN-02 fix: use loadAllFiles() (single HTTP request) and extract the
+      // ember file instead of calling loadEmberData() which makes its own
+      // GET /gists/:id — avoids a redundant round-trip to the GitHub API.
+      const { ember: parsed } = await window.App.Gist.loadAllFiles(creds.token, creds.id);
       if (!parsed) { _toast('No ember-highlights.json found in Gist yet', 'warn'); return; }
 
       const highlights = parsed.highlights || [];
@@ -845,20 +1067,33 @@ window.App.Ember = (() => {
 
       const srcCount = sources.length;
       const hlCount  = highlights.length;
+      const qtCount  = (parsed.quotes    || []).length;
+      const bmCount  = (parsed.bookmarks || []).length;
+
+      const detail = [
+        `${srcCount} book${srcCount !== 1 ? 's' : ''}`,
+        `${hlCount} highlight${hlCount !== 1 ? 's' : ''}`,
+        qtCount ? `${qtCount} quote${qtCount !== 1 ? 's' : ''}`       : '',
+        bmCount ? `${bmCount} bookmark${bmCount !== 1 ? 's' : ''}`    : '',
+      ].filter(Boolean).join(', ');
 
       window.App.Shell.confirmAction(
         'Load Ember data from Gist?',
-        `Replace local Ember data with ${srcCount} book${srcCount !== 1 ? 's' : ''} and ${hlCount} highlight${hlCount !== 1 ? 's' : ''} from Gist. This cannot be undone.`,
+        `Replace local Ember data with ${detail} from Gist. This cannot be undone.`,
         '☁️', 'Load',
         () => {
           const d = _data();
           d.highlights = highlights;
           d.sources    = sources;
+          // v3.0: restore quotes and bookmarks; fall back to existing local
+          // data so a pre-v3 Gist file doesn't wipe entries added locally.
+          d.quotes    = parsed.quotes    || d.quotes    || [];
+          d.bookmarks = parsed.bookmarks || d.bookmarks || [];
           _save(d);
           if (parsed.settings) window.App.State.setEmberSettings(parsed.settings);
           if (parsed.streak)   window.App.State.setEmberStreak(parsed.streak);
           window.App.EmberUI.render();
-          _toast(`Ember loaded ✓ — ${srcCount} book${srcCount !== 1 ? 's' : ''}, ${hlCount} highlight${hlCount !== 1 ? 's' : ''}`, 'success');
+          _toast(`Ember loaded ✓ — ${detail}`, 'success');
         }
       );
     } catch (e) {
@@ -886,6 +1121,8 @@ window.App.Ember = (() => {
     const d = _data();
     if (!d.sources)    d.sources    = [];
     if (!d.highlights) d.highlights = [];
+    if (!d.quotes)     d.quotes     = [];
+    if (!d.bookmarks)  d.bookmarks  = [];
 
     // Migration: assign spine colours to any sources that pre-date this feature
     let dirty = false;
@@ -914,10 +1151,24 @@ window.App.Ember = (() => {
     window.App.State.getEmberStreak();
     window.App.State.getEmberSettings();
 
+    // Register Shell actions so settings.js and Shell can invoke Ember behaviour
+    // without direct coupling (Rule 3).
+    window.App.Shell.registerAction('ember:render', () => window.App.EmberUI?.render?.());
+    window.App.Shell.registerAction('ember:openQuoteDrawer',    () => window.App.EmberUI?.openAddDrawer?.('quote'));
+    window.App.Shell.registerAction('ember:openBookmarkDrawer', () => window.App.EmberUI?.openAddDrawer?.('article'));
+    window.App.Shell.registerAction('ember:renderSettingsInto', (container) => {
+      if (typeof window.App.EmberUI?.renderSettingsInto === 'function') {
+        window.App.EmberUI.renderSettingsInto(container);
+        return true; // signal to settings.js that render succeeded (non-undefined)
+      }
+    });
+
     window.App.EmberUI.init();
 
-    // Check and send automated email (async, fire-and-forget)
-    checkAndSendEmail().catch(() => {});
+    // NOTE: Automated daily email is handled exclusively by the GitHub Actions
+    // cron in .github/workflows/ember-email.yml.
+    // The browser-based checkAndSendEmail() has been removed to prevent
+    // duplicate emails when the app is opened multiple times in a day.
   }
 
   /* ── Register with App.Shell ──────────────────────────────────── */
@@ -958,6 +1209,18 @@ window.App.Ember = (() => {
     sendDailyEmail,
     // Stats
     getStats,
+    // Quotes
+    getQuotes,
+    addQuote,
+    deleteQuote,
+    toggleQuoteStar,
+    getAllQuoteTags,
+    // Bookmarks
+    getBookmarks,
+    addBookmark,
+    deleteBookmark,
+    toggleBookmarkStatus,
+    getAllBookmarkTags,
     // Gist
     triggerGistSave,
     triggerGistLoad,
